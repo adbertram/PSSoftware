@@ -745,9 +745,10 @@ function Uninstall-WindowsInstallerPackage($ProductName,$RunMsizap,$MsizapFilePa
 	}
 }
 
-function Uninstall-InstallShieldPackage([string[]]$ProductName, $IssFilePath, $SetupFilePath) {
+function Uninstall-InstallShieldPackage([string[]]$ProductName, $IssFilePath, $SetupFilePath, $InstallshieldLogFilePath) {
 	try {
 		foreach ($Product in $ProductName) {
+			Write-Log -Message "Beginning uninstall for Installshield product '$ProductName'"
 			## Find the uninstall string to find the cached setup.exe
 			$Products = Get-InstalledSoftware $Product
 			## If multiple products are found, remove them all
@@ -774,8 +775,13 @@ function Uninstall-InstallShieldPackage([string[]]$ProductName, $IssFilePath, $S
 					}
 				}
 				## Run the setup.exe passing the ISS file to uninstall
-				Write-Log -Message "Running the install syntax `"$InstallerFilePath`" /s /f1`"$IssFilePath`" /f2`"$script:LogFilePath`""
-				$Process = Start-Process "`"$InstallerFilePath`"" -ArgumentList "/s /f1`"$IssFilePath`" /f2`"$script:LogFilePath`"" -Wait -NoNewWindow -PassThru
+				if ($InstallshieldLogFilePath) {
+					$MyLogFilePath = $InstallshieldLogFilePath
+				} else {
+					$MyLogFilePath = $script:LogFilePath
+				}
+				Write-Log -Message "Running the install syntax `"$InstallerFilePath`" /s /f1`"$IssFilePath`" /f2`"$MyLogFilePath`""
+				$Process = Start-Process "`"$InstallerFilePath`"" -ArgumentList "/s /f1`"$IssFilePath`" /f2`"$MyLogFilePath`"" -Wait -NoNewWindow -PassThru
 				$x = Check-Process $Process
 				if (!(Validate-IsSoftwareInstalled $Title)) {
 					Write-Log -Message "The product $Title was successfully removed!"
@@ -1241,6 +1247,9 @@ function Remove-Software {
 	.PARAMETER LogFilePath
 		The file path where the msiexec uninstall log will be created.  This defaults to the name of the product being
 		uninstalled in the system temp directory
+	.PARAMETER InstallshieldLogFilePath
+		The file path where the Installshield log will be created.  This defaults to the name of the product being
+		uninstalled in the system temp directory
 	.PARAMETER Shortcut
 		Use this option to specify a hash table of search types and search values to match in all LNK and URL files in all 
 		files/folders in all user profiles and have them removed. If the RemoveFolder param is specified, this will inherently be
@@ -1281,6 +1290,8 @@ function Remove-Software {
 		[string]$MsiExecSwitches,
 		[Parameter()]
 		[string]$LogFilePath,
+		[Parameter(ParameterSetName = 'ISS')]
+		[string]$InstallshieldLogFilePath,
 		[Parameter()]
 		[string[]]$RemoveFolder,
 		[Parameter()]
@@ -1371,7 +1382,16 @@ function Remove-Software {
 								Write-Log -Message "ISS file at $IssFilePath is not valid for the GUID $($InstalledProduct.SoftwareCode)" -LogLevel '2'
 								continue
 							} else {
-								Uninstall-InstallShieldPackage -IssFilePath $IssFilePath -ProductName $Title -SetupFilePath $InstallShieldSetupFilePath
+								Write-Log -Message "ISS file at $IssFilePath is valid for the GUID $($InstalledProduct.SoftwareCode)"
+								$Params = @{
+									'IssFilePath' = $IssFilePath;
+									'ProductName' = $Title;
+									'SetupFilePath' = $InstallShieldSetupFilePath
+								}
+								if ($InstallshieldLogFilePath) {
+									$Params.InstallshieldLogFilePath = $InstallshieldLogFilePath
+								}
+								Uninstall-InstallShieldPackage @Params
 							}
 						} elseif ($InstallerType -eq 'Windows Installer') {
 							Write-Log -Message 'Installer detected to be Windows Installer. Initiating Windows Installer package removal...'
@@ -1380,7 +1400,7 @@ function Remove-Software {
 						if (!(Validate-IsSoftwareInstalled $Title)) {
 							Write-Log -Message "Successfully removed $Title!"
 						} else {
-							Write-Log -Message "$Title not uninstalled via traditional uninstall" -LogLevel '2'
+							Write-Log -Message "$Title was not uninstalled via traditional uninstall" -LogLevel '2'
 							if ($RunMsizap.IsPresent) {
 								Write-Log -Message "Attempting Msizap..."
 								Uninstall-ViaMsizap -Guid $InstalledProduct.SoftwareCode -MsizapFilePath $MsizapFilePath -Params $MsiZapParams
