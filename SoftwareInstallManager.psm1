@@ -774,8 +774,8 @@ function Uninstall-InstallShieldPackage([string[]]$ProductName, $IssFilePath, $S
 					}
 				}
 				## Run the setup.exe passing the ISS file to uninstall
-				Write-Log -Message "Running the install syntax $InstallerFilePath /s /f1$IssFilePath /f2$script:LogFilePath"
-				$Process = Start-Process $InstallerFilePath -ArgumentList "/s /f1$IssFilePath /f2$script:LogFilePath" -Wait -NoNewWindow -PassThru
+				Write-Log -Message "Running the install syntax `"$InstallerFilePath`" /s /f1`"$IssFilePath`" /f2`"$script:LogFilePath`""
+				$Process = Start-Process "`"$InstallerFilePath`"" -ArgumentList "/s /f1`"$IssFilePath`" /f2`"$script:LogFilePath`"" -Wait -NoNewWindow -PassThru
 				$x = Check-Process $Process
 				if (!(Validate-IsSoftwareInstalled $Title)) {
 					Write-Log -Message "The product $Title was successfully removed!"
