@@ -994,10 +994,8 @@ function Get-InstalledSoftware {
 				$WhereQuery += ' WHERE'
 				$BuiltQueryParams = { @() }.Invoke()
 				foreach ($Param in $QueryParams) {
-					## Allow asterisks in cmdlet but WQL requires percentage
-					$ParamValue = $Param.Value | foreach { $_.Replace('*', '%') }
-					## Escape any backslashes
-					$ParamValue = $Param.Value.Replace('\','\\')
+					## Allow asterisks in cmdlet but WQL requires percentage and double backslashes
+					$ParamValue = $Param.Value | foreach { $_.Replace('*', '%').Replace('\','\\') }
 					$Operator = @{ $true = 'LIKE'; $false = '=' }[$ParamValue -match '\%']
 					$BuiltQueryParams.Add("$($QueryBuild[$Param.Key]) $Operator '$($ParamValue)'")
 				}
