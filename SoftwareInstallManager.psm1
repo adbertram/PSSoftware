@@ -964,6 +964,8 @@ function Get-InstalledSoftware {
 		This example retrieves all software installed on the local computer
 	.PARAMETER Name
 		The software title you'd like to limit the query to.  Wildcards are permitted.
+	.PARAMETER Guid
+		The software GUID you'e like to limit the query to. No wildcards.
 	.PARAMETER Publisher
 		The software publisher you'd like to limit the query to. Wildcards are permitted.
 	.PARAMETER Version
@@ -971,18 +973,15 @@ function Get-InstalledSoftware {
 	.PARAMETER Computername
 		The computer you'd like to query.  It defaults to the local machine if no computer specified. 
 		Multiple computer names are allowed.
-	.PARAMETER Method
-		This is the place where we look for the installed software.  You have the option of choosing SCCMClient or
-		UninstallRegKey here.  This defaults to using the SMS_InstalledSoftware WMI class with the SCCMClient.
 	#>
 	[CmdletBinding()]
 	param (
 		[string]$Name,
 		[string]$Publisher,
 		[string]$Version,
-		[string[]]$Computername = 'localhost',
-		[ValidateSet('SCCMClient','UninstallRegKey')]	
-		[string]$Method = 'SCCMClient'
+		[ValidatePattern('\b[A-F0-9]{8}(?:-[A-F0-9]{4}){3}-[A-F0-9]{12}\b')]
+		[string]$Guid,
+		[string[]]$Computername = 'localhost'
 	)
 	begin {
 		Write-Verbose "Initiating the $($MyInvocation.MyCommand.Name) function...";
@@ -994,6 +993,7 @@ function Get-InstalledSoftware {
 				'Name' = 'ProductName';
 				'Publisher' = 'Publisher';
 				'Version' = 'ProductVersion';
+				'Guid' = 'SoftwareCode'
 			}
 			$QueryParams = $PSBoundParameters.GetEnumerator() | where { $QueryBuild.ContainsKey($_.Key) }
 			if ($QueryParams) {
