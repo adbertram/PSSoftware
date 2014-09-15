@@ -45,6 +45,10 @@
 ===========================================================================
 #>
 
+function Get-OperatingSystem {
+	(Get-WmiObject -Query "SELECT Caption,CSDVersion FROM Win32_OperatingSystem").Caption
+}
+
 ## When SoftwareInstallManager module is imported, it requires other modules
 ## to use some functions.
 ## TODO: This needs to point to a single parent directory and import all
@@ -53,7 +57,7 @@ $ChildModulesPath = '\\configmanager\deploymentmodules'
 if (!(Test-Path "$ChildModulesPath\MSI")) {
 	Write-Log -Message "Required MSI module is not available" -LogLevel '3'
 	exit
-} else {
+} elseif ((Get-OperatingSystem) -notmatch 'XP') {
 	Import-Module "$ChildModulesPath\MSI"
 }
 
@@ -104,13 +108,13 @@ function Write-Log {
 		## Record the line to the log file if it's declared.  If not, just write to Verbose stream
 		## This is helpful when using these functions interactively when you don't preface a function
 		## with a Write-Log entry with Start-Log to create the $ScriptLogFilePath variable
-		if ($ScriptLogFilePath) {
+		if (Test-Path variable:\ScriptLogFilePath) {
 			Add-Content -Value $Line -Path $ScriptLogFilePath
 		} else {
 			Write-Verbose $Line	
 		}
 	} catch {
-		Write-Log -Message $_.Exception.Message -LogLevel '3'
+		Write-Error $_.Exception.Message
 	}
 }
 
@@ -148,7 +152,7 @@ function Start-Log {
 		## calls in this session
 		$global:ScriptLogFilePath = $FilePath
 	} catch {
-		Write-Log -Message $_.Exception.Message -LogLevel '3'
+		Write-Error $_.Exception.Message
 	}
 }
 
@@ -170,10 +174,6 @@ function Validate-IsIssFileValid($IssFilePath, $Guid) {
 	} else {
 		$false	
 	}
-}
-
-function Get-OperatingSystem {
-	(Get-WmiObject -Query "SELECT Caption,CSDVersion FROM Win32_OperatingSystem").Caption
 }
 
 function Get-RootUserProfileFolderPath {
@@ -209,7 +209,7 @@ function Get-32BitProgramFilesPath {
 }
 
 function Get-InstallLocation ($ProductName) {
-	Write-Debug "Initiating the $($MyInvocation.MyCommand.Name) function...";
+	Write-Verbose "Initiating the $($MyInvocation.MyCommand.Name) function...";
 	Write-Log -Message "Checking WMI for install location for $ProductName..."
 	$SoftwareInstance = Get-InstalledSoftware -Name $Productname
 	if ($SoftwareInstance.InstalledLocation) {
@@ -269,10 +269,10 @@ function Import-Certificate {
 	[CmdletBinding()]
 	[OutputType()]
 	param (
-		[Parameter(Mandatory)]
+		[Parameter(Mandatory=$true)]
 		[ValidateSet('CurrentUser', 'LocalMachine')]
 		[string]$Location,
-		[Parameter(Mandatory)]
+		[Parameter(Mandatory=$true)]
 		[ValidateScript({
 			if ($Location -eq 'CurrentUser') {
 				(Get-ChildItem Cert:\CurrentUser | select -ExpandProperty name) -contains $_
@@ -281,7 +281,7 @@ function Import-Certificate {
 			}
 		})]
 		[string]$StoreName,
-		[Parameter(Mandatory)]
+		[Parameter(Mandatory=$true)]
 		[ValidateScript({ Test-Path $_ -PathType Leaf })]
 		[string]$FilePath
 	)
@@ -403,7 +403,7 @@ function Set-RegistryValueForAllUsers {
 	#>
 	[CmdletBinding()]
 	param (
-		[Parameter(Mandatory)]
+		[Parameter(Mandatory=$true)]
 		[hashtable[]]$RegistryInstance
 	)
 	try {
@@ -480,7 +480,7 @@ function Get-RegistryValueForAllUsers {
 	#>
 	[CmdletBinding()]
 	param (
-		[Parameter(Mandatory)]
+		[Parameter(Mandatory=$true)]
 		[hashtable[]]$RegistryInstance
 	)
 	try {
@@ -552,9 +552,6 @@ function Check-Error($MyError, $SuccessString) {
 }
 
 function Check-Process ([System.Diagnostics.Process]$Process) {
-	while (!$Process.HasExited) {
-		sleep 1
-	}
 	if ($Process.ExitCode -ne 0) {
 		Write-Log -Message "Process ID $($Process.Id) failed. Return value was $($Process.ExitCode)" -LogLevel '2'
 		$false
@@ -571,7 +568,7 @@ function Convert-ToUncPath($LocalFilePath, $Computername) {
 }
 
 function Import-RegistryFile {
-	[CmdletBinding(SupportsShouldProcess)]
+	[CmdletBinding(SupportsShouldProcess=$true)]
 	[OutputType()]
 	param (
 		[Parameter()]
@@ -606,7 +603,7 @@ function Import-RegistryFileForAllUsers {
 	.PARAMETER FilePath
 	 	
 	#>
-	[CmdletBinding(SupportsShouldProcess)]
+	[CmdletBinding(SupportsShouldProcess=$true)]
 	[OutputType()]
 	param (
 		[Parameter()]
@@ -673,8 +670,8 @@ function Import-RegistryFileForAllUsers {
 	}
 	end {
 		## Clean up all temporary files created
-		#Remove-Item -Path $LoggedOnUserTempRegFilePath -ea 'SilentlyContinue'
-		#Remove-Item -Path $PerUserTempRegFile -ea 'SilentlyContinue'
+		Remove-Item -Path $LoggedOnUserTempRegFilePath -ea 'SilentlyContinue'
+		Remove-Item -Path $PerUserTempRegFile -ea 'SilentlyContinue'
 	}
 }
 
@@ -982,7 +979,7 @@ function Get-InstalledSoftware {
 		[string]$Method = 'SCCMClient'
 	)
 	begin {
-		Write-Debug "Initiating the $($MyInvocation.MyCommand.Name) function...";
+		Write-Verbose "Initiating the $($MyInvocation.MyCommand.Name) function...";
 		$WhereQuery = "SELECT * FROM SMS_InstalledSoftware"
 		
 		if ($PSBoundParameters.Count -ne 0) {
@@ -999,13 +996,15 @@ function Get-InstalledSoftware {
 				foreach ($Param in $QueryParams) {
 					## Allow asterisks in cmdlet but WQL requires percentage
 					$ParamValue = $Param.Value | foreach { $_.Replace('*', '%') }
+					## Escape any backslashes
+					$ParamValue = $Param.Value.Replace('\','\\')
 					$Operator = @{ $true = 'LIKE'; $false = '=' }[$ParamValue -match '\%']
 					$BuiltQueryParams.Add("$($QueryBuild[$Param.Key]) $Operator '$($ParamValue)'")
 				}
 			}
 		}
 		$WhereQuery = "$WhereQuery $($BuiltQueryParams -join ' AND ')"
-		Write-Debug "Using WMI query $WhereQuery..."
+		Write-Verbose "Using WMI query $WhereQuery..."
 		
 		$Params = @{
 			'Namespace' = 'root\cimv2\sms';
@@ -1032,11 +1031,11 @@ function New-ValidationDynamicParam {
 	[CmdletBinding()]
 	[OutputType('System.Management.Automation.RuntimeDefinedParameter')]
 	param (
-		[Parameter(Mandatory)]
+		[Parameter(Mandatory=$true)]
 		[ValidateNotNullOrEmpty()]
 		[string]$Name,
 		[ValidateNotNullOrEmpty()]
-		[Parameter(Mandatory)]
+		[Parameter(Mandatory=$true)]
 		[array]$ValidateSetOptions,
 		[Parameter()]
 		[switch]$Mandatory = $false,
@@ -1063,20 +1062,19 @@ function New-ValidationDynamicParam {
 
 function Set-MyFileSystemAcl {
 	[CmdletBinding()]
-	[OutputType()]
 	param (
-		[Parameter(Mandatory)]
+		[Parameter(Mandatory=$true)]
 		[ValidateScript({ Test-Path -Path $_ })]
 		[string]$Path,
-		[Parameter(Mandatory)]
+		[Parameter(Mandatory=$true)]
 		[string]$Identity,
-		[Parameter(Mandatory)]
+		[Parameter(Mandatory=$true)]
 		[string]$Right,
-		[Parameter(Mandatory)]
+		[Parameter(Mandatory=$true)]
 		[string]$InheritanceFlags,
-		[Parameter(Mandatory)]
+		[Parameter(Mandatory=$true)]
 		[string]$PropagationFlags,
-		[Parameter(Mandatory)]
+		[Parameter(Mandatory=$true)]
 		[string]$Type
 	)
 	
@@ -1110,7 +1108,7 @@ function Convert-GuidToCompressedGuid {
 	[CmdletBinding()]
 	[OutputType()]
 	param (
-		[Parameter(ValueFromPipeline, ValueFromPipelineByPropertyName, Mandatory)]
+		[Parameter(ValueFromPipeline=$true, ValueFromPipelineByPropertyName=$true, Mandatory=$true)]
 		[string]$Guid
 	)
 	begin {
@@ -1160,7 +1158,7 @@ function Convert-CompressedGuidToGuid {
 	[CmdletBinding()]
 	[OutputType([System.String])]
 	param (
-		[Parameter(ValueFromPipeline, ValueFromPipelineByPropertyName, Mandatory)]
+		[Parameter(ValueFromPipeline=$true, ValueFromPipelineByPropertyName=$true, Mandatory=$true)]
 		[ValidatePattern('^[0-9a-fA-F]{32}$')]
 		[string]$CompressedGuid
 	)
@@ -1442,7 +1440,7 @@ function Remove-ItemFromAllUserProfiles {
 	#>
 	[CmdletBinding()]
 	param (
-		[Parameter(Mandatory)]
+		[Parameter(Mandatory=$true)]
 		[ValidateNotNullOrEmpty()]
 		[string[]]$Path
 	)
@@ -1593,16 +1591,16 @@ function New-Shortcut {
 	[CmdletBinding(DefaultParameterSetName = 'CommonLocation')]
 	param (
 		[Parameter(ParameterSetName = 'CustomLocation',
-			Mandatory)]	
+			Mandatory=$true)]	
 		[ValidateScript({ Test-Path $_ -PathType 'Container' })]
 		[string]$FolderPath,
 		[Parameter(ParameterSetName = 'CommonLocation',
-			Mandatory)]
+			Mandatory=$true)]
 		[ValidateSet('AllUsersDesktop')]
 		[string]$CommonLocation,
-		[Parameter(Mandatory)]
+		[Parameter(Mandatory=$true)]
 		[string]$Name,
-		[Parameter(Mandatory)]
+		[Parameter(Mandatory=$true)]
 		[ValidateScript({ Test-Path $_ -PathType 'Leaf'})]
 		[string]$TargetFilePath,
 		[Parameter()]
@@ -1879,11 +1877,10 @@ function Install-Software {
 			
 			Write-Log -Message "Starting the command line process `"$($ProcessParams['FilePath'])`" $($ProcessParams['ArgumentList'])..."
 			$Process = Start-Process @ProcessParams
-			if ($Process.ExitCode -ne 0) {
-				throw "$($ProcessParams['FilePath']) process ID $($Process.Id) failed. Return value was $($Process.ExitCode)"
-			} else {
-				Write-Log -Message "Successfully executed $($ProcessParams['FilePath']) process ID $($Process.Id)."
+			while (!$Process.HasExited) {
+				sleep 1
 			}
+			Check-Process $Process
 		} catch {
 			Write-Log -Message $_.Exception.Message -LogLevel '3'
 		}
