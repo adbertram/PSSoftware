@@ -805,6 +805,12 @@ function Uninstall-InstallShieldPackage([string[]]$ProductName, $IssFilePath, $S
 	}
 }
 
+function Wait-PowershellChildProcess {
+	$PoshChildProcesses = Get-WmiObject -Class Win32_Process -Filter "(ParentProcessId = $pid) AND (Name <> 'conhost.exe')"
+	$Ids = $PoshChildProcesses | foreach { $_.ProcessId }
+	Wait-Process -Id $Ids
+}
+
 function Get-SystemTempFilePath {
 	[environment]::GetEnvironmentVariable('TEMP', 'Machine')
 }
