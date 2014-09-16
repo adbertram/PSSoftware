@@ -754,6 +754,7 @@ function Uninstall-InstallShieldPackage([string[]]$ProductName, $IssFilePath, $S
 			## If multiple products are found, remove them all
 			foreach ($p in $Products) {
 				$Title = $p.ARPDisplayName
+				$UninstallString = $p.UninstallString
 				## Check to ensure anything is in the UninstallString property
 				if (!$p.UninstallString) {
 					Write-Log -Message "No uninstall string found for product $Title" -LogLevel '2'
@@ -780,13 +781,33 @@ function Uninstall-InstallShieldPackage([string[]]$ProductName, $IssFilePath, $S
 				} else {
 					$MyLogFilePath = $script:LogFilePath
 				}
-				Write-Log -Message "Running the install syntax `"$InstallerFilePath`" /s /f1`"$IssFilePath`" /f2`"$MyLogFilePath`""
-				$Process = Start-Process "`"$InstallerFilePath`"" -ArgumentList "/s /f1`"$IssFilePath`" /f2`"$MyLogFilePath`"" -Wait -NoNewWindow -PassThru
+				$InstallArgs = "/s /f1`"$IssFilePath`" /f2`"$MyLogFilePath`""
+				Write-Log -Message "Running the install syntax `"$InstallerFilePath`" $InstallArgs"
+				$Process = Start-Process "`"$InstallerFilePath`"" -ArgumentList $InstallArgs -Wait -NoNewWindow -PassThru
 				$x = Check-Process $Process
 				if (!(Validate-IsSoftwareInstalled $Title)) {
 					Write-Log -Message "The product $Title was successfully removed!"
+					$true
 				} else {
-					Write-Log -Message "The product $Title was not removed!" -LogLevel '2'
+					Write-Log -Message "The product $Title was not removed.  Attempting secondary uninstall method" -LogLevel '2'
+					## Parse out the EXE file path and arguments.  This regex could be improved on big time.
+					$FilePathRegex = '(([a-zA-Z]\:|\\)\\([^\\]+\\)*[^\/:*?"<>|]+\.[a-zA-Z]{3})" (.+)'
+					if ($UninstallString -match $FilePathRegex) {
+						$InstallerFilePath = $matches[1]
+						$InstallArgs = $matches[4]
+						$InstallArgs = "$InstallArgs /s /f1`"$IssFilePath`" /f2`"$MyLogFilePath`""
+						Write-Log -Message "Running the install syntax `"$InstallerFilePath`" /s /f1`"$IssFilePath`" /f2`"$MyLogFilePath`""
+						$Process = Start-Process "`"$InstallerFilePath`"" -ArgumentList $InstallArgs -Wait -NoNewWindow -PassThru
+						$x = Check-Process $Process
+						if (!(Validate-IsSoftwareInstalled $Title)) {
+							Write-Log -Message "The product '$Title' was not removed!"
+							$false
+						}
+					} else {
+						Write-Log -Message "Could not parse out the setup installer and arguments from uninstall string. The product '$Title' was not removed!"
+						$false
+					}
+					
 				}
 			}
 		}
@@ -1378,10 +1399,10 @@ function Remove-Software {
 							continue
 						} elseif ($InstallerType -eq 'InstallShield') {
 							Write-Log -Message "Installer type detected as Installshield."
-							if (!(Validate-IsIssFileValid -Guid $InstalledProduct.SoftwareCode -IssFilePath $IssFilePath)) {
-								Write-Log -Message "ISS file at $IssFilePath is not valid for the GUID $($InstalledProduct.SoftwareCode)" -LogLevel '2'
-								continue
-							} else {
+							#if (!(Validate-IsIssFileValid -Guid $InstalledProduct.SoftwareCode -IssFilePath $IssFilePath)) {
+								#Write-Log -Message "ISS file at $IssFilePath is not valid for the GUID $($InstalledProduct.SoftwareCode)" -LogLevel '2'
+								#continue
+							#} else {
 								Write-Log -Message "ISS file at $IssFilePath is valid for the GUID $($InstalledProduct.SoftwareCode)"
 								$Params = @{
 									'IssFilePath' = $IssFilePath;
@@ -1392,7 +1413,7 @@ function Remove-Software {
 									$Params.InstallshieldLogFilePath = $InstallshieldLogFilePath
 								}
 								Uninstall-InstallShieldPackage @Params
-							}
+							#}
 						} elseif ($InstallerType -eq 'Windows Installer') {
 							Write-Log -Message 'Installer detected to be Windows Installer. Initiating Windows Installer package removal...'
 							Uninstall-WindowsInstallerPackage -ProductName $Title
