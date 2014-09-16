@@ -771,7 +771,7 @@ function Uninstall-InstallShieldPackage([string[]]$ProductName, $IssFilePath, $S
 				} else {
 					$MyLogFilePath = $script:LogFilePath
 				}
-				$InstallArgs = "/s /f1`"$IssFilePath`" /f2`"$MyLogFilePath`""
+				$InstallArgs = "/s /f1`"$IssFilePath`" /f2`"$MyLogFilePath`" /SMS"
 				Write-Log -Message "Running the install syntax `"$InstallerFilePath`" $InstallArgs"
 				$Process = Start-Process "`"$InstallerFilePath`"" -ArgumentList $InstallArgs -Wait -NoNewWindow -PassThru
 				if (!(Validate-IsSoftwareInstalled $Title)) {
@@ -784,8 +784,8 @@ function Uninstall-InstallShieldPackage([string[]]$ProductName, $IssFilePath, $S
 					if ($UninstallString -match $FilePathRegex) {
 						$InstallerFilePath = $matches[1]
 						$InstallArgs = $matches[4]
-						$InstallArgs = "$InstallArgs /s /f1`"$IssFilePath`" /f2`"$MyLogFilePath`""
-						Write-Log -Message "Running the install syntax `"$InstallerFilePath`" /s /f1`"$IssFilePath`" /f2`"$MyLogFilePath`""
+						$InstallArgs = "$InstallArgs /s /f1`"$IssFilePath`" /f2`"$MyLogFilePath`" /SMS"
+						Write-Log -Message "Running the install syntax `"$InstallerFilePath`" $InstallArgs"
 						$Process = Start-Process "`"$InstallerFilePath`"" -ArgumentList $InstallArgs -Wait -NoNewWindow -PassThru
 						if (!(Validate-IsSoftwareInstalled $Title)) {
 							Write-Log -Message "The product '$Title' was not removed!"
@@ -1783,7 +1783,7 @@ function Install-Software {
 		populated, it will be concatenated with the standard silent arguments.  Use the -Verbose switch to discover arguments used.
 	.PARAMETER InstallShieldInstallArgs
 		This is a string of arguments that are passed to the InstallShield installer.  Default arguments are
-		"/s /f1$IssFilePath"
+		"/s /f1$IssFilePath /SMS"
 	.PARAMETER OtherInstallArgs
 		This is a string of arguments that are passed to any other EXE installer.  There is no default.
 	.PARAMETER KillProcess
