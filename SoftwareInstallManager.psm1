@@ -1877,9 +1877,9 @@ function Install-Software {
 				$ProcessParams['ArgumentList'] = $InstallArgs
 			} elseif ($InstallShieldInstallerFilePath) {
 				if (!$InstallShieldInstallArgs) {
-					$InstallArgs = "-s -f1`"$IssFilePath`" -f2`"$LogFilePath`""
+					$InstallArgs = "-s -f1`"$IssFilePath`" -f2`"$LogFilePath`" /SMS"
 				} else {
-					$InstallArgs = "-s -f1`"$IssFilePath`" $InstallShieldInstallArgs -f2`"$LogFilePath`""
+					$InstallArgs = "-s -f1`"$IssFilePath`" $InstallShieldInstallArgs -f2`"$LogFilePath`" /SMS"
 				}
 				$ProcessParams['FilePath'] = $InstallerFilePath
 				$ProcessParams['ArgumentList'] = $InstallArgs
