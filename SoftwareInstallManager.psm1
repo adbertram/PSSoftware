@@ -774,7 +774,6 @@ function Uninstall-InstallShieldPackage([string[]]$ProductName, $IssFilePath, $S
 				$InstallArgs = "/s /f1`"$IssFilePath`" /f2`"$MyLogFilePath`""
 				Write-Log -Message "Running the install syntax `"$InstallerFilePath`" $InstallArgs"
 				$Process = Start-Process "`"$InstallerFilePath`"" -ArgumentList $InstallArgs -Wait -NoNewWindow -PassThru
-				$x = Check-Process $Process
 				if (!(Validate-IsSoftwareInstalled $Title)) {
 					Write-Log -Message "The product $Title was successfully removed!"
 					$true
