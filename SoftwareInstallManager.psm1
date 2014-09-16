@@ -166,16 +166,6 @@ function Validate-IsSoftwareInstalled ($ProductName) {
 	}
 }
 
-function Validate-IsIssFileValid($IssFilePath, $Guid) {
-	## The ISS file is valid for the GUID if the GUID is anywhere in the ISS file
-	## This isn't the best way to do it but it's better than nothing
-	if ((Get-Content $IssFilePath) -match $Guid) {
-		$true
-	} else {
-		$false	
-	}
-}
-
 function Get-RootUserProfileFolderPath {
 	(Get-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList' -Name ProfilesDirectory).ProfilesDirectory
 }
@@ -1399,21 +1389,16 @@ function Remove-Software {
 							continue
 						} elseif ($InstallerType -eq 'InstallShield') {
 							Write-Log -Message "Installer type detected as Installshield."
-							#if (!(Validate-IsIssFileValid -Guid $InstalledProduct.SoftwareCode -IssFilePath $IssFilePath)) {
-								#Write-Log -Message "ISS file at $IssFilePath is not valid for the GUID $($InstalledProduct.SoftwareCode)" -LogLevel '2'
-								#continue
-							#} else {
-								Write-Log -Message "ISS file at $IssFilePath is valid for the GUID $($InstalledProduct.SoftwareCode)"
-								$Params = @{
-									'IssFilePath' = $IssFilePath;
-									'ProductName' = $Title;
-									'SetupFilePath' = $InstallShieldSetupFilePath
-								}
-								if ($InstallshieldLogFilePath) {
-									$Params.InstallshieldLogFilePath = $InstallshieldLogFilePath
-								}
-								Uninstall-InstallShieldPackage @Params
-							#}
+							Write-Log -Message "ISS file at $IssFilePath is valid for the GUID $($InstalledProduct.SoftwareCode)"
+							$Params = @{
+								'IssFilePath' = $IssFilePath;
+								'ProductName' = $Title;
+								'SetupFilePath' = $InstallShieldSetupFilePath
+							}
+							if ($InstallshieldLogFilePath) {
+								$Params.InstallshieldLogFilePath = $InstallshieldLogFilePath
+							}
+							Uninstall-InstallShieldPackage @Params
 						} elseif ($InstallerType -eq 'Windows Installer') {
 							Write-Log -Message 'Installer detected to be Windows Installer. Initiating Windows Installer package removal...'
 							Uninstall-WindowsInstallerPackage -ProductName $Title
