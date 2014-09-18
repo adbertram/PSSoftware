@@ -208,7 +208,7 @@ function Get-InstallLocation ($ProductName) {
 		Write-Log -Message 'Install location not found in WMI.  Checking registry...'
 		Write-Log -Message "Checking for installer reg keys for $ProductName..."
 		$UninstallRegKey = 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall'
-		$InstallerRegKeys = Get-ChildItem $UninstallRegKey | where { $_.GetValue('DisplayName') -imatch $ProductName }
+		$InstallerRegKeys = Get-ChildItem $UninstallRegKey | where { $_.GetValue('DisplayName') -imatch $ProductName.Replace('\', '\\') }
 		if (!$InstallerRegKeys) {
 			Write-Log -Message "No matches for $ProductName in registry"
 		} else {
