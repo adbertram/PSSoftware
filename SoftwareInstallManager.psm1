@@ -235,7 +235,7 @@ function Get-InstallLocation {
 				$InstallFolderPath = $Key.GetValue('InstallLocation')
 				if ($InstallFolderPath) {
 					$InstallFolderPath.TrimEnd('\')
-				} elseif (!$InstallFolderPath -and (($Key.GetValue('UninstallString') -match '\w:\\([a-zA-Z0-9 _.(){}-]+\\)+'))) {
+				} elseif (!$InstallFolderPath -and (($Key.GetValue('UninstallString') -match '\w:\\([a-zA-Z0-9 _.(){}-]+\\)+')) -and (($Key.GetValue('UninstallString') -notmatch 'Installshield Installation Information'))) {
 					Write-Log -Message 'No install location found but did find a file path in the uninstall string...'
 					$Matches.Values | select -Unique | where { Test-Path $_ } | foreach  { $_.TrimEnd('\') }
 				} else {
