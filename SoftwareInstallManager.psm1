@@ -1629,7 +1629,7 @@ function New-Shortcut {
 		The name of the shortcut (file)
 	.PARAMETER TargetFilePath
 		The file path of the application you'd like the shortcut to point to
-	.PARAMETER
+	.PARAMETER Arguments
 		File arguments you'd like to append to the target file path
 	#>
 	[CmdletBinding(DefaultParameterSetName = 'CommonLocation')]
