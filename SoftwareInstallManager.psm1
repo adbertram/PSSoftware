@@ -198,8 +198,24 @@ function Get-32BitProgramFilesPath {
 	}
 }
 
-function Get-InstallLocation ($ProductName) {
-	Write-Verbose "Initiating the $($MyInvocation.MyCommand.Name) function...";
+function Get-InstallLocation {
+	<#
+	.SYNOPSIS
+		This function finds the main install location for a piece of software
+	.EXAMPLE
+		PS> Get-InstalledSoftware -Name 'MySoftware' | Get-InstalledLocation
+
+		This example will find the install folder for the 'MySoftware' software installed on the local computer
+	.PARAMETER ProductName
+	 	The name of the software you'd like to query
+	#>
+	[CmdletBinding()]
+	[OutputType([string])]
+	param (
+		[Parameter(Mandatory=$true,ValueFromPipeline=$true,ValueFromPipelineByPropertyName=$true)]
+		[ValidateNotNullOrEmpty()]
+		[string]$ProductName
+	)
 	Write-Log -Message "Checking WMI for install location for $ProductName..."
 	$SoftwareInstance = Get-InstalledSoftware -Name $Productname
 	if ($SoftwareInstance.InstalledLocation) {
@@ -208,7 +224,7 @@ function Get-InstallLocation ($ProductName) {
 		Write-Log -Message 'Install location not found in WMI.  Checking registry...'
 		Write-Log -Message "Checking for installer reg keys for $ProductName..."
 		$UninstallRegKey = 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall'
-		$InstallerRegKeys = Get-ChildItem $UninstallRegKey | where { $_.GetValue('DisplayName') -imatch $ProductName.Replace('\', '\\') }
+		$InstallerRegKeys = Get-ChildItem $UninstallRegKey | where { $_.GetValue('DisplayName') -eq $ProductName }
 		if (!$InstallerRegKeys) {
 			Write-Log -Message "No matches for $ProductName in registry"
 		} else {
