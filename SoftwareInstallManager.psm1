@@ -216,26 +216,26 @@ function Get-InstallLocation {
 		[ValidateNotNullOrEmpty()]
 		[string]$ProductName
 	)
-	Write-Log -Message "Checking WMI for install location for $ProductName..."
+	Write-Log -Message "Checking WMI for install location for '$ProductName'..."
 	$SoftwareInstance = Get-InstalledSoftware -Name $Productname
 	if ($SoftwareInstance.InstalledLocation) {
 		$SoftwareInstance.InstalledLocation
 	} else {
 		Write-Log -Message 'Install location not found in WMI.  Checking registry...'
-		Write-Log -Message "Checking for installer reg keys for $ProductName..."
+		Write-Log -Message "Checking for installer reg keys for '$ProductName'..."
 		$UninstallRegKey = 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall'
 		$InstallerRegKeys = Get-ChildItem $UninstallRegKey | where { $_.GetValue('DisplayName') -eq $ProductName }
 		if (!$InstallerRegKeys) {
-			Write-Log -Message "No matches for $ProductName in registry"
+			Write-Log -Message "No matches for '$ProductName' in registry"
 		} else {
-			Write-Log -Message "Found $($InstallerRegKeys.Count) installer registry keys..."
+			Write-Log -Message "Found '$($InstallerRegKeys.Count)' installer registry keys..."
 			$Processes = @()
-			Write-Log -Message "Checking for processes in install folder...."
+			Write-Log -Message "Checking for matches in uninstall strings..."
 			foreach ($Key in $InstallerRegKeys) {
 				$InstallFolderPath = $Key.GetValue('InstallLocation')
 				if (!$InstallFolderPath -and (($Key.GetValue('UninstallString') -match '\w:\\([a-zA-Z0-9 _.(){}-]+\\)+'))) {
 					Write-Log -Message 'No install location found but did find a file path in the uninstall string...'
-					($Matches.Values | select -Unique | where { Test-Path $_ }).TrimEnd('\')
+					$Matches.Values | select -Unique | where { Test-Path $_ } | foreach  { $_.TrimEnd('\') }
 				} elseif ($InstallFolderPath) {
 					$InstallFolderPath
 				} else {
