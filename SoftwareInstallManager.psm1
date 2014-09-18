@@ -212,14 +212,14 @@ function Get-InstallLocation {
 	[CmdletBinding()]
 	[OutputType([string])]
 	param (
-		[Parameter(Mandatory=$true,ValueFromPipeline=$true,ValueFromPipelineByPropertyName=$true)]
+		[Parameter(Mandatory=$true,ValueFromPipelineByPropertyName=$true)]
 		[ValidateNotNullOrEmpty()]
 		[string]$ProductName
 	)
 	Write-Log -Message "Checking WMI for install location for '$ProductName'..."
 	$SoftwareInstance = Get-InstalledSoftware -Name $Productname
 	if ($SoftwareInstance.InstalledLocation) {
-		$SoftwareInstance.InstalledLocation
+		$SoftwareInstance.InstalledLocation.TrimEnd('\')
 	} else {
 		Write-Log -Message 'Install location not found in WMI.  Checking registry...'
 		Write-Log -Message "Checking for installer reg keys for '$ProductName'..."
@@ -230,14 +230,14 @@ function Get-InstallLocation {
 		} else {
 			Write-Log -Message "Found '$($InstallerRegKeys.Count)' installer registry keys..."
 			$Processes = @()
-			Write-Log -Message "Checking for matches in uninstall strings..."
+			Write-Log -Message "Checking for matches in uninstall strings.."
 			foreach ($Key in $InstallerRegKeys) {
 				$InstallFolderPath = $Key.GetValue('InstallLocation')
-				if (!$InstallFolderPath -and (($Key.GetValue('UninstallString') -match '\w:\\([a-zA-Z0-9 _.(){}-]+\\)+'))) {
+				if ($InstallFolderPath) {
+					$InstallFolderPath.TrimEnd('\')
+				} elseif (!$InstallFolderPath -and (($Key.GetValue('UninstallString') -match '\w:\\([a-zA-Z0-9 _.(){}-]+\\)+'))) {
 					Write-Log -Message 'No install location found but did find a file path in the uninstall string...'
 					$Matches.Values | select -Unique | where { Test-Path $_ } | foreach  { $_.TrimEnd('\') }
-				} elseif ($InstallFolderPath) {
-					$InstallFolderPath
 				} else {
 					Write-Log -Message "Could not find the install folder path" -LogLevel '2'
 				}
