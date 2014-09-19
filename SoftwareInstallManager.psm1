@@ -861,10 +861,7 @@ function Find-InTextFile {
 	[OutputType()]
 	param (
 		[Parameter(Mandatory = $true)]
-		[ValidateScript({
-			(Test-Path -Path $_ -PathType 'Leaf') -and
-			((Get-Content $_ -Encoding Byte -TotalCount 1024) -notcontains 0)
-		})]
+		[ValidateScript({Test-Path -Path $_ -PathType 'Leaf'})]
 		[string[]]$FilePath,
 		[Parameter(Mandatory = $true)]
 		[string]$Find,
