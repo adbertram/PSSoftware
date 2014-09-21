@@ -1851,7 +1851,6 @@ function Install-Software {
 	)
 	
 	begin {
-		Set-StrictMode -Version Latest
 		Write-Debug "Initiating the $($MyInvocation.MyCommand.Name) function...";    
 		try {
 			Write-Log -Message "Beginning software install..."
