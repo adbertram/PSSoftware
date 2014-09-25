@@ -45,8 +45,8 @@
 ===========================================================================
 #>
 
-function Get-OperatingSystem {
-	(Get-WmiObject -Query "SELECT Caption,CSDVersion FROM Win32_OperatingSystem").Caption
+function Get-OperatingSystem($Computername = 'localhost') {
+	(Get-WmiObject -ComputerName $Computername -Query "SELECT Caption,CSDVersion FROM Win32_OperatingSystem").Caption
 }
 
 ## When SoftwareInstallManager module is imported, it requires other modules
