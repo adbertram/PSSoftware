@@ -1388,7 +1388,7 @@ function Remove-Software {
 				if (!$InstalledProducts) {
 					Write-Log -Message "$Product already uninstalled"
 				} else {
-					$InstalledProducts = Get-InstalledSoftware $Product
+					$InstalledProducts = Get-InstalledSoftware -Name $Product
 					foreach ($InstalledProduct in $InstalledProducts) {
 						$Title = $InstalledProduct.ARPDisplayname
 						if ($InstalledProduct.UninstallString) {
