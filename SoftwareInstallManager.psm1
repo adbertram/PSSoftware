@@ -1890,9 +1890,9 @@ function Install-Software {
 			
 			if ($MsiInstallerFilePath) {
 				if (!$MsiExecSwitches) {
-					$InstallArgs = "/i `"$InstallerFilePath`" /qn REBOOT=ReallySuppress ALLUSERS=1 /L*v`"$LogFilePath`""
+					$InstallArgs = "/i `"$InstallerFilePath`" /qn REBOOT=ReallySuppress ALLUSERS=1 /Lvx* `"$LogFilePath`""
 				} else {
-					$InstallArgs = "/i `"$InstallerFilePath`" /qn $MsiExecSwitches REBOOT=ReallySuppress ALLUSERS=1 /L*v `"$LogFilePath`""
+					$InstallArgs = "/i `"$InstallerFilePath`" /qn $MsiExecSwitches REBOOT=ReallySuppress ALLUSERS=1 /Lvx* `"$LogFilePath`""
 				}
 				
 				$ProcessParams['FilePath'] = 'msiexec.exe'
