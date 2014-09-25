@@ -156,8 +156,12 @@ function Start-Log {
 	}
 }
 
-function Validate-IsSoftwareInstalled ($ProductName) {
-	if (!(Get-InstalledSoftware $ProductName)) {
+function Validate-IsSoftwareInstalled ($ProductName,$Version) {
+	$Params = @{'Name' = $ProductName }
+	if ($Version) {
+		$Params.Version = $Version
+	}
+	if (!(Get-InstalledSoftware @Params)) {
 		Write-Log -Message "'$ProductName' is NOT installed."
 		$false
 	} else {
