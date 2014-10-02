@@ -1370,8 +1370,8 @@ function Remove-Software {
 			foreach ($Product in $ProductName) {
 				## Find the installation folder and all EXEs.  Stop all processes running under these EXEs
 				$InstallFolderPath = Get-InstallLocation $Product
-				Write-Log -Message "Checking for processes in install folder...."
-				if ($InstallFolderPath) {
+				if ($InstallFolderPath -and (@('C:','C:\Windows') -notcontains $InstallFolderPath.Trim())) {
+					Write-Log -Message "Checking for processes in install folder '$InstallFolderPath'...."
 					Write-Log -Message  "Stopping all processes under the install folder $InstallFolderPath..."
 					$Processes = (Get-Process | where { $_.Path -like "$InstallFolderPath*" } | select -ExpandProperty Name)
 					if ($Processes) {
