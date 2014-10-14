@@ -888,16 +888,16 @@ function Find-InTextFile {
 					if ($NewFilePath) {
 						if ((Test-Path -Path $NewFilePath -PathType 'Leaf') -and $Force.IsPresent) {
 							Remove-Item -Path $NewFilePath -Force
-							(Get-Content $File) -replace $Find, $Replace | Add-Content $NewFilePath -Force
+							(Get-Content $File) -replace $Find, $Replace | Add-Content -Path $NewFilePath -Force
 						} elseif ((Test-Path -Path $NewFilePath -PathType 'Leaf') -and !$Force.IsPresent) {
 							Write-Warning "The file at '$NewFilePath' already exists and the -Force param was not used"
 						} else {
-							(Get-Content $File) -replace $Find, $Replace | Add-Content $NewFilePath -Force
+							(Get-Content $File) -replace $Find, $Replace | Add-Content -Path $NewFilePath -Force
 						}
 					} else {
-						$FileName = $File | Split-Path -Leaf
-						(Get-Content $File) -replace $Find, $Replace | Add-Content "$SystemTempFolderPath\$FileName" -Force
-						Move-Item -Path "$SystemTempFolderPath\$FileName" -Destination $File -Force
+						(Get-Content $File) -replace $Find, $Replace | Add-Content -Path "$File.tmp" -Force
+						Remove-Item -Path $File
+						Rename-Item -Path "$File.tmp" -NewName $File
 					}
 				} else {
 					Select-String -Path $File -Pattern $Find
