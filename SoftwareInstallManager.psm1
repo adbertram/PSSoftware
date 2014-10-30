@@ -49,19 +49,6 @@ function Get-OperatingSystem($Computername = 'localhost') {
 	(Get-WmiObject -ComputerName $Computername -Query "SELECT Caption,CSDVersion FROM Win32_OperatingSystem").Caption
 }
 
-## When SoftwareInstallManager module is imported, it requires other modules
-## to use some functions.
-## TODO: This needs to point to a single parent directory and import all
-## modules within
-$ChildModulesPath = '\\configmanager\deploymentmodules'
-if (!(Test-Path "$ChildModulesPath\MSI")) {
-	Write-Log -Message "Required MSI module is not available" -LogLevel '3'
-	exit
-} elseif ((Get-OperatingSystem) -notmatch 'XP') {
-	Import-Module "$ChildModulesPath\MSI"
-}
-
-
 function Write-Log {
 	<#
 	.SYNOPSIS
@@ -202,6 +189,14 @@ function Get-32BitProgramFilesPath {
 	}
 }
 
+function Get-32BitRegistrySoftwarePath {
+	if ((Get-Architecture) -eq 'x64') {
+		'HKLM:\SOFTWARE\Wow6432Node'
+	} else {
+		'HKLM:\SOFTWARE'
+	}
+}
+
 function Get-InstallLocation {
 	<#
 	.SYNOPSIS
@@ -277,7 +272,6 @@ function Import-Certificate {
 		This is the path to the certificate file that you'd like to import
 	#>
 	[CmdletBinding()]
-	[OutputType()]
 	param (
 		[Parameter(Mandatory=$true)]
 		[ValidateSet('CurrentUser', 'LocalMachine')]
@@ -562,11 +556,11 @@ function Check-Error($MyError, $SuccessString) {
 }
 
 function Check-Process ([System.Diagnostics.Process]$Process) {
-	if ($Process.ExitCode -ne 0) {
+	if (@(0,3010) -notcontains $Process.ExitCode) {
 		Write-Log -Message "Process ID $($Process.Id) failed. Return value was $($Process.ExitCode)" -LogLevel '2'
 		$false
 	} else {
-		Write-Log -Message "Successfully ran process ID $($Process.Id)."
+		Write-Log -Message "Process ID $($Process.Id) exited with successfull exit code '$($Process.ExitCode)'."
 		$true
 	}
 }
@@ -739,6 +733,14 @@ function Uninstall-ViaMsizap {
 }
 
 function Uninstall-WindowsInstallerPackage($ProductName,$RunMsizap,$MsizapFilePath,$MsizapParams) {
+	$ChildModulesPath = '\\configmanager\deploymentmodules'
+	if (!(Test-Path "$ChildModulesPath\MSI")) {
+		Write-Log -Message "Required MSI module is not available" -LogLevel '3'
+		exit
+	} elseif ((Get-OperatingSystem) -notmatch 'XP') {
+		Import-Module "$ChildModulesPath\MSI"
+	}
+	
 	$UninstallParams = @{
 		'Log' = $script:LogFilePath
 		'Chain' = $true
@@ -1826,12 +1828,12 @@ function Install-Software {
 	param (
 		[Parameter(ParameterSetName = 'InstallShield',
 				   Mandatory = $true)]
-		[ValidateScript({ Test-Path $_ -PathType 'Leaf' })]
+		[ValidateScript({ Test-Path -Path $_ -PathType 'Leaf' })]
 		[ValidatePattern('\.exe$')]
 		[string]$InstallShieldInstallerFilePath,
 		[Parameter(ParameterSetName = 'Other',
 				   Mandatory = $true)]
-		[ValidateScript({ Test-Path $_ -PathType 'Leaf' })]
+		[ValidateScript({ Test-Path -Path $_ -PathType 'Leaf' })]
 		[ValidatePattern('\.exe$')]
 		[string]$OtherInstallerFilePath,
 		[Parameter(ParameterSetName = 'InstallShield',
@@ -1840,7 +1842,7 @@ function Install-Software {
 		[string]$IssFilePath,
 		[Parameter(ParameterSetName = 'MSI',
 				   Mandatory = $true)]
-		[ValidateScript({ Test-Path $_ -PathType 'Leaf' })]
+		[ValidateScript({ Test-Path -Path $_ -PathType 'Leaf' })]
 		[string]$MsiInstallerFilePath,
 		[string]$MsiExecSwitches,
 		[Parameter(ParameterSetName = 'InstallShield')]
