@@ -1806,6 +1806,11 @@ function Install-Software {
 		This is a string of arguments that are passed to the installer. If this param is
 		not used, it will default to the standard REBOOT=ReallySuppress and the ALLUSERS=1 switches. If it's 
 		populated, it will be concatenated with the standard silent arguments.  Use the -Verbose switch to discover arguments used.
+		Do NOT use this to pass TRANSFORMS or PATCH arguments.  Use the MstFilePath and MspFilePath params for that.
+	.PARAMETER MstFilePath
+		Use this param if you've created a TRANSFORMS file and would like to pass this to the installer
+	.PARAMETER MspFilePath
+		Use this param if you have a patch to apply to the install
 	.PARAMETER InstallShieldInstallArgs
 		This is a string of arguments that are passed to the InstallShield installer.  Default arguments are
 		"/s /f1$IssFilePath /SMS"
@@ -1845,6 +1850,14 @@ function Install-Software {
 		[ValidateScript({ Test-Path -Path $_ -PathType 'Leaf' })]
 		[string]$MsiInstallerFilePath,
 		[string]$MsiExecSwitches,
+		[Parameter(ParameterSetName = 'MSI')]
+		[ValidateScript({ Test-Path -Path $_ -PathType 'Leaf' })]
+		[ValidatePattern('\.msp$')]
+		[string]$MspFilePath,
+		[Parameter(ParameterSetName = 'MSI')]
+		[ValidateScript({ Test-Path -Path $_ -PathType 'Leaf' })]
+		[ValidatePattern('\.mst$')]
+		[string]$MstFilePath,
 		[Parameter(ParameterSetName = 'InstallShield')]
 		[string]$InstallShieldInstallArgs,
 		[Parameter(ParameterSetName = 'Other')]
@@ -1891,11 +1904,20 @@ function Install-Software {
 			Write-Log -Message "Using log file path '$LogFilePath'..."
 			
 			if ($MsiInstallerFilePath) {
-				if (!$MsiExecSwitches) {
-					$InstallArgs = "/i `"$InstallerFilePath`" /qn REBOOT=ReallySuppress ALLUSERS=1 /Lvx* `"$LogFilePath`""
-				} else {
-					$InstallArgs = "/i `"$InstallerFilePath`" /qn $MsiExecSwitches REBOOT=ReallySuppress ALLUSERS=1 /Lvx* `"$LogFilePath`""
+				$InstallArgs = @()
+				$InstallArgs += "/i `"$InstallerFilePath`" /qn"
+				if ($MstFilePath) {
+					$InstallArgs += "TRANSFORMS=`"$MstFilePath`""
 				}
+				if ($MspFilePath) {
+					$InstallArgs += "PATCH=`"$MspFilePath`""
+				}
+				if ($MsiExecSwitches) {
+					$InstallArgs += $MsiExecSwitches	
+				}
+				
+				$InstallArgs += "REBOOT=ReallySuppress ALLUSERS=1 /Lvx* `"$LogFilePath`""
+				$InstallArgs = $InstallArgs -join ' '
 				
 				$ProcessParams['FilePath'] = 'msiexec.exe'
 				$ProcessParams['ArgumentList'] = $InstallArgs
