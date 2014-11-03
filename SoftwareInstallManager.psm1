@@ -132,7 +132,7 @@ function Start-Log {
 	try {
 		if (!(Test-Path $FilePath)) {
 			## Create the log file
-			New-Item $FilePath -ItemType File | Out-Null
+			New-Item $FilePath -Type File | Out-Null
 		}
 		
 		## Set the global variable to be used as the FilePath for all subsequent Write-Log
@@ -223,7 +223,7 @@ function Get-InstallLocation {
 		Write-Log -Message 'Install location not found in WMI.  Checking registry...'
 		Write-Log -Message "Checking for installer reg keys for '$ProductName'..."
 		$UninstallRegKey = 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall'
-		$InstallerRegKeys = Get-ChildItem $UninstallRegKey | Where-Object { $_.GetValue('DisplayName') -eq $ProductName }
+		$InstallerRegKeys = Get-ChildItem $UninstallRegKey | where { $_.GetValue('DisplayName') -eq $ProductName }
 		if (!$InstallerRegKeys) {
 			Write-Log -Message "No matches for '$ProductName' in registry"
 		} else {
@@ -236,7 +236,7 @@ function Get-InstallLocation {
 					$InstallFolderPath.TrimEnd('\')
 				} elseif (!$InstallFolderPath -and (($Key.GetValue('UninstallString') -match '\w:\\([a-zA-Z0-9 _.(){}-]+\\)+')) -and (($Key.GetValue('UninstallString') -notmatch 'Installshield Installation Information'))) {
 					Write-Log -Message 'No install location found but did find a file path in the uninstall string...'
-					$Matches.Values | Select-Object -Unique | Where-Object { Test-Path $_ } | ForEach-Object  { $_.TrimEnd('\') }
+					$Matches.Values | select -Unique | where { Test-Path $_ } | foreach  { $_.TrimEnd('\') }
 				} else {
 					Write-Log -Message "Could not find the install folder path" -LogLevel '2'
 				}
@@ -279,9 +279,9 @@ function Import-Certificate {
 		[Parameter(Mandatory=$true)]
 		[ValidateScript({
 			if ($Location -eq 'CurrentUser') {
-				(Get-ChildItem Cert:\CurrentUser | Select-Object -ExpandProperty name) -contains $_
+				(Get-ChildItem Cert:\CurrentUser | select -ExpandProperty name) -contains $_
 			} else {
-				(Get-ChildItem Cert:\LocalMachine | Select-Object -ExpandProperty name) -contains $_
+				(Get-ChildItem Cert:\LocalMachine | select -ExpandProperty name) -contains $_
 			}
 		})]
 		[string]$StoreName,
@@ -317,7 +317,7 @@ function Import-Certificate {
 }
 
 function Get-Architecture {
-	if ([System.Environment]::Is64BitOperatingSystem -or ((Get-WmiObject -Class Win32_ComputerSystem | Select-Object -ExpandProperty SystemType) -eq 'x64-based PC')) {
+	if ([System.Environment]::Is64BitOperatingSystem -or ((Get-WmiObject -Class Win32_ComputerSystem | select -ExpandProperty SystemType) -eq 'x64-based PC')) {
 		'x64'
 	} else {
 		'x86'
@@ -325,7 +325,7 @@ function Get-Architecture {
 }
 
 function Get-ProfileSids {
-	(Get-Childitem 'HKLM:\Software\Microsoft\Windows NT\CurrentVersion\ProfileList' | Where-Object { ($_.Name -match 'S-\d-\d+-(\d+-){1,14}\d+$') }).PSChildName
+	(Get-Childitem 'HKLM:\Software\Microsoft\Windows NT\CurrentVersion\ProfileList' | Where { ($_.Name -match 'S-\d-\d+-(\d+-){1,14}\d+$') }).PSChildName
 }
 
 function Get-UserProfilePath {
@@ -362,13 +362,13 @@ function Get-UserProfilePath {
 		} else {
 			$WhereBlock = { $_.PSChildName -ne $null }
 		}
-		Get-ChildItem 'HKLM:\Software\Microsoft\Windows NT\CurrentVersion\ProfileList' | Where-Object $WhereBlock | ForEach-Object { $_.GetValue('ProfileImagePath') }
+		Get-ChildItem 'HKLM:\Software\Microsoft\Windows NT\CurrentVersion\ProfileList' | where $WhereBlock | % { $_.GetValue('ProfileImagePath') }
 	}
 }
 
 function Get-LoggedOnUserSID {
 	New-PSDrive -Name HKU -PSProvider Registry -Root Registry::HKEY_USERS | Out-Null
-	(Get-ChildItem HKU: | Where-Object { $_.Name -match 'S-\d-\d+-(\d+-){1,14}\d+$' }).PSChildName
+	(Get-ChildItem HKU: | where { $_.Name -match 'S-\d-\d+-(\d+-){1,14}\d+$' }).PSChildName
 }
 
 function Set-RegistryValueForDefaultUser {
@@ -380,7 +380,7 @@ function Set-RegistryValueForDefaultUser {
 		New-PSDrive -Name HKU -PSProvider Registry -Root Registry::HKEY_USERS | Out-Null
 		
 		foreach ($instance in $RegistryInstance) {
-			if (Get-ItemProperty -Path "HKU:\.DEFAULT\$($instance.Path)" -Name $instance.Name -ErrorAction SilentlyContinue) {
+			if (Get-ItemProperty -Path "HKU:\.DEFAULT\$($instance.Path)" -Name $instance.Name -ea SilentlyContinue) {
 				Set-ItemProperty -Path "HKU:\.DEFAULT\$($instance.Path)" -Name $instance.Name -Value $instance.Value -Force
 			} else {
 				Write-Log -Message "Registry value $($instance.name) does not exist in HKU:\.DEFAULT\$($instance.Path)" -LogLevel '2'
@@ -420,7 +420,7 @@ function Set-RegistryValueForAllUsers {
 		foreach ($sid in $LoggedOnSids) {
 			Write-Log -Message "Loading the user registry hive for the logged on SID $sid"
 			foreach ($instance in $RegistryInstance) {
-				if (Get-ItemProperty -Path "HKU:\$sid\$($instance.Path)" -Name $instance.Name -ErrorAction SilentlyContinue) {
+				if (Get-ItemProperty -Path "HKU:\$sid\$($instance.Path)" -Name $instance.Name -ea SilentlyContinue) {
 					Write-Log -Message "Key name '$($instance.name)' exists at 'HKU:\$sid\$($instance.Path)'"
 					Set-ItemProperty -Path "HKU:\$sid\$($instance.Path)" -Name $instance.Name -Value $instance.Value -Type $instance.Type -Force
 				} else {
@@ -434,9 +434,9 @@ function Set-RegistryValueForAllUsers {
 		## Exclude all SIDs from the users that are currently logged on.  Those have already been processed.
 		$ProfileSids = Get-ProfileSids
 		Write-Log -Message "Found $($ProfileSids.Count) SIDs for profiles"
-		$ProfileSids = $ProfileSids | Where-Object { $LoggedOnSids -notcontains $_ }
+		$ProfileSids = $ProfileSids | where { $LoggedOnSids -notcontains $_ }
 		
-		$ProfileFolderPaths = $ProfileSids | ForEach-Object { Get-UserProfilePath -Sid $_ }
+		$ProfileFolderPaths = $ProfileSids | foreach { Get-UserProfilePath -Sid $_ }
 		
 		if ((Get-Architecture) -eq 'x64') {
 			$RegPath = 'syswow64'
@@ -452,7 +452,7 @@ function Set-RegistryValueForAllUsers {
 			if (Check-Process $Process) {
 				foreach ($instance in $RegistryInstance) {
 					Write-Log -Message "Setting property in the HKU\$($instance.Path) path to `"$($instance.Name)`" and value `"$($instance.Value)`""
-					if (Get-ItemProperty -Path "HKU:\TempUserLoad\$($instance.Path)" -Name $instance.Name -ErrorAction SilentlyContinue) {
+					if (Get-ItemProperty -Path "HKU:\TempUserLoad\$($instance.Path)" -Name $instance.Name -ea SilentlyContinue) {
 						Set-ItemProperty -Path "HKU:\TempUserLoad\$($instance.Path)" -Name $instance.Name -Value $instance.Value -Type $instance.Type -Force
 					} else {
 						Write-Log -Message "Registry value $($instance.name) does not exist in HKU:\TempUserLoad\$($instance.Path)" -LogLevel '2'
@@ -497,7 +497,7 @@ function Get-RegistryValueForAllUsers {
 		foreach ($sid in $LoggedOnSids) {
 			Write-Log -Message "Loading the user registry hive for the logged on SID $sid"
 			foreach ($instance in $RegistryInstance) {
-				$Value = Get-ItemProperty -Path "HKU:\$sid\$($instance.Path)" -Name $instance.Name -ErrorAction SilentlyContinue
+				$Value = Get-ItemProperty -Path "HKU:\$sid\$($instance.Path)" -Name $instance.Name -ea SilentlyContinue
 				if (!$Value) {
 					Write-Log -Message "Registry value $($instance.name) does not exist in HKU:\$sid\$($instance.Path)" -LogLevel '2'	
 				} else {
@@ -510,9 +510,9 @@ function Get-RegistryValueForAllUsers {
 		## Exclude all SIDs from the users that are currently logged on.  Those have already been processed.
 		$ProfileSids = Get-ProfileSids
 		Write-Log -Message "Found $($ProfileSids.Count) SIDs for profiles"
-		$ProfileSids = $ProfileSids | Where-Object { $LoggedOnSids -notcontains $_ }
+		$ProfileSids = $ProfileSids | where { $LoggedOnSids -notcontains $_ }
 		
-		$ProfileFolderPaths = $ProfileSids | ForEach-Object { Get-UserProfilePath -Sid $_ }
+		$ProfileFolderPaths = $ProfileSids | foreach { Get-UserProfilePath -Sid $_ }
 		
 		if ((Get-Architecture) -eq 'x64') {
 			$RegPath = 'syswow64'
@@ -528,7 +528,7 @@ function Get-RegistryValueForAllUsers {
 			if (Check-Process $Process) {
 				foreach ($instance in $RegistryInstance) {
 					Write-Log -Message "Finding property in the HKU\$($instance.Path) path"
-					$Value = Get-ItemProperty -Path "HKU:\TempUserLoad\$($instance.Path)" -Name $instance.Name -ErrorAction SilentlyContinue
+					$Value = Get-ItemProperty -Path "HKU:\TempUserLoad\$($instance.Path)" -Name $instance.Name -ea SilentlyContinue
 					if (!$Value) {
 						Write-Log -Message "Registry value $($instance.name) does not exist in HKU:\TempUserLoad\$($instance.Path)" -LogLevel '2'
 					} else {
@@ -587,7 +587,7 @@ function Import-RegistryFile {
 				} else {
 					$RegPath = 'System32'
 				}
-				$Result = Start-Process "$($env:Systemdrive)\Windows\$RegPath\reg.exe" -ArgumentList "import $FilePath" -Wait -NoNewWindow -PassThru
+				$Result = Start-Process "$($env:Systemdrive)\Windows\$RegPath\reg.exe" -Args "import $FilePath" -Wait -NoNewWindow -PassThru
 				Check-Process -Process $Result
 			}
 		} catch {
@@ -633,7 +633,7 @@ function Import-RegistryFileForAllUsers {
 				Write-Log -Message "Processing logged on user SID $sid."
 				## Remove the temp file if exists.  Each file needs to be unique for the
 				## user's particular SID
-				Remove-Item -Path $LoggedOnUserTempRegFilePath -ErrorAction 'SilentlyContinue'
+				Remove-Item -Path $LoggedOnUserTempRegFilePath -ea 'SilentlyContinue'
 				## Replace the HKLM refernces with HKU\$sid to match the path
 				Find-InTextFile -FilePath $FilePath -Find 'HKEY_LOCAL_MACHINE' -Replace "HKEY_USERS\$sid" -NewFilePath $LoggedOnUserTempRegFilePath
 				Find-InTextFile -FilePath $LoggedOnUserTempRegFilePath -Find 'HKEY_CURRENT_USER' -Replace "HKEY_USERS\$sid"
@@ -645,9 +645,9 @@ function Import-RegistryFileForAllUsers {
 			Write-Log -Message "Finding all profile SIDs"
 			$ProfileSids = Get-ProfileSids
 			Write-Log -Message "Found $($ProfileSids.Count) SIDs for profiles"
-			$ProfileSids = $ProfileSids | Where-Object { $LoggedOnSids -notcontains $_ }
+			$ProfileSids = $ProfileSids | where { $LoggedOnSids -notcontains $_ }
 			
-			$ProfileFolderPaths = $ProfileSids | ForEach-Object { Get-UserProfilePath -Sid $_ }
+			$ProfileFolderPaths = $ProfileSids | foreach { Get-UserProfilePath -Sid $_ }
 			
 			if ((Get-Architecture) -eq 'x64') {
 				$RegPath = 'syswow64'
@@ -674,8 +674,8 @@ function Import-RegistryFileForAllUsers {
 	}
 	end {
 		## Clean up all temporary files created
-		Remove-Item -Path $LoggedOnUserTempRegFilePath -ErrorAction 'SilentlyContinue'
-		Remove-Item -Path $PerUserTempRegFile -ErrorAction 'SilentlyContinue'
+		Remove-Item -Path $LoggedOnUserTempRegFilePath -ea 'SilentlyContinue'
+		Remove-Item -Path $PerUserTempRegFile -ea 'SilentlyContinue'
 	}
 }
 
@@ -721,7 +721,7 @@ function Uninstall-ViaMsizap {
 	$NewProcess = Start-Process $MsiZapFilePath -ArgumentList "$Params $Guid > $LogFilePath" -Wait -NoNewWindow
 	Write-Log -Message "-Waiting for process ID $($NewProcess.ProcessID)..."
 	while (Get-Process -Id $NewProcess.ProcessID -ErrorAction 'SilentlyContinue') {
-		Start-Sleep 1
+		sleep 1
 	}
 	if ($NewProcess.ExitCode -ne 0) {
 		Write-Log -Message "Msizap process ID $($NewProcess.ProcessId) failed. Return value was $($NewProcess.ExitCode)" -LogLevel '2'
@@ -829,7 +829,7 @@ function Uninstall-InstallShieldPackage([string[]]$ProductName, $IssFilePath, $S
 
 function Wait-PowershellChildProcess {
 	$PoshChildProcesses = Get-WmiObject -Class Win32_Process -Filter "(ParentProcessId = $pid) AND (Name <> 'conhost.exe')"
-	$Ids = $PoshChildProcesses | ForEach-Object { $_.ProcessId }
+	$Ids = $PoshChildProcesses | foreach { $_.ProcessId }
 	Wait-Process -Id $Ids
 }
 
@@ -920,7 +920,7 @@ function Stop-MyProcess ([string[]]$ProcessName) {
 		} else {
 			foreach ($process in $ProcessName) {
 				Write-Log -Message "-Process $process is running. Attempting to stop..."
-				$WmiProcess = Get-WmiObject -Class Win32_Process -Filter "name='$process.exe'" -ErrorAction 'SilentlyContinue' -ErrorVariable WMIError
+				$WmiProcess = Get-WmiObject -Class Win32_Process -Filter "name='$process.exe'" -ea 'SilentlyContinue' -ev WMIError
 				if ($WmiError) {
 					Write-Log -Message "Unable to stop process $process. WMI query errored with `"$($WmiError.Exception.Message)`"" -LogLevel '2'
 				} elseif ($WmiProcess) {
@@ -948,11 +948,11 @@ function Remove-MyService {
 	[CmdletBinding()]
 	param (
 		[Parameter(Mandatory = $true)]
-		[ValidateScript({ Get-Service -Name $_ -ErrorAction 'SilentlyContinue' })]
+		[ValidateScript({ Get-Service -Name $_ -ea 'SilentlyContinue' })]
 		[string]$Name
 	)
 	Write-Debug "Initiating the $($MyInvocation.MyCommand.Name) function...";
-	$ServicesToRemove = Get-Service $Name -ErrorAction 'SilentlyContinue' -ErrorVariable MyError
+	$ServicesToRemove = Get-Service $Name -ea 'SilentlyContinue' -ev MyError
 	Check-Error $MyError "Found $($ServicesToRemove.Count) services to remove"
 	if (!$ServicesToRemove) {
 		Write-Log -Message "-No services to be removed found..."
@@ -961,13 +961,13 @@ function Remove-MyService {
 			Write-Log -Message "-Found service $($Service.DisplayName)."
 			if ($Service.Status -ne 'Stopped') {
 				Write-Log -Message "-Service $($Service.Displayname) is not stopped."
-				Stop-Service $Service -ErrorAction 'SilentlyContinue' -Force -ErrorVariable ServiceError
+				Stop-Service $Service -ErrorAction 'SilentlyContinue' -Force -ev ServiceError
 				Check-Error $ServiceError "-Successfully stopped $($Service.Displayname)"
 			} else {
 				Write-Log -Message "-Service $($Service.Displayname) is already stopped."
 			}
 			Write-Log -Message "-Attempting to remove service $($Service.DisplayName)..."
-			$WmiService = Get-WmiObject -Class Win32_Service -Filter "Name='$($Service.ServiceName)'" -ErrorAction 'SilentlyContinue' -ErrorVariable WMIError
+			$WmiService = Get-WmiObject -Class Win32_Service -Filter "Name='$($Service.ServiceName)'" -ea 'SilentlyContinue' -ev WMIError
 			if ($WmiError) {
 				Write-Log -Message "-Unable to remove service $($Service.DisplayName). WMI query errored with `"$($WmiError.Exception.Message)`"" -LogLevel '2'
 			} else {
@@ -1029,13 +1029,13 @@ function Get-InstalledSoftware {
 				'Version' = 'ProductVersion';
 				'Guid' = 'SoftwareCode'
 			}
-			$QueryParams = $PSBoundParameters.GetEnumerator() | Where-Object { $QueryBuild.ContainsKey($_.Key) }
+			$QueryParams = $PSBoundParameters.GetEnumerator() | where { $QueryBuild.ContainsKey($_.Key) }
 			if ($QueryParams) {
 				$WhereQuery += ' WHERE'
 				$BuiltQueryParams = { @() }.Invoke()
 				foreach ($Param in $QueryParams) {
 					## Allow asterisks in cmdlet but WQL requires percentage and double backslashes
-					$ParamValue = $Param.Value | ForEach-Object { $_.Replace('*', '%').Replace('\','\\') }
+					$ParamValue = $Param.Value | foreach { $_.Replace('*', '%').Replace('\','\\') }
 					$Operator = @{ $true = 'LIKE'; $false = '=' }[$ParamValue -match '\%']
 					$BuiltQueryParams.Add("$($QueryBuild[$Param.Key]) $Operator '$($ParamValue)'")
 				}
@@ -1160,14 +1160,14 @@ function Convert-GuidToCompressedGuid {
 				$Guid.Substring(12, 4).ToCharArray(),
 				$Guid.Substring(16, 16).ToCharArray()
 			)
-			$Groups[0..2] | ForEach-Object {
+			$Groups[0..2] | foreach {
 				[array]::Reverse($_)
 			}
-			$CompressedGuid = ($Groups[0..2] | ForEach-Object { $_ -join '' }) -join ''
+			$CompressedGuid = ($Groups[0..2] | foreach { $_ -join '' }) -join ''
 			
 			$chararr = $Groups[3]
 			for ($i = 0; $i -lt $chararr.count; $i++) {
-				if (($i ForEach-Object 2) -eq 0) {
+				if (($i % 2) -eq 0) {
 					$CompressedGuid += ($chararr[$i+1] + $chararr[$i]) -join ''
 				}
 			}
@@ -1375,7 +1375,7 @@ function Remove-Software {
 				if ($InstallFolderPath -and (@('C:','C:\Windows') -notcontains $InstallFolderPath.Trim())) {
 					Write-Log -Message "Checking for processes in install folder '$InstallFolderPath'...."
 					Write-Log -Message  "Stopping all processes under the install folder $InstallFolderPath..."
-					$Processes = (Get-Process | Where-Object { $_.Path -like "$InstallFolderPath*" } | Select-Object -ExpandProperty Name)
+					$Processes = (Get-Process | where { $_.Path -like "$InstallFolderPath*" } | select -ExpandProperty Name)
 					if ($Processes) {
 						Write-Log -Message "Sending processes: $Processes to Stop-MyProcess..."
 						Stop-MyProcess $Processes
@@ -1447,7 +1447,7 @@ function Remove-Software {
 					Write-Log -Message "Checking for $Folder existence..."
 					if (Test-Path $Folder -PathType 'Container') {
 						Write-Log -Message "Found folder $Folder.  Attempting to remove..."
-						Remove-Item $Folder -Force -Recurse -ErrorAction 'Continue'
+						Remove-Item $Folder -Force -Recurse -ea 'Continue'
 						if (!(Test-Path $Folder -PathType 'Container')) {
 							Write-Log -Message "Successfully removed $Folder"
 						} else {
@@ -1456,7 +1456,7 @@ function Remove-Software {
 					} else {
 						Write-Log -Message "$Folder was not found..."	
 					}
-					Get-Shortcut -MatchingTargetPath $Folder -ErrorAction 'SilentlyContinue' | Remove-Item -ErrorAction 'Continue' -Force
+					Get-Shortcut -MatchingTargetPath $Folder -ErrorAction 'SilentlyContinue' | Remove-Item -ea 'Continue' -Force
 				}
 			}
 			
@@ -1464,7 +1464,7 @@ function Remove-Software {
 				Write-Log -Message "Removing all shortcuts in all user profile folders"
 				foreach ($key in $Shortcut.GetEnumerator()) {
 					$Params = @{ $key.Name = $key.value }
-					Get-Shortcut $Params | Remove-Item -Force -ErrorAction 'Continue'
+					Get-Shortcut $Params | Remove-Item -Force -ea 'Continue'
 				}
 			}
 		} catch {
@@ -1599,7 +1599,7 @@ function Get-Shortcut {
 		if ($WhereConditions.Count -gt 0) {
 			$WhereBlock = [scriptblock]::Create($WhereConditions -join ' -and ')
 			## TODO: Figure out a way to make this cleanly log access denied errors and continue
-			Get-ChildItem @Params | Where-Object $WhereBlock
+			Get-ChildItem @Params | where $WhereBlock
 		} else {
 			Get-ChildItem @Params
 		}
@@ -1768,7 +1768,7 @@ function Get-FileVersion ($sPc, $sPath, $sFileName) {
 		if (!(Test-Path $sFilePath)) {
 			$mResult = $false;
 		} else {
-			$oFile = (Get-ChildItem $sFilePath).VersionInfo;
+			$oFile = (dir $sFilePath).VersionInfo;
 		}##endif
 		
 		if (!(Test-Path variable:/mResult)) {
@@ -1940,13 +1940,13 @@ function Install-Software {
 			}
 			if ($KillProcess) {
 				Write-Log -Message 'Killing existing processes'
-				$KillProcess | ForEach-Object { Stop-MyProcess -ProcessName $_ }
+				$KillProcess | foreach { Stop-MyProcess -ProcessName $_ }
 			}
 			
 			Write-Log -Message "Starting the command line process `"$($ProcessParams['FilePath'])`" $($ProcessParams['ArgumentList'])..."
 			$Process = Start-Process @ProcessParams
 			while (!$Process.HasExited) {
-				Start-Sleep 1
+				sleep 1
 			}
 			Check-Process $Process
 		} catch {
