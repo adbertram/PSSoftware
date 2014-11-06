@@ -394,7 +394,8 @@ function Set-RegistryValueForDefaultUser {
 function Set-RegistryValueForAllUsers {
     <#
 	.SYNOPSIS
-		This function finds all of the user profile registry hives, mounts them and changes (or adds) a registry value for each user.
+		This function finds all of the user profile registry hives, mounts them and changes (or adds) a registry value for each user. If 
+		the key path doesn't exist to the value, it will automatically create the key and add the value
 	.EXAMPLE
 		PS> Set-RegistryValueForAllUsers -RegistryInstance @{'Name' = 'Setting'; 'Type' = 'String'; 'Value' = 'someval'; 'Path' = 'SOFTWARE\Microsoft\Windows\Something'}
 	
@@ -411,7 +412,6 @@ function Set-RegistryValueForAllUsers {
 		[hashtable[]]$RegistryInstance
 	)
 	try {
-		Start-Log
 		New-PSDrive -Name HKU -PSProvider Registry -Root Registry::HKEY_USERS | Out-Null
 		
 		## Change the registry values for the currently logged on user
@@ -420,49 +420,49 @@ function Set-RegistryValueForAllUsers {
 		foreach ($sid in $LoggedOnSids) {
 			Write-Log -Message "Loading the user registry hive for the logged on SID $sid"
 			foreach ($instance in $RegistryInstance) {
-				if (Get-ItemProperty -Path "HKU:\$sid\$($instance.Path)" -Name $instance.Name -ea SilentlyContinue) {
-					Write-Log -Message "Key name '$($instance.name)' exists at 'HKU:\$sid\$($instance.Path)'"
-					Set-ItemProperty -Path "HKU:\$sid\$($instance.Path)" -Name $instance.Name -Value $instance.Value -Type $instance.Type -Force
-				} else {
-					Write-Log -Message "Registry value $($instance.name) does not exist in HKU:\$sid\$($instance.Path)" -LogLevel '2'
-				}
+				New-Item -Path "HKU:\$sid\$($instance.Path | Split-Path -Parent)" -Name ($instance.Path | Split-Path -Leaf) -Force | Out-Null
+				Set-ItemProperty -Path "HKU:\$sid\$($instance.Path)" -Name $instance.Name -Value $instance.Value -Type $instance.Type -Force
 			}
 		}
-
-		## Modify registry hives for all user profiles
-		## Read all ProfileImagePath values from all reg keys that match a SID pattern in the ProfileList key
-		## Exclude all SIDs from the users that are currently logged on.  Those have already been processed.
-		$ProfileSids = Get-ProfileSids
-		Write-Log -Message "Found $($ProfileSids.Count) SIDs for profiles"
-		$ProfileSids = $ProfileSids | where { $LoggedOnSids -notcontains $_ }
 		
-		$ProfileFolderPaths = $ProfileSids | foreach { Get-UserProfilePath -Sid $_ }
-		
-		if ((Get-Architecture) -eq 'x64') {
-			$RegPath = 'syswow64'
-		} else {
-			$RegPath = 'System32'
-		}
-		Write-Log -Message "Reg.exe path is $RegPath"
-		
-		## Load each user's registry hive into the HKEY_USERS\TempUserLoad key
-		foreach ($prof in $ProfileFolderPaths) {
-			Write-Log -Message "Loading the user registry hive in the $prof profile"
-			$Process = Start-Process "$($env:Systemdrive)\Windows\$RegPath\reg.exe" -ArgumentList "load HKEY_USERS\TempUserLoad `"$prof\NTuser.dat`"" -Wait -NoNewWindow -PassThru
-			if (Check-Process $Process) {
-				foreach ($instance in $RegistryInstance) {
-					Write-Log -Message "Setting property in the HKU\$($instance.Path) path to `"$($instance.Name)`" and value `"$($instance.Value)`""
-					if (Get-ItemProperty -Path "HKU:\TempUserLoad\$($instance.Path)" -Name $instance.Name -ea SilentlyContinue) {
-						Set-ItemProperty -Path "HKU:\TempUserLoad\$($instance.Path)" -Name $instance.Name -Value $instance.Value -Type $instance.Type -Force
-					} else {
-						Write-Log -Message "Registry value $($instance.name) does not exist in HKU:\TempUserLoad\$($instance.Path)" -LogLevel '2'
-					}
+		## Create the Active Setup registry key so that the reg add cmd will get ran for each user
+		## logging into the machine.
+		## http://www.itninja.com/blog/view/an-active-setup-primer
+		Write-Log -Message "Setting Active Setup registry value to apply to all other users"
+		foreach ($instance in $RegistryInstance) {
+			$Guid = [guid]::NewGuid().Guid
+			$ActiveSetupRegParentPath = 'HKLM:\Software\Microsoft\Active Setup\Installed Components'
+			New-Item -Path $ActiveSetupRegParentPath -Name $Guid -Force | Out-Null
+			$ActiveSetupRegPath = "HKLM:\Software\Microsoft\Active Setup\Installed Components\$Guid"
+			Write-Log -Message "Using registry path '$ActiveSetupRegPath'"
+			
+			## Convert the registry value type to one that reg.exe can understand
+			switch ($instance.Type) {
+				'String' {
+					$RegValueType = 'REG_SZ'
 				}
-				$Process = Start-Process "$($env:Systemdrive)\Windows\$RegPath\reg.exe" -ArgumentList "unload HKEY_USERS\TempUserLoad" -Wait -NoNewWindow -PassThru
-				Check-Process $Process | Out-Null
-			} else {
-				Write-Log -Message "Failed to load registry hive for the '$prof' profile" -LogLevel '3'
+				'Dword' {
+					$RegValueType = 'REG_DWORD'
+				}
+				'Binary' {
+					$RegValueType = 'REG_BINARY'
+				}
+				'ExpandString' {
+					$RegValueType = 'REG_EXPAND_SZ'
+				}
+				'MultiString' {
+					$RegValueType = 'REG_MULTI_SZ'
+				}
+				default {
+					throw "Registry type '$($instance.Type)' not recognized"
+				}
 			}
+			
+			$ActiveSetupValue = "reg add `"{0}`" /v {1} /t {2} /d {3} /f" -f "HKCU\$($instance.Path)", $instance.Name, $RegValueType, $instance.Value
+			Write-Log -Message "Active setup value is '$ActiveSetupValue'"
+			Set-ItemProperty -Path $ActiveSetupRegPath -Name '(Default)' -Value 'Active Setup Test' -Force
+			Set-ItemProperty -Path $ActiveSetupRegPath -Name 'Version' -Value '1' -Force
+			Set-ItemProperty -Path $ActiveSetupRegPath -Name 'StubPath' -Value $ActiveSetupValue -Force
 		}
 	} catch {
 		Write-Log -Message $_.Exception.Message -LogLevel '3'
