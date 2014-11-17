@@ -989,7 +989,7 @@ function Uninstall-WindowsInstallerPackage($ProductName,$RunMsizap,$MsizapFilePa
 	if ($psversiontable.psversion.major -eq 2) {
 		$Product = Get-InstalledSoftware -Name $ProductName
 		$Process = Start-Process 'msiexec.exe' -ArgumentList "/x $($Product.SoftwareCode) /qn" -PassThru -Wait -NoNewWindow
-		Wait-MyProcess -ProcessId $Process.Id
+		Wait-WindowsInstaller
 		Check-Process $Process
 	} else {	
 		$ChildModulesPath = '\\configmanager\deploymentmodules'
@@ -1007,6 +1007,7 @@ function Uninstall-WindowsInstallerPackage($ProductName,$RunMsizap,$MsizapFilePa
 		}
 		
 		Get-MSIProductInfo -Name $ProductName | Uninstall-MsiProduct @UninstallParams
+		Wait-WindowsInstaller
 	}
 	
 	if (!(Validate-IsSoftwareInstalled $ProductName)) {
@@ -1015,6 +1016,19 @@ function Uninstall-WindowsInstallerPackage($ProductName,$RunMsizap,$MsizapFilePa
 	} else {
 		Write-Log -Message "Failed to uninstall MSI pacage '$ProductName'..." -LogLevel '3'
 		$false
+	}
+}
+
+function Wait-WindowsInstaller {
+	$MsiexecProcesses = Get-WmiObject -Class Win32_Process -Filter "Name = 'msiexec.exe'"
+	$InstallProcesses = $MsiexecProcesses | where { $_.CommandLine -ne 'C:\Windows\system32\msiexec.exe /V' }
+	if ($InstallProcesses) {
+		Write-Log -Message "Found '$($InstallProcesses.Count)' Windows installer processes.  Waiting..."
+		foreach ($Process in $InstallProcesses) {
+			Wait-MyProcess -ProcessId $Process.ProcessId
+		}
+	} else {
+		Write-Log -Message "No Windows installer processes found"	
 	}
 }
 
@@ -1090,19 +1104,19 @@ function Uninstall-InstallShieldPackage([string[]]$ProductName, $IssFilePath, $S
 
 function Wait-MyProcess ($ProcessId) {
 	## This function not only waits for the process but waits for all it's child processes as well
-	$Process = Get-WmiObject -Class Win32_Process -Filter "ProcessId = '$ProcessId'"
+	$Process = Get-Process -Id $ProcessId
 	if ($Process) {
 		Write-Log -Message "Waiting for process ID '$ProcessId' to finish"
 		$ChildProcessIds = @()
 		## While waiting for the initial process to stop, collect all child IDs it spawns
 		while (!$Process.HasExited) {
-			$ChildProcessIds += Get-WmiObject -Class Win32_Process -Filter "ParentProcessId = '$ProcessId'" | Select-Object -ExpandProperty Id
+			$ChildProcesses += Get-WmiObject -Class Win32_Process -Filter "ParentProcessId = '$ProcessId'"
 			sleep 1
 		}
-		if ($ChildProcessIds) {
-			Write-Log -Message "Process ID '$ProcessId' spawned ($ChildProcessIds.Count).  Waiting on these to finish."
+		if ($ChildProcesses) {
+			Write-Log -Message "Process ID '$ProcessId' spawned '$($ChildProcesses.Count)' processes.  Waiting on these to finish."
 			foreach ($Process in $ChildProcesses) {
-				Wait-MyProcess -ProcessId $Process.Id
+				Wait-MyProcess -ProcessId $Process.ProcessId
 			}
 		} 
 		Write-Log -Message "Finished waiting for process ID '$ProcessId' and all child processes"
