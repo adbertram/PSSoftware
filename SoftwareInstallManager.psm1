@@ -411,7 +411,7 @@ function Copy-FileWithHashCheck {
 	[CmdletBinding()]
 	param (
 		[Parameter(Mandatory = $true, ValueFromPipelineByPropertyName = $true, ValueFromPipeline = $True)]
-		[ValidateScript({ Test-Path -Path $_ -PathType Leaf })]
+		[Alias('Fullname')]
 		[string]$SourceFilePath,
 		[Parameter(Mandatory = $true)]
 		[ValidateScript({ Test-Path -Path $_ -PathType Container })]
