@@ -989,9 +989,7 @@ function Uninstall-WindowsInstallerPackage($ProductName,$RunMsizap,$MsizapFilePa
 	if ($psversiontable.psversion.major -eq 2) {
 		$Product = Get-InstalledSoftware -Name $ProductName
 		$Process = Start-Process 'msiexec.exe' -ArgumentList "/x $($Product.SoftwareCode) /qn" -PassThru -Wait -NoNewWindow
-		while (!$Process.HasExited) {
-			sleep 1
-		}
+		Wait-MyProcess -ProcessId $Process.Id
 		Check-Process $Process
 	} else {	
 		$ChildModulesPath = '\\configmanager\deploymentmodules'
@@ -1090,10 +1088,27 @@ function Uninstall-InstallShieldPackage([string[]]$ProductName, $IssFilePath, $S
 	}
 }
 
-function Wait-PowershellChildProcess {
-	$PoshChildProcesses = Get-WmiObject -Class Win32_Process -Filter "(ParentProcessId = $pid) AND (Name <> 'conhost.exe')"
-	$Ids = $PoshChildProcesses | foreach { $_.ProcessId }
-	Wait-Process -Id $Ids
+function Wait-MyProcess ($ProcessId) {
+	## This function not only waits for the process but waits for all it's child processes as well
+	$Process = Get-WmiObject -Class Win32_Process -Filter "ProcessId = '$ProcessId'"
+	if ($Process) {
+		Write-Log -Message "Waiting for process ID '$ProcessId' to finish"
+		$ChildProcessIds = @()
+		## While waiting for the initial process to stop, collect all child IDs it spawns
+		while (!$Process.HasExited) {
+			$ChildProcessIds += Get-WmiObject -Class Win32_Process -Filter "ParentProcessId = '$ProcessId'" | Select-Object -ExpandProperty Id
+			sleep 1
+		}
+		if ($ChildProcessIds) {
+			Write-Log -Message "Process ID '$ProcessId' spawned ($ChildProcessIds.Count).  Waiting on these to finish."
+			foreach ($Process in $ChildProcesses) {
+				Wait-MyProcess -ProcessId $Process.Id
+			}
+		} 
+		Write-Log -Message "Finished waiting for process ID '$ProcessId' and all child processes"
+	} else {
+		Write-Log -Message "Process ID '$ProcessId' not found"
+	}
 }
 
 function Get-SystemTempFilePath {
@@ -1659,8 +1674,8 @@ function Remove-Software {
 						if ($InstalledProduct.UninstallString) {
 							$InstallerType = Get-InstallerType $InstalledProduct.UninstallString
 						} else {
-							Write-Log -Message "Uninstall string for $Title not found..." -LogLevel '3'
-							continue
+							Write-Log -Message "Uninstall string for $Title not found. Unable to determine installer type. Defaulting to Windows Installer.." -LogLevel '2'
+							$InstallerType = 'Windows Installer'
 						}
 						if (!$PsBoundParameters['LogFilePath']) {
 							$WmiParams = @{
