@@ -656,11 +656,15 @@ function Set-RegistryValueForAllUsers {
 	 	A hash table containing key names of 'Name' designating the registry value name, 'Type' to designate the type
 		of registry value which can be 'String,Binary,Dword,ExpandString or MultiString', 'Value' which is the value itself of the
 		registry value and 'Path' designating the parent registry key the registry value is in.
+	.PARAMETER Remove
+		A switch parameter that overrides the default setting to only change or add registry values.  This removes one of more registry keys instead.
+		If this parameter is used the only required key in the RegistryInstance parameter is Path.
 	#>
 	[CmdletBinding()]
 	param (
 		[Parameter(Mandatory=$true)]
-		[hashtable[]]$RegistryInstance
+		[hashtable[]]$RegistryInstance,
+		[switch]$Remove
 	)
 	try {
 		New-PSDrive -Name HKU -PSProvider Registry -Root Registry::HKEY_USERS | Out-Null
@@ -671,8 +675,13 @@ function Set-RegistryValueForAllUsers {
 		foreach ($sid in $LoggedOnSids) {
 			Write-Log -Message "Loading the user registry hive for the logged on SID $sid"
 			foreach ($instance in $RegistryInstance) {
-				New-Item -Path "HKU:\$sid\$($instance.Path | Split-Path -Parent)" -Name ($instance.Path | Split-Path -Leaf) -Force | Out-Null
-				Set-ItemProperty -Path "HKU:\$sid\$($instance.Path)" -Name $instance.Name -Value $instance.Value -Type $instance.Type -Force
+				if ($Remove.IsPresent) {
+					Write-Log -Message "Removing registry key '$($instance.path)'"
+					Remove-Item -Path "HKU:\$sid\$($instance.Path)" -Recurse -Force -ea 'SilentlyContinue'
+				} else {
+					New-Item -Path "HKU:\$sid\$($instance.Path | Split-Path -Parent)" -Name ($instance.Path | Split-Path -Leaf) -Force | Out-Null
+					Set-ItemProperty -Path "HKU:\$sid\$($instance.Path)" -Name $instance.Name -Value $instance.Value -Type $instance.Type -Force
+				}
 			}
 		}
 		
@@ -687,29 +696,33 @@ function Set-RegistryValueForAllUsers {
 			$ActiveSetupRegPath = "HKLM:\Software\Microsoft\Active Setup\Installed Components\$Guid"
 			Write-Log -Message "Using registry path '$ActiveSetupRegPath'"
 			
-			## Convert the registry value type to one that reg.exe can understand
-			switch ($instance.Type) {
-				'String' {
-					$RegValueType = 'REG_SZ'
+			if ($Remove.IsPresent) {
+				$ActiveSetupValue = "reg delete `"{0}`" /f" -f "HKCU\$($instance.Path)"
+			} else {
+				## Convert the registry value type to one that reg.exe can understand
+				switch ($instance.Type) {
+					'String' {
+						$RegValueType = 'REG_SZ'
+					}
+					'Dword' {
+						$RegValueType = 'REG_DWORD'
+					}
+					'Binary' {
+						$RegValueType = 'REG_BINARY'
+					}
+					'ExpandString' {
+						$RegValueType = 'REG_EXPAND_SZ'
+					}
+					'MultiString' {
+						$RegValueType = 'REG_MULTI_SZ'
+					}
+					default {
+						throw "Registry type '$($instance.Type)' not recognized"
+					}
 				}
-				'Dword' {
-					$RegValueType = 'REG_DWORD'
-				}
-				'Binary' {
-					$RegValueType = 'REG_BINARY'
-				}
-				'ExpandString' {
-					$RegValueType = 'REG_EXPAND_SZ'
-				}
-				'MultiString' {
-					$RegValueType = 'REG_MULTI_SZ'
-				}
-				default {
-					throw "Registry type '$($instance.Type)' not recognized"
-				}
+				$ActiveSetupValue = "reg add `"{0}`" /v {1} /t {2} /d {3} /f" -f "HKCU\$($instance.Path)", $instance.Name, $RegValueType, $instance.Value
 			}
 			
-			$ActiveSetupValue = "reg add `"{0}`" /v {1} /t {2} /d {3} /f" -f "HKCU\$($instance.Path)", $instance.Name, $RegValueType, $instance.Value
 			Write-Log -Message "Active setup value is '$ActiveSetupValue'"
 			Set-ItemProperty -Path $ActiveSetupRegPath -Name '(Default)' -Value 'Active Setup Test' -Force
 			Set-ItemProperty -Path $ActiveSetupRegPath -Name 'Version' -Value '1' -Force
@@ -1587,6 +1600,10 @@ function Remove-Software {
 		One or more folders to recursively remove after software uninstall. This is beneficial for those
 		applications that do not clean up after themselves.  If this param is specified, all shortcuts related to this
 		folder path will be removed in all user profile folders also.
+	.PARAMETER RemoveRegistryKey
+		One or more registry key paths to recursively remove after software install.  Use a Powershell-friendly registry
+		key path like 'HKLM:\Software\SomeSoftware\DeleteThisKey' or 'HKCU:\Software\SomeSoftware\DeleteThisUserKey'.  The HKCU
+		references will be converted to the appropriate paths to remove that key from all user registry hives.
 	.PARAMETER RunMsizap
 		Use this parameter to run the msizap.exe utility to cleanup any lingering remnants of the software
 	.PARAMETER MsizapParams
@@ -1597,7 +1614,7 @@ function Remove-Software {
 	.PARAMETER IssFilePath
 		If removing an InstallShield application, use this parameter to specify the ISS file path where you recorded
 		the uninstall of the application.
-	.PARAMETER
+	.PARAMETER InstallShieldSetupFilePath
 		If removing an InstallShield application, use this optional paramter to specify where the EXE installer is for
 		the application you're removing.  This is only used if no cached installer is found.
 	#>
@@ -1620,6 +1637,8 @@ function Remove-Software {
 		[string]$InstallshieldLogFilePath,
 		[Parameter()]
 		[string[]]$RemoveFolder,
+		[Parameter()]
+		[string[]]$RemoveRegistryKey,
 		[Parameter()]
 		[hashtable]$Shortcut,
 		[Parameter(ParameterSetName = 'Msizap')]
@@ -1749,6 +1768,16 @@ function Remove-Software {
 						Write-Log -Message "$Folder was not found..."	
 					}
 					Get-Shortcut -MatchingTargetPath $Folder -ErrorAction 'SilentlyContinue' | Remove-Item -ea 'Continue' -Force
+				}
+			}
+			
+			if ($RemoveRegistryKey) {
+				foreach ($Key in $RemoveRegistryKey) {
+					if (($Key | Split-Path).Qualifier -eq 'HKLM:') {
+						Remove-Item -Path $Key -Recurse -Force
+					} elseif (($Key | Split-Path).Qualifier -eq 'HKCU:') {
+						Remove-	
+					}
 				}
 			}
 			
