@@ -984,21 +984,33 @@ function Uninstall-ViaMsizap {
 }
 
 function Uninstall-WindowsInstallerPackage($ProductName,$RunMsizap,$MsizapFilePath,$MsizapParams) {
-	$ChildModulesPath = '\\configmanager\deploymentmodules'
-	if (!(Test-Path "$ChildModulesPath\MSI")) {
-		Write-Log -Message "Required MSI module is not available" -LogLevel '3'
-		exit
-	} elseif ((Get-OperatingSystem) -notmatch 'XP') {
-		Import-Module "$ChildModulesPath\MSI"
+	Write-Log -Message "Attempting to uninstall MSI package '$ProductName'..."
+	## The MSI module does not work with PSv2
+	if ($psversiontable.psversion.major -eq 2) {
+		$Product = Get-InstalledSoftware -Name $ProductName
+		$Process = Start-Process 'msiexec.exe' -ArgumentList "/x $($Product.SoftwareCode) /qn" -PassThru -Wait -NoNewWindow
+		while (!$Process.HasExited) {
+			sleep 1
+		}
+		Check-Process $Process
+	} else {	
+		$ChildModulesPath = '\\configmanager\deploymentmodules'
+		if (!(Test-Path "$ChildModulesPath\MSI")) {
+			Write-Log -Message "Required MSI module is not available" -LogLevel '3'
+			exit
+		} elseif ((Get-OperatingSystem) -notmatch 'XP') {
+			Import-Module "$ChildModulesPath\MSI"
+		}
+		
+		$UninstallParams = @{
+			'Log' = $script:LogFilePath
+			'Chain' = $true
+			'Force' = $true
+		}
+		
+		Get-MSIProductInfo -Name $ProductName | Uninstall-MsiProduct @UninstallParams
 	}
 	
-	$UninstallParams = @{
-		'Log' = $script:LogFilePath
-		'Chain' = $true
-		'Force' = $true
-	}
-	Write-Log -Message "Attempting to uninstall MSI package '$ProductName'..."
-	Get-MSIProductInfo -Name $ProductName | Uninstall-MsiProduct @UninstallParams
 	if (!(Validate-IsSoftwareInstalled $ProductName)) {
 		Write-Log -Message "Successfully uninstalled MSI package '$ProductName'"
 		$true
