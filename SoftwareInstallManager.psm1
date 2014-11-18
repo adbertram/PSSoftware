@@ -126,7 +126,7 @@ function Start-Log {
 	[CmdletBinding()]
 	param (
 		[ValidateScript({ Split-Path $_ -Parent | Test-Path })]
-		[string]$FilePath = "$([environment]::GetEnvironmentVariable('TEMP','Machine'))\$((Get-Item $MyInvocation.ScriptName).Basename + '.log')"
+		[string]$FilePath = "$(Get-SystemTempFilePath)\$((Get-Item $MyInvocation.ScriptName).Basename + '.log')"
 	)
 	
 	try {
@@ -1020,16 +1020,21 @@ function Uninstall-WindowsInstallerPackage($ProductName,$RunMsizap,$MsizapFilePa
 }
 
 function Uninstall-WindowsInstallerPackageWithMsiexec ($ProductName) {
-	$Product = Get-InstalledSoftware -Name $ProductName
-	$Process = Start-Process 'msiexec.exe' -ArgumentList "/x $($Product.SoftwareCode) /qn" -PassThru -Wait -NoNewWindow
-	Wait-WindowsInstaller
-	Check-Process $Process
-	if (!(Validate-IsSoftwareInstalled $ProductName)) {
-		Write-Log -Message "Successfully uninstalled MSI package '$ProductName' with msiexec.exe"
-		$true
-	} else {
-		Write-Log -Message "Failed to uninstall MSI package '$ProductName' with msiexec.exe" -LogLevel '3'
-		$false
+	try {
+		$Product = Get-InstalledSoftware -Name $ProductName
+		Write-Log -Message "Initiating msiexec.exe with arguments '/x $($Product.SoftwareCode) /qn REBOOT=ReallySuppress'"
+		$Process = Start-Process 'msiexec.exe' -ArgumentList "/x $($Product.SoftwareCode) /qn REBOOT=ReallySuppress" -PassThru -Wait -NoNewWindow
+		Wait-WindowsInstaller
+		Check-Process $Process
+		if (!(Validate-IsSoftwareInstalled $ProductName)) {
+			Write-Log -Message "Successfully uninstalled MSI package '$ProductName' with msiexec.exe"
+			$true
+		} else {
+			Write-Log -Message "Failed to uninstall MSI package '$ProductName' with msiexec.exe" -LogLevel '3'
+			$false
+		}
+	} catch {
+		Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
 	}
 }
 
@@ -1144,7 +1149,7 @@ function Uninstall-InstallShieldPackage([string[]]$ProductName, $IssFilePath, $S
 
 function Wait-MyProcess ($ProcessId) {
 	## This function not only waits for the process but waits for all it's child processes as well
-	$Process = Get-Process -Id $ProcessId
+	$Process = Get-Process -Id $ProcessId -ea 'SilentlyContinue'
 	if ($Process) {
 		Write-Log -Message "Waiting for process ID '$ProcessId' to finish"
 		$ChildProcessIds = @()
@@ -1253,7 +1258,7 @@ function Stop-MyProcess ([string[]]$ProcessName) {
 				Write-Log -Message "-Process $($process.Name) is running. Attempting to stop..."
 				$WmiProcess = Get-WmiObject -Class Win32_Process -Filter "name='$($process.Name).exe'" -ea 'SilentlyContinue' -ev WMIError
 				if ($WmiError) {
-					Write-Log -Message "Unable to stop process $process. WMI query errored with `"$($WmiError.Exception.Message)`"" -LogLevel '2'
+					Write-Log -Message "Unable to stop process $($process.Name). WMI query errored with `"$($WmiError.Exception.Message)`"" -LogLevel '2'
 				} elseif ($WmiProcess) {
 					$WmiResult = $WmiProcess.Terminate()
 					if ($WmiResult.ReturnValue -ne 0) {
@@ -1824,7 +1829,7 @@ function Remove-Software {
 				}
 			}
 		} catch {
-			Write-Log -Message $_.Exception.Message -LogLevel '3'
+			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
 		}
 	}
 }
