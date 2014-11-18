@@ -1781,17 +1781,21 @@ function Remove-Software {
 			if ($RemoveFolder) {
 				Write-Log -Message "Starting folder removal..."
 				foreach ($Folder in $RemoveFolder) {
-					Write-Log -Message "Checking for $Folder existence..."
-					if (Test-Path $Folder -PathType 'Container') {
-						Write-Log -Message "Found folder $Folder.  Attempting to remove..."
-						Remove-Item $Folder -Force -Recurse -ea 'Continue'
-						if (!(Test-Path $Folder -PathType 'Container')) {
-							Write-Log -Message "Successfully removed $Folder"
+					try {
+						Write-Log -Message "Checking for $Folder existence..."
+						if (Test-Path $Folder -PathType 'Container') {
+							Write-Log -Message "Found folder $Folder.  Attempting to remove..."
+							Remove-Item $Folder -Force -Recurse -ea 'Continue'
+							if (!(Test-Path $Folder -PathType 'Container')) {
+								Write-Log -Message "Successfully removed $Folder"
+							} else {
+								Write-Log -Message "Failed to remove $Folder" -LogLevel '2'
+							}
 						} else {
-							Write-Log -Message "Failed to remove $Folder" -LogLevel '2'
+							Write-Log -Message "$Folder was not found..."
 						}
-					} else {
-						Write-Log -Message "$Folder was not found..."	
+					} catch {
+						Write-Log -Message "Error occurred: '$($_.Exception.Message)' attempting to remove folder" -LogLevel '3'	
 					}
 					Get-Shortcut -MatchingTargetPath $Folder -ErrorAction 'SilentlyContinue' | Remove-Item -ea 'Continue' -Force
 				}
