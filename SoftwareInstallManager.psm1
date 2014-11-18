@@ -1244,27 +1244,28 @@ function Find-InTextFile {
 }
 
 function Stop-MyProcess ([string[]]$ProcessName) {
-	Write-Debug "Initiating the $($MyInvocation.MyCommand.Name) function...";
-	foreach ($Process in $ProcessName) {
-		$ProcessesToStop = Get-Process $ProcessName -ErrorAction 'SilentlyContinue'
+	try {
+		$ProcessesToStop = Get-Process -Name $ProcessName -ErrorAction 'SilentlyContinue'
 		if (!$ProcessesToStop) {
 			Write-Log -Message "-No processes to be killed found..."
 		} else {
-			foreach ($process in $ProcessName) {
-				Write-Log -Message "-Process $process is running. Attempting to stop..."
-				$WmiProcess = Get-WmiObject -Class Win32_Process -Filter "name='$process.exe'" -ea 'SilentlyContinue' -ev WMIError
+			foreach ($process in $ProcessesToStop) {
+				Write-Log -Message "-Process $($process.Name) is running. Attempting to stop..."
+				$WmiProcess = Get-WmiObject -Class Win32_Process -Filter "name='$($process.Name).exe'" -ea 'SilentlyContinue' -ev WMIError
 				if ($WmiError) {
 					Write-Log -Message "Unable to stop process $process. WMI query errored with `"$($WmiError.Exception.Message)`"" -LogLevel '2'
 				} elseif ($WmiProcess) {
 					$WmiResult = $WmiProcess.Terminate()
 					if ($WmiResult.ReturnValue -ne 0) {
-						Write-Log -Message "-Unable to stop process $process. Return value was $($WmiResult.ReturnValue)" -LogLevel '2'
+						Write-Log -Message "-Unable to stop process $($process.name). Return value was $($WmiResult.ReturnValue)" -LogLevel '2'
 					} else {
-						Write-Log -Message "-Successfully stopped process $process..."
+						Write-Log -Message "-Successfully stopped process $($process.Name)..."
 					}
 				}
 			}
 		}
+	} catch {
+		Write-Log -Message "Error: $($_.Exception.Message) - $($_.InvocationInfo.ScriptLineNumber)"	-LogLevel '3'
 	}
 }
 
@@ -1650,7 +1651,6 @@ function Remove-Software {
 		[Parameter(Mandatory = $true,
 				   ValueFromPipeline = $true,
 				   ValueFromPipelineByPropertyName = $true)]
-		[ValidateNotNullOrEmpty()]	
 		[string[]]$ProductName,
 		[Parameter()]
 		[string[]]$KillProcess,
@@ -1719,7 +1719,7 @@ function Remove-Software {
 						## Check to see if the process is still running.  It's possible the termination of other processes
 						## already killed this one.
 						$Processes = $Processes | where { Get-Process -Name $_ -ea 'SilentlyContinue'}
-						Stop-MyProcess $Process
+						Stop-MyProcess $Processes
 					} else {
 						Write-Log -Message 'No processes running under the install folder path'
 					}
@@ -1778,6 +1778,29 @@ function Remove-Software {
 				}
 			}
 			
+			if ($RemoveRegistryKey) {
+				Write-Log -Message 'Beginning registry key removal...'
+				foreach ($Key in $RemoveRegistryKey) {
+					if (($Key | Split-Path -Qualifier) -eq 'HKLM:') {
+						Write-Log -Message "Removing HKLM registry key '$Key' for system"
+						Remove-Item -Path $Key -Recurse -Force -ea 'SilentlyContinue'
+					} elseif (($Key | Split-Path -Qualifier) -eq 'HKCU:') {
+						Write-Log -Message "Removing HKCU registry key '$Key' for all users"
+						Set-RegistryValueForAllUsers -RegistryInstance @{ 'Path' = $Key.Replace('HKCU:\', '') } -Remove
+					} else {
+						Write-Log -Message "Registry key '$Key' not in recognized format" -LogLevel '2'
+					}
+				}
+			}
+			
+			if ($Shortcut) {
+				Write-Log -Message "Removing all shortcuts in all user profile folders"
+				foreach ($key in $Shortcut.GetEnumerator()) {
+					$Params = @{ $key.Name = $key.value }
+					Get-Shortcut $Params | Remove-Item -Force -ea 'Continue'
+				}
+			}
+			
 			if ($RemoveFolder) {
 				Write-Log -Message "Starting folder removal..."
 				foreach ($Folder in $RemoveFolder) {
@@ -1794,28 +1817,10 @@ function Remove-Software {
 						} else {
 							Write-Log -Message "$Folder was not found..."
 						}
+						Get-Shortcut -MatchingTargetPath $Folder -ErrorAction 'SilentlyContinue' | Remove-Item -ea 'Continue' -Force
 					} catch {
-						Write-Log -Message "Error occurred: '$($_.Exception.Message)' attempting to remove folder" -LogLevel '3'	
+						Write-Log -Message "Error occurred: '$($_.Exception.Message)' attempting to remove folder" -LogLevel '3'
 					}
-					Get-Shortcut -MatchingTargetPath $Folder -ErrorAction 'SilentlyContinue' | Remove-Item -ea 'Continue' -Force
-				}
-			}
-			
-			if ($RemoveRegistryKey) {
-				foreach ($Key in $RemoveRegistryKey) {
-					if (($Key | Split-Path).Qualifier -eq 'HKLM:') {
-						Remove-Item -Path $Key -Recurse -Force
-					} elseif (($Key | Split-Path).Qualifier -eq 'HKCU:') {
-						Remove-	
-					}
-				}
-			}
-			
-			if ($Shortcut) {
-				Write-Log -Message "Removing all shortcuts in all user profile folders"
-				foreach ($key in $Shortcut.GetEnumerator()) {
-					$Params = @{ $key.Name = $key.value }
-					Get-Shortcut $Params | Remove-Item -Force -ea 'Continue'
 				}
 			}
 		} catch {
@@ -1839,7 +1844,6 @@ function Remove-ItemFromAllUserProfiles {
 	[CmdletBinding()]
 	param (
 		[Parameter(Mandatory=$true)]
-		[ValidateNotNullOrEmpty()]
 		[string[]]$Path
 	)
 	
