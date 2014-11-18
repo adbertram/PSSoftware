@@ -658,7 +658,8 @@ function Set-RegistryValueForAllUsers {
 		registry value and 'Path' designating the parent registry key the registry value is in.
 	.PARAMETER Remove
 		A switch parameter that overrides the default setting to only change or add registry values.  This removes one of more registry keys instead.
-		If this parameter is used the only required key in the RegistryInstance parameter is Path.
+		If this parameter is used the only required key in the RegistryInstance parameter is Path.  This will automatically remove both
+		the x86 and x64 paths if the key is a child under the SOFTWARE key.  There's no need to specify the WOW6432Node path also.
 	#>
 	[CmdletBinding()]
 	param (
@@ -697,7 +698,13 @@ function Set-RegistryValueForAllUsers {
 			Write-Log -Message "Using registry path '$ActiveSetupRegPath'"
 			
 			if ($Remove.IsPresent) {
-				$ActiveSetupValue = "reg delete `"{0}`" /f" -f "HKCU\$($instance.Path)"
+				if ($instance.Path.Split('\')[0] -eq 'SOFTWARE' -and ((Get-Architecture) -eq 'x64')) {
+					$Split = $instance.Path.Split('\')
+					$x86Path = "HKCU\SOFTWARE\Wow6432Node\{0}" -f ($Split[1..($Split.Length)] -join '\')
+					$ActiveSetupValue = "reg delete `"{0}`" /f && reg delete `"{1}`"" -f "HKCU\$($instance.Path)", $x86Path
+				} else {
+					$ActiveSetupValue = "reg delete `"{0}`" /f" -f "HKCU\$($instance.Path)"
+				}
 			} else {
 				## Convert the registry value type to one that reg.exe can understand
 				switch ($instance.Type) {
@@ -1000,34 +1007,54 @@ function Uninstall-WindowsInstallerPackage($ProductName,$RunMsizap,$MsizapFilePa
 	Write-Log -Message "Attempting to uninstall MSI package '$ProductName'..."
 	## The MSI module does not work with PSv2
 	if ($psversiontable.psversion.major -eq 2) {
-		$Product = Get-InstalledSoftware -Name $ProductName
-		$Process = Start-Process 'msiexec.exe' -ArgumentList "/x $($Product.SoftwareCode) /qn" -PassThru -Wait -NoNewWindow
-		Wait-WindowsInstaller
-		Check-Process $Process
-	} else {	
-		$ChildModulesPath = '\\configmanager\deploymentmodules'
-		if (!(Test-Path "$ChildModulesPath\MSI")) {
-			Write-Log -Message "Required MSI module is not available" -LogLevel '3'
-			exit
-		} elseif ((Get-OperatingSystem) -notmatch 'XP') {
-			Import-Module "$ChildModulesPath\MSI"
+		Uninstall-WindowsInstallerPackageWithMsiexec -ProductName $ProductName
+	} else {
+		$Result = Uninstall-WindowsInstallerPackageWithMsiModule -ProductName $ProductName
+		## I've seen instances where using the MSI module does not work but using the traditional msiexec.exe does
+		if (!$Result) {
+			Uninstall-WindowsInstallerPackageWithMsiexec -ProductName $ProductName
+		} else {
+			$Result	
 		}
-		
-		$UninstallParams = @{
-			'Log' = $script:LogFilePath
-			'Chain' = $true
-			'Force' = $true
-		}
-		
-		Get-MSIProductInfo -Name $ProductName | Uninstall-MsiProduct @UninstallParams
-		Wait-WindowsInstaller
 	}
-	
+}
+
+function Uninstall-WindowsInstallerPackageWithMsiexec ($ProductName) {
+	$Product = Get-InstalledSoftware -Name $ProductName
+	$Process = Start-Process 'msiexec.exe' -ArgumentList "/x $($Product.SoftwareCode) /qn" -PassThru -Wait -NoNewWindow
+	Wait-WindowsInstaller
+	Check-Process $Process
 	if (!(Validate-IsSoftwareInstalled $ProductName)) {
-		Write-Log -Message "Successfully uninstalled MSI package '$ProductName'"
+		Write-Log -Message "Successfully uninstalled MSI package '$ProductName' with msiexec.exe"
 		$true
 	} else {
-		Write-Log -Message "Failed to uninstall MSI pacage '$ProductName'..." -LogLevel '3'
+		Write-Log -Message "Failed to uninstall MSI package '$ProductName' with msiexec.exe" -LogLevel '3'
+		$false
+	}
+}
+
+function Uninstall-WindowsInstallerPackageWithMsiModule ($ProductName) {
+	$ChildModulesPath = '\\configmanager\deploymentmodules'
+	if (!(Test-Path "$ChildModulesPath\MSI")) {
+		Write-Log -Message "Required MSI module is not available" -LogLevel '3'
+		exit
+	} elseif ((Get-OperatingSystem) -notmatch 'XP') {
+		Import-Module "$ChildModulesPath\MSI"
+	}
+	
+	$UninstallParams = @{
+		'Log' = $script:LogFilePath
+		'Chain' = $true
+		'Force' = $true
+	}
+	
+	Get-MSIProductInfo -Name $ProductName | Uninstall-MsiProduct @UninstallParams -Properties 'REBOOT=ReallySuppress'
+	Wait-WindowsInstaller
+	if (!(Validate-IsSoftwareInstalled $ProductName)) {
+		Write-Log -Message "Successfully uninstalled MSI package '$ProductName' with MSI module"
+		$true
+	} else {
+		Write-Log -Message "Failed to uninstall MSI package '$ProductName' with MSI module" -LogLevel '3'
 		$false
 	}
 }
@@ -1689,9 +1716,12 @@ function Remove-Software {
 					$Processes = (Get-Process | where { $_.Path -like "$InstallFolderPath*" } | select -ExpandProperty Name)
 					if ($Processes) {
 						Write-Log -Message "Sending processes: $Processes to Stop-MyProcess..."
-						Stop-MyProcess $Processes
+						## Check to see if the process is still running.  It's possible the termination of other processes
+						## already killed this one.
+						$Processes = $Processes | where { Get-Process -Name $_ -ea 'SilentlyContinue'}
+						Stop-MyProcess $Process
 					} else {
-						Write-Log -Message 'No processes running under the install folder path'	
+						Write-Log -Message 'No processes running under the install folder path'
 					}
 				} else {
 					Write-Log -Message "Could not find the install folder path to stop open processes" -LogLevel '2'
@@ -1707,8 +1737,7 @@ function Remove-Software {
 						if ($InstalledProduct.UninstallString) {
 							$InstallerType = Get-InstallerType $InstalledProduct.UninstallString
 						} else {
-							Write-Log -Message "Uninstall string for $Title not found. Unable to determine installer type. Defaulting to Windows Installer.." -LogLevel '2'
-							$InstallerType = 'Windows Installer'
+							Write-Log -Message "Uninstall string for $Title not found" -LogLevel '2'
 						}
 						if (!$PsBoundParameters['LogFilePath']) {
 							$WmiParams = @{
@@ -1718,9 +1747,9 @@ function Remove-Software {
 							$script:LogFilePath = "$((Get-WmiObject @WmiParams).VariableValue)\$Title.log"
 							Write-Log -Message "No log file path specified.  Defaulting to $script:LogFilePath..."
 						}
-						if (!$InstallerType) {
-							Write-Log -Message "Unknown installer type for $Title..." -LogLevel '3'
-							continue
+						if (!$InstallerType -or ($InstallerType -eq 'Windows Installer')) {
+							Write-Log -Message "Installer type detected to be Windows Installer or unknown for $Title. Attempting Windows Installer removal" -LogLevel '2'
+							Uninstall-WindowsInstallerPackage -ProductName $Title
 						} elseif ($InstallerType -eq 'InstallShield') {
 							Write-Log -Message "Installer type detected as Installshield."
 							Write-Log -Message "ISS file at $IssFilePath is valid for the GUID $($InstalledProduct.SoftwareCode)"
@@ -1733,9 +1762,6 @@ function Remove-Software {
 								$Params.InstallshieldLogFilePath = $InstallshieldLogFilePath
 							}
 							Uninstall-InstallShieldPackage @Params
-						} elseif ($InstallerType -eq 'Windows Installer') {
-							Write-Log -Message 'Installer detected to be Windows Installer. Initiating Windows Installer package removal...'
-							Uninstall-WindowsInstallerPackage -ProductName $Title
 						}
 						if (!(Validate-IsSoftwareInstalled $Title)) {
 							Write-Log -Message "Successfully removed $Title!"
