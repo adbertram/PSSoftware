@@ -1041,9 +1041,10 @@ function Uninstall-WindowsInstallerPackageWithMsiexec ($ProductName) {
 function Uninstall-WindowsInstallerPackageWithMsiModule ($ProductName) {
 	$ChildModulesPath = '\\configmanager\deploymentmodules'
 	if (!(Test-Path "$ChildModulesPath\MSI")) {
-		Write-Log -Message "Required MSI module is not available" -LogLevel '3'
-		exit
+		Write-Log -Message "Required MSI module is not available. Moving to msiexec.exe uninstall method" -LogLevel '2'
+		$false
 	} elseif ((Get-OperatingSystem) -notmatch 'XP') {
+		Write-Log -Message "Importing MSI module..."
 		Import-Module "$ChildModulesPath\MSI"
 	}
 	
