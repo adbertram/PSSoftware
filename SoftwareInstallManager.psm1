@@ -1716,7 +1716,7 @@ function Remove-Software {
 			foreach ($Product in $ProductName) {
 				## Find the installation folder and all EXEs.  Stop all processes running under these EXEs
 				$InstallFolderPath = Get-InstallLocation $Product
-				if ($InstallFolderPath -and (@('C:','C:\Windows') -notcontains $InstallFolderPath.Trim())) {
+				if ($InstallFolderPath -and (@('C:','C:\Windows','C:\Windows\System32','C:\Windows\SysWOW64') -notcontains $InstallFolderPath.Trim())) {
 					Write-Log -Message "Checking for processes in install folder '$InstallFolderPath'...."
 					Write-Log -Message  "Stopping all processes under the install folder $InstallFolderPath..."
 					$Processes = (Get-Process | where { $_.Path -like "$InstallFolderPath*" } | select -ExpandProperty Name)
@@ -2154,7 +2154,7 @@ function Install-Software {
 		Requirements:	The installers executed via this script typically need "Run As Administrator"
 		Todos:			Allow multiple software products to be installed	
 	.EXAMPLE
-		Install-Software -InstallerFilePath install.msi -InstallArgs "/qn "	
+		Install-Software -MsiInstallerFilePath install.msi -InstallArgs "/qn "	
 	.EXAMPLE
 		
 	.PARAMETER InstallShieldInstallerFilePath
