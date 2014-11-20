@@ -1066,15 +1066,15 @@ function Uninstall-WindowsInstallerPackageWithMsiModule ($ProductName) {
 }
 
 function Wait-WindowsInstaller {
-	$MsiexecProcesses = Get-WmiObject -Class Win32_Process -Filter "Name = 'msiexec.exe'"
-	$InstallProcesses = $MsiexecProcesses | where { $_.CommandLine -ne 'C:\Windows\system32\msiexec.exe /V' }
-	if ($InstallProcesses) {
+	$MsiexecProcesses = Get-WmiObject -Class Win32_Process -Filter "Name = 'msiexec.exe'" | where { $_.CommandLine -ne 'C:\Windows\system32\msiexec.exe /V' }
+	if ($MsiExecProcesses) {
 		Write-Log -Message "Found '$($InstallProcesses.Count)' Windows installer processes.  Waiting..."
 		foreach ($Process in $InstallProcesses) {
 			Wait-MyProcess -ProcessId $Process.ProcessId
 		}
+		Wait-WindowsInstaller
 	} else {
-		Write-Log -Message "No Windows installer processes found"	
+		Write-Log -Message "No Windows installer processes found"
 	}
 }
 
