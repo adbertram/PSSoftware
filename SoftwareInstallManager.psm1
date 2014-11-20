@@ -1354,6 +1354,7 @@ function Get-InstalledSoftware {
 		[string]$Version,
 		[ValidatePattern('\b[A-F0-9]{8}(?:-[A-F0-9]{4}){3}-[A-F0-9]{12}\b')]
 		[string]$Guid,
+		[Parameter(ValueFromPipeline=$true,ValueFromPipelineByPropertyName=$true)]
 		[string[]]$Computername = 'localhost'
 	)
 	begin {
