@@ -1202,7 +1202,6 @@ function Find-InTextFile {
 		exists in NewFilePath.
 	#>
 	[CmdletBinding(DefaultParameterSetName = 'NewFile')]
-	[OutputType()]
 	param (
 		[Parameter(Mandatory = $true)]
 		[ValidateScript({Test-Path -Path $_ -PathType 'Leaf'})]
