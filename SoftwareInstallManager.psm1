@@ -1194,6 +1194,9 @@ function Find-InTextFile {
 		The string you'd like to replace.
 	.PARAMETER Replace
 		The string you'd like to replace your 'Find' string with.
+	.PARAMETER UseRegex
+		Use this switch parameter if you're finding strings using regex else the Find string will
+		be escaped from regex characters
 	.PARAMETER NewFilePath
 		If a new file with the replaced the string needs to be created instead of replacing
 		the contents of the existing file use this param to create a new file.
@@ -1210,6 +1213,8 @@ function Find-InTextFile {
 		[string]$Find,
 		[Parameter()]
 		[string]$Replace,
+		[Parameter()]
+		[switch]$UseRegex,
 		[Parameter(ParameterSetName = 'NewFile')]
 		[ValidateScript({ Test-Path -Path ($_ | Split-Path -Parent) -PathType 'Container' })]
 		[string]$NewFilePath,
@@ -1218,7 +1223,9 @@ function Find-InTextFile {
 	)
 	begin {
 		$SystemTempFolderPath = Get-SystemTempFilePath
-		$Find = [regex]::Escape($Find)
+		if (!$UseRegex.IsPresent) {
+			$Find = [regex]::Escape($Find)
+		}
 	}
 	process {
 		try {
