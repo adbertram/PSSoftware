@@ -3,50 +3,37 @@
  Created on:   	6/23/2014 4:18 PM
  Created by:   	Adam Bertram
  Filename:     	SoftwareInstallManager.psm1
- Version:		0.2
- Changelog:		08/11/2014
-					- Added MSI module import if not found for the 
-					Uninstall-WindowsInstallerPackage function.
-					- Changed Get-MsiProduct cmdlet to correct
-					Get-MsiProductInfo cmdlet reference in the 
-					Uninstall-WindowsInstallerPackage function
-					- Changed references to Get-InstalledSoftware to just
-					test for software installed to the new
-					Validate-IsSoftwareInstalled function.
-					- Added automatic sub-module loading
-					- Modified various log output strings
-				08/28/2014
-					- Added the Set-InstalledSoftware function which included
-					the InstallFolderACL parameter set
-				08/29/2014
-					- Modified Stop-MyProcess to accept multiple process names
-					- Removed all Export-ModuleMember lines to enable all
-					functions to be available
-					- Modified the Get-UserProfile function to search by
-					SID and by username.  It will also get all profiles now.
-					- Added the Remove-ItemFromAllUserProfiles function
-					- Modifed the Write-Log function so that functions called
-					interactively or without Start-Log will work.
-					- Fixed multiple bugs in the MSI installer part of 
-					Install-Software function.
-				09/02/2014 - Created the GUID conversion functions.
-				09/03/2014 - Created the Set-MyFileSystemAcl function
-				09/05/2014 
-					- Added the ALLUSERS=1 switch for all MSI installers
-					in the Install-Software function.
-				09/08/2014 
-					- Made the Set-RegistryValueForAllUsers function advanced.
-					- Made the reg unload outside of the hash table loop
-				09/09/201
-					- Added the KillProcess param to Install-Software
-					
 -------------------------------------------------------------------------
  Module Name: SoftwareInstallManager
 ===========================================================================
 #>
 
-function Get-OperatingSystem($Computername = 'localhost') {
-	(Get-WmiObject -ComputerName $Computername -Query "SELECT Caption,CSDVersion FROM Win32_OperatingSystem").Caption
+function Get-OperatingSystem {
+	<#
+	.SYNOPSIS
+		This function queries the operating system name from WMI.
+	.DESCRIPTION
+		Using a WMI query, this function uses the Win32_OperatingSystem WMI class
+		to output the operating system running on $Computername
+	.PARAMETER Computername
+		The name of the computer to query.  This defaults to the local host.
+	.EXAMPLE
+		PS C:\> Get-OperatingSystem -Computername MYCOMPUTER
+		
+		This example finds the operating system on a computer named MYCOMPUTER
+	#>
+	[CmdletBinding()]
+	param (
+		[Parameter(Mandatory = $true)]
+		[string]$Computername = 'localhost'
+	)
+	process {
+		try {
+			(Get-WmiObject -ComputerName $Computername -Query "SELECT Caption FROM Win32_OperatingSystem").Caption
+		} catch {
+			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+		}
+	}
 }
 
 function Write-Log {
@@ -143,57 +130,164 @@ function Start-Log {
 	}
 }
 
-function Validate-IsSoftwareInstalled ($ProductName, $Version) {
-	$Params = @{ 'Name' = $ProductName }
-	if ($Version) {
-		$Params.Version = $Version
-	}
-	if (!(Get-InstalledSoftware @Params)) {
-		Write-Log -Message "'$ProductName' is NOT installed."
-		$false
-	} else {
-		Write-Log -Message "'$ProductName' IS installed."
-		$true
+function Validate-IsSoftwareInstalled {
+	<#
+	.SYNOPSIS
+		This function is used as a quick check to see if a specific software product is installed on the local host.
+	.PARAMETER ProductName
+	 	The name of the software you'd like to query as displayed by the Get-InstalledSoftware function
+	.PARAMETER Version
+		The version of the software you'd like to query as displayed by the Get-InstalledSofware function.
+	#>
+	[CmdletBinding()]
+	param (
+		[Parameter()]
+		[string]$ProductName,
+		[Parameter()]
+		[string]$Version
+	)
+	process {
+		try {
+			$Params = @{ 'Name' = $ProductName }
+			if ($Version) {
+				$Params.Version = $Version
+			}
+			if (!(Get-InstalledSoftware @Params)) {
+				Write-Log -Message "'$ProductName' is NOT installed."
+				$false
+			} else {
+				Write-Log -Message "'$ProductName' IS installed."
+				$true
+			}
+		} catch {
+			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'	
+		}
 	}
 }
 
 function Get-RootUserProfileFolderPath {
-	(Get-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList' -Name ProfilesDirectory).ProfilesDirectory
+	<#
+	.SYNOPSIS
+		Because sometimes the root user profile folder path can be different this function is a placeholder to find
+		the root user profile folder path ie. C:\Users or C:\Documents and Settings for any OS.  It queries a registry value
+		to find this path.
+	#>
+	[CmdletBinding()]
+	param ()
+	process {
+		try {
+			(Get-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList' -Name ProfilesDirectory).ProfilesDirectory
+		} catch {
+			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+		}
+	}
 }
 
 function Get-AllUsersProfileFolderPath {
-	$env:ALLUSERSPROFILE
+	<#
+	.SYNOPSIS
+		Because sometimes the all users profile folder path can be different this function is a placeholder to find
+		the all users profile folder path ie. C:\ProgramData or C:\Users\All Users. It uses an environment variable
+		to find this path.
+	#>
+	[CmdletBinding()]
+	param ()
+	process {
+		try {
+			$env:ALLUSERSPROFILE
+		} catch {
+			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+		}
+	}
 }
 
 function Get-AllUsersDesktopFolderPath {
-	$Shell = New-Object -ComObject "WScript.Shell"
-	$Shell.SpecialFolders.Item('AllUsersDesktop')
+	<#
+	.SYNOPSIS
+		Because sometimes the all users desktop folder path can be different this function is a placeholder to find
+		the all users desktop folder path. It uses a shell object to find this path.
+	#>
+	[CmdletBinding()]
+	param ()
+	process {
+		try {
+			$Shell = New-Object -ComObject "WScript.Shell"
+			$Shell.SpecialFolders.Item('AllUsersDesktop')
+		} catch {
+			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+		}
+	}
 }
 
-function Get-InstallerType ($UninstallString) {
-	Write-Debug "Initiating the $($MyInvocation.MyCommand.Name) function...";
-	if ($UninstallString -imatch 'msiexec.exe') {
-		'Windows Installer'
-	} elseif ($UninstallString -imatch 'InstallShield Installation') {
-		'InstallShield'
-	} else {
-		$false
+function Get-InstallerType {
+	<#
+	.SYNOPSIS
+		Based on the uninstall string retrieved from the registry this function will tell you what kind of installer was
+		used to install the product.  This information is helpful when figuring out the best way to remove software.
+	
+	.PARAMETER UninstallString
+		The uninstall string that's stored in the HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\%GUID% UninstallString
+		registry value.
+	#>
+	[CmdletBinding()]
+	param(
+		[string]$UninstallString
+	)
+	
+	process {
+		try {
+			if ($UninstallString -imatch 'msiexec.exe') {
+				'Windows Installer'
+			} elseif ($UninstallString -imatch 'InstallShield Installation') {
+				'InstallShield'
+			} else {
+				$false
+			}
+		} catch {
+			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+		}
 	}
 }
 
 function Get-32BitProgramFilesPath {
-	if ((Get-Architecture) -eq 'x64') {
-		${env:ProgramFiles(x86)}
-	} else {
-		$env:ProgramFiles
+	<#
+	.SYNOPSIS
+		On x64 machines the x86 program files path is Program Files (x86) while on x86 machines it's just Program Files.  This function
+		does that decision for you and just outputs the x86 program files path regardless of OS architecture.
+	#>
+	[CmdletBinding()]
+	param ()
+	process {
+		try {
+			if ((Get-Architecture) -eq 'x64') {
+				${env:ProgramFiles(x86)}
+			} else {
+				$env:ProgramFiles
+			}
+		} catch {
+			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+		}
 	}
 }
 
 function Get-32BitRegistrySoftwarePath {
-	if ((Get-Architecture) -eq 'x64') {
-		'HKLM:\SOFTWARE\Wow6432Node'
-	} else {
-		'HKLM:\SOFTWARE'
+	<#
+	.SYNOPSIS
+		On x64 machines the x86 Software registry key path is HKLM:\SOFTWARE\Wow6432Node while on x86 machines it's just 
+		HKLM:\Software. This function does that decision for you and just outputs the x86 path regardless of OS architecture.
+	#>
+	[CmdletBinding()]
+	param ()
+	process {
+		try {
+			if ((Get-Architecture) -eq 'x64') {
+				'HKLM:\SOFTWARE\Wow6432Node'
+			} else {
+				'HKLM:\SOFTWARE'
+			}
+		} catch {
+			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+		}
 	}
 }
 
@@ -317,15 +411,39 @@ function Import-Certificate {
 }
 
 function Get-Architecture {
-	if ([System.Environment]::Is64BitOperatingSystem -or ((Get-WmiObject -Class Win32_ComputerSystem | select -ExpandProperty SystemType) -eq 'x64-based PC')) {
-		'x64'
-	} else {
-		'x86'
+	<#
+	.SYNOPSIS
+		This simple function tells you whether the machine you're running on is either x64 or x86
+	#>
+	[CmdletBinding()]
+	param ()
+	process {
+		try {
+			if ([System.Environment]::Is64BitOperatingSystem -or ((Get-WmiObject -Class Win32_ComputerSystem | select -ExpandProperty SystemType) -eq 'x64-based PC')) {
+				'x64'
+			} else {
+				'x86'
+			}
+		} catch {
+			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+		}
 	}
 }
 
 function Get-ProfileSids {
-	(Get-Childitem 'HKLM:\Software\Microsoft\Windows NT\CurrentVersion\ProfileList' | Where { ($_.Name -match 'S-\d-\d+-(\d+-){1,14}\d+$') }).PSChildName
+	<#
+	.SYNOPSIS
+		This function queries the registry to find all of the SIDs of all the user profiles on the computer.
+	#>
+	[CmdletBinding()]
+	param ()
+	process {
+		try {
+			(Get-Childitem 'HKLM:\Software\Microsoft\Windows NT\CurrentVersion\ProfileList' | Where { ($_.Name -match 'S-\d-\d+-(\d+-){1,14}\d+$') }).PSChildName
+		} catch {
+			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+		}
+	}
 }
 
 function Get-UserProfilePath {
@@ -367,11 +485,29 @@ function Get-UserProfilePath {
 }
 
 function Get-LoggedOnUserSID {
-	New-PSDrive -Name HKU -PSProvider Registry -Root Registry::HKEY_USERS | Out-Null
-	(Get-ChildItem HKU: | where { $_.Name -match 'S-\d-\d+-(\d+-){1,14}\d+$' }).PSChildName
+	<#
+	.SYNOPSIS
+		This function queries the registry to find the SID of the user that's currently logged onto the computer interactively.
+	#>
+	[CmdletBinding()]
+	param ()
+	process {
+		try {
+			New-PSDrive -Name HKU -PSProvider Registry -Root Registry::HKEY_USERS | Out-Null
+			(Get-ChildItem HKU: | where { $_.Name -match 'S-\d-\d+-(\d+-){1,14}\d+$' }).PSChildName
+		} catch {
+			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+		}
+	}
 }
 
 function Set-RegistryValueForDefaultUser {
+    <#
+	.SYNOPSIS
+		This functions changes (does not create) a specific registry value in the default user's registry hive
+	.PARAMETER RegistryInstance
+		A hashtable or hashtables in the form @{'Path' = 'SOFTWARE\Microsoft\Windows'; 'Name' = 'MyKey'; 'Value' = 'MyValue'}
+	#>
 	[CmdletBinding()]
 	param (
 		[hashtable[]]$RegistryInstance
@@ -387,7 +523,7 @@ function Set-RegistryValueForDefaultUser {
 			}
 		}
 	} catch {
-		Write-Log -Message $_.Exception.Message -LogLevel '3'
+		Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
 	}
 }
 
@@ -817,32 +953,97 @@ function Get-RegistryValueForAllUsers {
 	}
 }
 
-function Check-Error($MyError, $SuccessString) {
-	Write-Debug "Initiating the $($MyInvocation.MyCommand.Name) function...";
-	if ($MyError) {
-		Write-Log -Message $MyError.Exception.Message -LogLevel '2'
-	} else {
-		Write-Log -Message $SuccessString
+function Check-Error {
+	<#
+	.SYNOPSIS
+		This function is used after the execution of any script snippet.  It is used as a standardized output
+		method to log either an error or a success.
+	.PARAMETER MyError
+		The System.Exception object type error typically thrown in a try/catch block
+	.PARAMETER SuccessString
+		If no error is found, this will be logged.
+	#>
+	[CmdletBinding()]
+	param (
+		[Parameter()]
+		[string]$MyError,
+		[Parameter()]
+		[string]$SuccessString
+	)
+	process {
+		try {
+			if ($MyError) {
+				Write-Log -Message $MyError.Exception.Message -LogLevel '2'
+			} else {
+				Write-Log -Message $SuccessString
+			}
+		} catch {
+			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+		}
 	}
 }
 
-function Check-Process ([System.Diagnostics.Process]$Process) {
-	if (@(0,3010) -notcontains $Process.ExitCode) {
-		Write-Log -Message "Process ID $($Process.Id) failed. Return value was $($Process.ExitCode)" -LogLevel '2'
-		$false
-	} else {
-		Write-Log -Message "Process ID $($Process.Id) exited with successfull exit code '$($Process.ExitCode)'."
-		$true
+function Check-Process {
+	<#
+	.SYNOPSIS
+		This function is called after the execution of an external CMD process to log the status of how the process was exited.
+	.PARAMETER Process
+		A System.Diagnostics.Process object type that is output by using the -Passthru parameter on the Start-Process cmdlet
+	#>
+	[CmdletBinding()]
+	param (
+		[Parameter()]
+		[System.Diagnostics.Process]$Process
+	)
+	process {
+		try {
+			if (@(0, 3010) -notcontains $Process.ExitCode) {
+				Write-Log -Message "Process ID $($Process.Id) failed. Return value was $($Process.ExitCode)" -LogLevel '2'
+				$false
+			} else {
+				Write-Log -Message "Process ID $($Process.Id) exited with successfull exit code '$($Process.ExitCode)'."
+				$true
+			}
+		} catch {
+			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+		}
 	}
 }
 
-function Convert-ToUncPath($LocalFilePath, $Computername) {
-	Write-Debug "Initiating the $($MyInvocation.MyCommand.Name) function...";
-	$RemoteFilePathDrive = ($LocalFilePath | Split-Path -Qualifier).TrimEnd(':')
-	"\\$Computername\$RemoteFilePathDrive`$$($LocalFilePath | Split-Path -NoQualifier)"
+function Convert-ToUncPath {
+	<#
+	.SYNOPSIS
+		A simple function to convert a local file path and a computer name to a network UNC path.
+	.PARAMETER LocalFilePath
+		A file path ie. C:\Windows\somefile.txt
+	.PARAMETER Computername
+		The computer in which the file path exists on
+	#>
+	[CmdletBinding()]
+	param (
+		[Parameter()]
+		[string]$LocalFilePath,
+		[Parameter()]
+		[string]$Computername
+	)
+	process {
+		try {
+			$RemoteFilePathDrive = ($LocalFilePath | Split-Path -Qualifier).TrimEnd(':')
+			"\\$Computername\$RemoteFilePathDrive`$$($LocalFilePath | Split-Path -NoQualifier)"
+		} catch {
+			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+		}
+	}
 }
 
 function Import-RegistryFile {
+	<#
+	.SYNOPSIS
+		A function that uses the utility reg.exe to do a bulk import of registry changes.  Do NOT use this function
+		to import HKCU or HKU changes as the results can be unpredictable.
+	.PARAMETER FilePath
+		The file path to the .reg file
+	#>
 	[CmdletBinding(SupportsShouldProcess=$true)]
 	[OutputType()]
 	param (
