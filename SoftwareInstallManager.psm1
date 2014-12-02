@@ -343,17 +343,13 @@ function Import-Certificate {
 	<#
 	.SYNOPSIS
 		This function imports a certificate into any certificate store on a local computer
-	.NOTES
-		Created on: 	8/6/2014
-		Created by: 	Adam Bertram
-		Filename:		Import-Certificate.ps1
 	.EXAMPLE
-		PS> .\Import-Certificate.ps1 -Location LocalMachine -StoreName My -FilePath C:\certificate.cer
+		PS> Import-Certificate -Location LocalMachine -StoreName My -FilePath C:\certificate.cer
 
 		This example will import the certificate.cert certificate into the Personal store for the 
 		local computer
 	.EXAMPLE
-		PS> .\Import-Certificate.ps1 -Location CurrentUser -StoreName TrustedPublisher -FilePath C:\certificate.cer
+		PS> Import-Certificate -Location CurrentUser -StoreName TrustedPublisher -FilePath C:\certificate.cer
 
 		This example will import the certificate.cer certificate into the Trusted Publishers store for the 
 		currently logged on user
@@ -405,7 +401,7 @@ function Import-Certificate {
 				$X509Store.Close()
 			}
 		} catch {
-			Write-Error $_.Exception.Message
+			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
 		}
 	}
 }
@@ -799,7 +795,7 @@ function Set-RegistryValueForAllUsers {
 	#>
 	[CmdletBinding()]
 	param (
-		[Parameter(Mandatory=$true)]
+		[Parameter(Mandatory = $true)]
 		[hashtable[]]$RegistryInstance,
 		[switch]$Remove
 	)
@@ -816,30 +812,22 @@ function Set-RegistryValueForAllUsers {
 					Write-Log -Message "Removing registry key '$($instance.path)'"
 					Remove-Item -Path "HKU:\$sid\$($instance.Path)" -Recurse -Force -ea 'SilentlyContinue'
 				} else {
-					New-Item -Path "HKU:\$sid\$($instance.Path | Split-Path -Parent)" -Name ($instance.Path | Split-Path -Leaf) -Force | Out-Null
+					if (!(Get-Item -Path "HKU:\$sid\$($instance.Path | Split-Path -Parent)" -ea 'SilentlyContinue')) {
+						New-Item -Path "HKU:\$sid\$($instance.Path | Split-Path -Parent)" -Name ($instance.Path | Split-Path -Leaf) -Force | Out-Null
+					}
 					Set-ItemProperty -Path "HKU:\$sid\$($instance.Path)" -Name $instance.Name -Value $instance.Value -Type $instance.Type -Force
 				}
 			}
 		}
 		
-		## Create the Active Setup registry key so that the reg add cmd will get ran for each user
-		## logging into the machine.
-		## http://www.itninja.com/blog/view/an-active-setup-primer
-		Write-Log -Message "Setting Active Setup registry value to apply to all other users"
 		foreach ($instance in $RegistryInstance) {
-			$Guid = [guid]::NewGuid().Guid
-			$ActiveSetupRegParentPath = 'HKLM:\Software\Microsoft\Active Setup\Installed Components'
-			New-Item -Path $ActiveSetupRegParentPath -Name $Guid -Force | Out-Null
-			$ActiveSetupRegPath = "HKLM:\Software\Microsoft\Active Setup\Installed Components\$Guid"
-			Write-Log -Message "Using registry path '$ActiveSetupRegPath'"
-			
 			if ($Remove.IsPresent) {
 				if ($instance.Path.Split('\')[0] -eq 'SOFTWARE' -and ((Get-Architecture) -eq 'x64')) {
 					$Split = $instance.Path.Split('\')
 					$x86Path = "HKCU\SOFTWARE\Wow6432Node\{0}" -f ($Split[1..($Split.Length)] -join '\')
-					$ActiveSetupValue = "reg delete `"{0}`" /f && reg delete `"{1}`"" -f "HKCU\$($instance.Path)", $x86Path
+					$CommandLine = "reg delete `"{0}`" /f && reg delete `"{1}`"" -f "HKCU\$($instance.Path)", $x86Path
 				} else {
-					$ActiveSetupValue = "reg delete `"{0}`" /f" -f "HKCU\$($instance.Path)"
+					$CommandLine = "reg delete `"{0}`" /f" -f "HKCU\$($instance.Path)"
 				}
 			} else {
 				## Convert the registry value type to one that reg.exe can understand
@@ -863,13 +851,10 @@ function Set-RegistryValueForAllUsers {
 						throw "Registry type '$($instance.Type)' not recognized"
 					}
 				}
-				$ActiveSetupValue = "reg add `"{0}`" /v {1} /t {2} /d {3} /f" -f "HKCU\$($instance.Path)", $instance.Name, $RegValueType, $instance.Value
+				$Arguments = "add `"{0}`" /v {1} /t {2} /d {3} /f" -f "HKCU\$($instance.Path)", $instance.Name, $RegValueType, $instance.Value
 			}
+			Set-AllUserStartupAction -Command 'reg.exe' -Arguments $Arguments
 			
-			Write-Log -Message "Active setup value is '$ActiveSetupValue'"
-			Set-ItemProperty -Path $ActiveSetupRegPath -Name '(Default)' -Value 'Active Setup Test' -Force
-			Set-ItemProperty -Path $ActiveSetupRegPath -Name 'Version' -Value '1' -Force
-			Set-ItemProperty -Path $ActiveSetupRegPath -Name 'StubPath' -Value $ActiveSetupValue -Force
 		}
 	} catch {
 		Write-Log -Message $_.Exception.Message -LogLevel '3'
@@ -1039,115 +1024,123 @@ function Convert-ToUncPath {
 function Import-RegistryFile {
 	<#
 	.SYNOPSIS
-		A function that uses the utility reg.exe to do a bulk import of registry changes.  Do NOT use this function
-		to import HKCU or HKU changes as the results can be unpredictable.
+		A function that uses the utility reg.exe to do a bulk import of registry changes.
+	.DESCRIPTION
+		This function allows the user to import registry changes in bulk by means of a .reg file.  This
+		.reg file should only contain 1 set of registry keys such as HKLM or HKCU.  If the .reg file
+		contains HKLM, HKCU, HKCR or HKCC key references, the file will be imported directly with no modification.  If the 
+		.reg file contains HKCU references, it will be modified to account for the currently logged on interactive
+		user, copied to a location on the computer and will be imported under each HKCU hive when another user
+		logs on.
 	.PARAMETER FilePath
 		The file path to the .reg file
 	#>
-	[CmdletBinding(SupportsShouldProcess=$true)]
-	[OutputType()]
+	[CmdletBinding()]
 	param (
 		[Parameter()]
 		[ValidateScript({ Test-Path -Path $_ -PathType 'Leaf'})]
 		[string]$FilePath
 	)
-	process {
-		try {
-			if ($PSCmdlet.ShouldProcess($Path,'File Import')) {
-				if ((Get-Architecture) -eq 'x64') {
-					$RegPath = 'syswow64'
-				} else {
-					$RegPath = 'System32'
-				}
-				$Result = Start-Process "$($env:Systemdrive)\Windows\$RegPath\reg.exe" -Args "import $FilePath" -Wait -NoNewWindow -PassThru
-				Check-Process -Process $Result
-			}
-		} catch {
-			Write-Error $_.Exception.Message
-		}
-	}
-}
-
-function Import-RegistryFileForAllUsers {
-	<#
-	.SYNOPSIS
-		
-	.EXAMPLE
-		PS>
-	
-		
-	.PARAMETER FilePath
-	 	
-	#>
-	[CmdletBinding(SupportsShouldProcess=$true)]
-	[OutputType()]
-	param (
-		[Parameter()]
-		[ValidateScript({ Test-Path -Path $_ -PathType 'Leaf' })]
-		[string]$FilePath
-	)
 	begin {
-		$LoggedOnUserTempRegFilePath = "$(Get-SystemTempFilePath)\loggedontempregfile.reg"
-		$PerUserTempRegFile = "$(Get-SystemTempFilePath)\perusertempregfile.reg"
-		Write-Log "Using the file path '$LoggedOnUserTempRegFilePath"
-		Find-InTextFile -FilePath $FilePath -Find 'HKEY_LOCAL_MACHINE' -Replace "HKEY_USERS\TempUserLoad" -NewFilePath $PerUserTempRegFile
-		Find-InTextFile -FilePath $PerUserTempRegFile -Find 'HKEY_CURRENT_USER' -Replace "HKEY_USERS\TempUserLoad"
-	}
-	process {
 		try {
-			Start-Log
-			New-PSDrive -Name HKU -PSProvider Registry -Root Registry::HKEY_USERS | Out-Null
-			
-			##Import the registry settings for the currently logged on user
-			$LoggedOnSids = Get-LoggedOnUserSID
-			Write-Log -Message "Found $($LoggedOnSids.Count) logged on user SIDs"
-			foreach ($sid in $LoggedOnSids) {
-				Write-Log -Message "Processing logged on user SID $sid."
-				## Remove the temp file if exists.  Each file needs to be unique for the
-				## user's particular SID
-				Remove-Item -Path $LoggedOnUserTempRegFilePath -ea 'SilentlyContinue'
-				## Replace the HKLM refernces with HKU\$sid to match the path
-				Find-InTextFile -FilePath $FilePath -Find 'HKEY_LOCAL_MACHINE' -Replace "HKEY_USERS\$sid" -NewFilePath $LoggedOnUserTempRegFilePath
-				Find-InTextFile -FilePath $LoggedOnUserTempRegFilePath -Find 'HKEY_CURRENT_USER' -Replace "HKEY_USERS\$sid"
-				## Once the file has the correct paths then just import like usual
-				Import-RegistryFile -FilePath $LoggedOnUserTempRegFilePath
-				Write-Log -Message "Finished processing logged on user SID $sid"
+			## Detect if this is a registry file for HKCU, HKLM, HKU, HKCR or HKCC keys
+			$Regex = 'HKEY_CURRENT_USER|HKEY_CLASSES_ROOT|HKEY_LOCAL_MACHINE|HKEY_USERS|HKEY_CURRENT_CONFIG'
+			$HiveNames = Select-String -Path $FilePath -Pattern $Regex | foreach { $_.Matches.Value }
+			$RegFileHive = $HiveNames | Select-Object -Unique
+			if ($RegFileHive -is [array]) {
+				throw "The registry file at '$FilePath' contains more than one hive reference."
 			}
-			
-			Write-Log -Message "Finding all profile SIDs"
-			$ProfileSids = Get-ProfileSids
-			Write-Log -Message "Found $($ProfileSids.Count) SIDs for profiles"
-			$ProfileSids = $ProfileSids | where { $LoggedOnSids -notcontains $_ }
-			
-			$ProfileFolderPaths = $ProfileSids | foreach { Get-UserProfilePath -Sid $_ }
-			
 			if ((Get-Architecture) -eq 'x64') {
 				$RegPath = 'syswow64'
 			} else {
 				$RegPath = 'System32'
 			}
-			Write-Log -Message "Reg.exe path is $RegPath"
-			
-			## Load each user's registry hive temporarily into the HKEY_USERS\TempUserLoad key
-			foreach ($prof in $ProfileFolderPaths) {
-				Write-Log -Message "Loading the user registry hive in the $prof profile"
-				$Process = Start-Process "$($env:Systemdrive)\Windows\$RegPath\reg.exe" -ArgumentList "load HKEY_USERS\TempUserLoad `"$prof\NTuser.dat`"" -Wait -NoNewWindow -PassThru
-				if (Check-Process $Process) {
-					Import-RegistryFile -FilePath $PerUserTempRegFile
-					$Process = Start-Process "$($env:Systemdrive)\Windows\$RegPath\reg.exe" -ArgumentList "unload HKEY_USERS\TempUserLoad" -Wait -NoNewWindow -PassThru
-					Check-Process $Process | Out-Null
-				} else {
-					Write-Log -Message "Failed to load registry hive for the '$prof' profile" -LogLevel '3'
-				}
-			}
 		} catch {
-			Write-Log -Message $_.Exception.Message -LogLevel '3'
+			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			return $false
+		}
+		
+	}
+	process {
+		try {
+			if ($RegFileHive -ne 'HKEY_CURRENT_USER') {
+				$Result = Start-Process "$($env:Systemdrive)\Windows\$RegPath\reg.exe" -Args "import $FilePath" -Wait -NoNewWindow -PassThru
+				Check-Process -Process $Result
+			} else {
+				#########
+				## Import the registry file for the currently logged on user
+				#########
+				$LoggedOnSids = Get-LoggedOnUserSID
+				Write-Log -Message "Found $($LoggedOnSids.Count) logged on user SIDs"
+				foreach ($sid in $LoggedOnSids) {
+					## Replace all HKEY_CURRENT_USER references to HKCU\%SID% so that it can be applied to HKCU while not
+					## actually running under that context.  Create a new reg file with the replacements in the system's temp folder
+					$HkcuRegFilePath = "$(Get-SystemTempFilePath)\$($FilePath | Split-Path -Leaf)"
+					Write-Log -Message "Replacing HKEY_CURRENT_USER references with HKEY_USERS\$sid and placing temp file in $HkcuRegFilePath"
+					Find-InTextFile -FilePath $FilePath -Find $RegFileHive -Replace "HKEY_USERS\$sid" -NewFilePath $HkcuRegFilePath -Force
+					
+					## Perform a recursive function call to itself to import the newly created reg file
+					Write-Log -Message "Importing reg file $HkcuRegFilePath"
+					Import-RegistryFile -FilePath $HkcuRegFilePath
+					Write-Log -Message "Removing temporary registry file $HkcuRegFilePath"
+					Remove-Item $HkcuRegFilePath -Force
+				}
+				
+				########
+				## Use Active Setup to create a registry value to perform an import of the registry file for each logged on user
+				########
+				Write-Log -Message "Copying $FilePath to system temp directory for later use"
+				Copy-Item -Path $FilePath -Destination (Get-SystemTempFilePath) -Force
+				Write-Log -Message "Setting registry file to import for each user"
+				
+				Set-AllUserStartupAction -Command 'reg.exe' -Arguments "import `"$(Get-SystemTempFilePath)\$($FilePath | Split-Path -Leaf)`""
+
+			}
+			
+			
+		} catch {
+			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			$false
 		}
 	}
-	end {
-		## Clean up all temporary files created
-		Remove-Item -Path $LoggedOnUserTempRegFilePath -ea 'SilentlyContinue'
-		Remove-Item -Path $PerUserTempRegFile -ea 'SilentlyContinue'
+}
+
+function Set-AllUserStartupAction {
+	<#
+	.SYNOPSIS
+		A function that executes a command line for the any current logged on user and uses the Active Setup registry key to set a 
+		registry value that contains a command line	EXE with arguments that will be executed once for every user that logs in.
+	.PARAMETER CommandLine
+		The command line string that will be executed once at every user logon
+	.PARAMETER Arguments
+		Any arguments to pass to the command line exe
+	#>
+	[CmdletBinding()]
+	param (
+		[Parameter(Mandatory=$true)]
+		[string]$Command,
+		[Parameter()]
+		[string]$Arguments
+	)
+	process {
+		try {
+			## Create the Active Setup registry key so that the reg add cmd will get ran for each user
+			## logging into the machine.
+			## http://www.itninja.com/blog/view/an-active-setup-primer
+			$Guid = [guid]::NewGuid().Guid
+			Write-Log -Message "Created GUID '$Guid' to use for Active Setup"
+			$ActiveSetupRegParentPath = 'HKLM:\Software\Microsoft\Active Setup\Installed Components'
+			New-Item -Path $ActiveSetupRegParentPath -Name $Guid -Force | Out-Null
+			$ActiveSetupRegPath = "HKLM:\Software\Microsoft\Active Setup\Installed Components\$Guid"
+			Write-Log -Message "Using registry path '$ActiveSetupRegPath'"
+			Write-Log -Message "Setting command line registry value to '$Command $Arguments'"
+			Set-ItemProperty -Path $ActiveSetupRegPath -Name '(Default)' -Value 'Active Setup Test' -Force
+			Set-ItemProperty -Path $ActiveSetupRegPath -Name 'Version' -Value '1' -Force
+			Set-ItemProperty -Path $ActiveSetupRegPath -Name 'StubPath' -Value "$Command $Arguments" -Force
+		} catch {
+			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			$false
+		}
 	}
 }
 
@@ -1565,7 +1558,6 @@ function Get-InstalledSoftware {
 		[string[]]$Computername = 'localhost'
 	)
 	begin {
-		Write-Verbose "Initiating the $($MyInvocation.MyCommand.Name) function...";
 		$WhereQuery = "SELECT * FROM SMS_InstalledSoftware"
 		
 		if ($PSBoundParameters.Count -ne 0) {
@@ -1607,7 +1599,7 @@ function Get-InstalledSoftware {
 				$Software | Sort-Object ARPDisplayname;
 			}
 		} catch [System.Exception] {
-			Write-Log -Message $_.Exception.Message -LogLevel '3'
+			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
 		}##endtry
 	}
 }##endfunction
