@@ -24,7 +24,7 @@ function Get-OperatingSystem {
 	#>
 	[CmdletBinding()]
 	param (
-		[Parameter(Mandatory = $true)]
+		[Parameter()]
 		[string]$Computername = 'localhost'
 	)
 	process {
@@ -197,6 +197,28 @@ function Get-AllUsersProfileFolderPath {
 			$env:ALLUSERSPROFILE
 		} catch {
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+		}
+	}
+}
+
+function Get-AllUsersStartMenuFolderPath {
+	<#
+	.SYNOPSIS
+		Because sometimes the all users profile folder path can be different this function is a placeholder to find
+		the start menu in the all users profile folder path ie. C:\ProgramData or C:\Users\All Users.
+	#>
+	[CmdletBinding()]
+	param ()
+	process {
+		try {
+			if (((Get-OperatingSystem) -match 'XP') -or ((Get-OperatingSystem) -match '2003')) {
+				"$(Get-AllUsersProfileFolderPath)\Start Menu"
+			} else {
+				"$(Get-AllUsersProfileFolderPath)\Microsoft\Windows\Start Menu"
+			}
+		} catch {
+			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			$false
 		}
 	}
 }
@@ -497,32 +519,6 @@ function Get-LoggedOnUserSID {
 	}
 }
 
-function Set-RegistryValueForDefaultUser {
-    <#
-	.SYNOPSIS
-		This functions changes (does not create) a specific registry value in the default user's registry hive
-	.PARAMETER RegistryInstance
-		A hashtable or hashtables in the form @{'Path' = 'SOFTWARE\Microsoft\Windows'; 'Name' = 'MyKey'; 'Value' = 'MyValue'}
-	#>
-	[CmdletBinding()]
-	param (
-		[hashtable[]]$RegistryInstance
-	)
-	try {
-		New-PSDrive -Name HKU -PSProvider Registry -Root Registry::HKEY_USERS | Out-Null
-		
-		foreach ($instance in $RegistryInstance) {
-			if (Get-ItemProperty -Path "HKU:\.DEFAULT\$($instance.Path)" -Name $instance.Name -ea SilentlyContinue) {
-				Set-ItemProperty -Path "HKU:\.DEFAULT\$($instance.Path)" -Name $instance.Name -Value $instance.Value -Force
-			} else {
-				Write-Log -Message "Registry value $($instance.name) does not exist in HKU:\.DEFAULT\$($instance.Path)" -LogLevel '2'
-			}
-		}
-	} catch {
-		Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-	}
-}
-
 function Copy-FileWithHashCheck {
 	<#
 	.SYNOPSIS
@@ -777,8 +773,7 @@ function Compare-FolderPath {
 function Set-RegistryValueForAllUsers {
     <#
 	.SYNOPSIS
-		This function finds all of the user profile registry hives, mounts them and changes (or adds) a registry value for each user. If 
-		the key path doesn't exist to the value, it will automatically create the key and add the value
+		This function sets a registry value in every user profile hive.
 	.EXAMPLE
 		PS> Set-RegistryValueForAllUsers -RegistryInstance @{'Name' = 'Setting'; 'Type' = 'String'; 'Value' = 'someval'; 'Path' = 'SOFTWARE\Microsoft\Windows\Something'}
 	
@@ -851,9 +846,9 @@ function Set-RegistryValueForAllUsers {
 						throw "Registry type '$($instance.Type)' not recognized"
 					}
 				}
-				$Arguments = "add `"{0}`" /v {1} /t {2} /d {3} /f" -f "HKCU\$($instance.Path)", $instance.Name, $RegValueType, $instance.Value
+				$CommandLine = "reg add `"{0}`" /v {1} /t {2} /d {3} /f" -f "HKCU\$($instance.Path)", $instance.Name, $RegValueType, $instance.Value
 			}
-			Set-AllUserStartupAction -Command 'reg.exe' -Arguments $Arguments
+			Set-AllUserStartupAction -CommandLine $CommandLine
 			
 		}
 	} catch {
@@ -1089,11 +1084,23 @@ function Import-RegistryFile {
 				########
 				## Use Active Setup to create a registry value to perform an import of the registry file for each logged on user
 				########
-				Write-Log -Message "Copying $FilePath to system temp directory for later use"
-				Copy-Item -Path $FilePath -Destination (Get-SystemTempFilePath) -Force
+				Write-Log -Message "Copying $FilePath to systemp temp folder for later user"
+				Copy-Item -Path $FilePath -Destination "$(Get-SystemTempFilePath)\$($FilePath | Split-Path -Leaf)"
+				Write-Log -Message "Setting Everyone full control on temp registry file so all users can import it"
+				$Params = @{
+					'Path' = "$(Get-SystemTempFilePath)\$($FilePath | Split-Path -Leaf)"
+					'Identity' = 'Everyone'
+					'Right' = 'Modify';
+					'InheritanceFlags' = 'None';
+					'PropagationFlags' = 'NoPropagateInherit';
+					'Type' = 'Allow';
+				}
+				Set-MyFileSystemAcl @Params
+				
 				Write-Log -Message "Setting registry file to import for each user"
 				
-				Set-AllUserStartupAction -Command 'reg.exe' -Arguments "import `"$(Get-SystemTempFilePath)\$($FilePath | Split-Path -Leaf)`""
+				## This isn't the *best* way to do this because this doesn't prevent a user from clearing out all the temp files
+				Set-AllUserStartupAction -CommandLine "reg import `"$(Get-SystemTempFilePath)\$($FilePath | Split-Path -Leaf)`""
 
 			}
 			
@@ -1112,15 +1119,11 @@ function Set-AllUserStartupAction {
 		registry value that contains a command line	EXE with arguments that will be executed once for every user that logs in.
 	.PARAMETER CommandLine
 		The command line string that will be executed once at every user logon
-	.PARAMETER Arguments
-		Any arguments to pass to the command line exe
 	#>
 	[CmdletBinding()]
 	param (
 		[Parameter(Mandatory=$true)]
-		[string]$Command,
-		[Parameter()]
-		[string]$Arguments
+		[string]$CommandLine
 	)
 	process {
 		try {
@@ -1133,10 +1136,10 @@ function Set-AllUserStartupAction {
 			New-Item -Path $ActiveSetupRegParentPath -Name $Guid -Force | Out-Null
 			$ActiveSetupRegPath = "HKLM:\Software\Microsoft\Active Setup\Installed Components\$Guid"
 			Write-Log -Message "Using registry path '$ActiveSetupRegPath'"
-			Write-Log -Message "Setting command line registry value to '$Command $Arguments'"
+			Write-Log -Message "Setting command line registry value to '$CommandLine'"
 			Set-ItemProperty -Path $ActiveSetupRegPath -Name '(Default)' -Value 'Active Setup Test' -Force
 			Set-ItemProperty -Path $ActiveSetupRegPath -Name 'Version' -Value '1' -Force
-			Set-ItemProperty -Path $ActiveSetupRegPath -Name 'StubPath' -Value "$Command $Arguments" -Force
+			Set-ItemProperty -Path $ActiveSetupRegPath -Name 'StubPath' -Value $CommandLine -Force
 		} catch {
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
 			$false
@@ -1163,53 +1166,45 @@ function Uninstall-ViaMsizap {
 	.PARAMETER Guid
 		The GUID of the registered software you'd like removed
 	.PARAMETER Params
-		Non-default params you'd like passed to msizap.  By default, "TW!" is used to remove in all user
-		profiles.  This typicall doesn't need to be changed.
-	.PARAMETER
-		The file path where all activity will be written.
+		Non-default params you'd like passed to msizap.  By default, "TWG!" is used to remove in all user
+		profiles.  This typically doesn't need to be changed.
+	.PARAMETER LogFilePath
+		The file path to where msizap will generate output
 	#>
 	[CmdletBinding()]
 	param (
-		[ValidateScript({ Test-Path $_ -PathType 'Leaf' })]
-		[string]$LogFilePath,
 		[ValidatePattern('\b[A-F0-9]{8}(?:-[A-F0-9]{4}){3}-[A-F0-9]{12}\b')]
 		[Parameter(Mandatory = $true)]
 		[string]$Guid,
-		[string]$Params = 'TW!',
+		[string]$Params = 'TWG!',
 		[ValidateScript({ Test-Path $_ -PathType 'Leaf' })]
-		[string]$MsizapFilePath = '\\deploymentshare\deploymentmodules\softwareinstallmanager\msizap.exe'
+		[string]$MsizapFilePath = '\\configmanager\deploymentmodules\softwareinstallmanager\msizap.exe',
+		[Parameter()]
+		[string]$LogFilePath = "$(Get-SystemTempFilePath)\msizap.log"
 	)
-	Write-Debug "Initiating the $($MyInvocation.MyCommand.Name) function...";
-	Write-Log -Message "Copying $($MsizapFilePath | Split-Path -Leaf) to C:\..."
-	Copy-Item $MsizapFilePath C:\ -Force
 	Write-Log -Message "-Starting the process `"$MsiZapFilePath $Params $Guid`"..."
-	$NewProcess = Start-Process $MsiZapFilePath -ArgumentList "$Params $Guid > $LogFilePath" -Wait -NoNewWindow
-	Write-Log -Message "-Waiting for process ID $($NewProcess.ProcessID)..."
-	while (Get-Process -Id $NewProcess.ProcessID -ErrorAction 'SilentlyContinue') {
-		sleep 1
-	}
-	if ($NewProcess.ExitCode -ne 0) {
-		Write-Log -Message "Msizap process ID $($NewProcess.ProcessId) failed. Return value was $($NewProcess.ExitCode)" -LogLevel '2'
-	} else {
-		Write-Log -Message "Successfully ran msizap process ID $($NewProcess.ProcessId)."
-	}
-	Write-Log -Message "Removing $MsiZapFilePath..."
-	Remove-Item "C:\$($MsizapFilePath | Split-Path -Leaf)" -Force
+	$NewProcess = Start-Process $MsiZapFilePath -ArgumentList "$Params $Guid" -Wait -NoNewWindow -PassThru -RedirectStandardOutput $LogFilePath
+	Wait-MyProcess -ProcessId $NewProcess.Id
 }
 
 function Uninstall-WindowsInstallerPackage($ProductName,$RunMsizap,$MsizapFilePath,$MsizapParams) {
-	Write-Log -Message "Attempting to uninstall MSI package '$ProductName'..."
-	## The MSI module does not work with PSv2
-	if ($psversiontable.psversion.major -eq 2) {
-		Uninstall-WindowsInstallerPackageWithMsiexec -ProductName $ProductName
-	} else {
-		$Result = Uninstall-WindowsInstallerPackageWithMsiModule -ProductName $ProductName
-		## I've seen instances where using the MSI module does not work but using the traditional msiexec.exe does
-		if (!$Result) {
+	try {
+		Write-Log -Message "Attempting to uninstall MSI package '$ProductName'..."
+		## The MSI module does not work with PSv2
+		if ($psversiontable.psversion.major -eq 2) {
 			Uninstall-WindowsInstallerPackageWithMsiexec -ProductName $ProductName
 		} else {
-			$Result	
+			$Result = Uninstall-WindowsInstallerPackageWithMsiModule -ProductName $ProductName
+			## I've seen instances where using the MSI module does not work but using the traditional msiexec.exe does
+			if (!$Result) {
+				Uninstall-WindowsInstallerPackageWithMsiexec -ProductName $ProductName
+			} else {
+				$Result
+			}
 		}
+	} catch {
+		Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+		$false
 	}
 }
 
@@ -1229,32 +1224,38 @@ function Uninstall-WindowsInstallerPackageWithMsiexec ($ProductName) {
 		}
 	} catch {
 		Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+		$false
 	}
 }
 
 function Uninstall-WindowsInstallerPackageWithMsiModule ($ProductName) {
-	$ChildModulesPath = '\\configmanager\deploymentmodules'
-	if (!(Test-Path "$ChildModulesPath\MSI")) {
-		Write-Log -Message "Required MSI module is not available. Moving to msiexec.exe uninstall method" -LogLevel '2'
-		$false
-	} elseif ((Get-OperatingSystem) -notmatch 'XP') {
-		Write-Log -Message "Importing MSI module..."
-		Import-Module "$ChildModulesPath\MSI"
-	}
-	
-	$UninstallParams = @{
-		'Log' = $script:LogFilePath
-		'Chain' = $true
-		'Force' = $true
-	}
-	
-	Get-MSIProductInfo -Name $ProductName | Uninstall-MsiProduct @UninstallParams -Properties 'REBOOT=ReallySuppress'
-	Wait-WindowsInstaller
-	if (!(Validate-IsSoftwareInstalled $ProductName)) {
-		Write-Log -Message "Successfully uninstalled MSI package '$ProductName' with MSI module"
-		$true
-	} else {
-		Write-Log -Message "Failed to uninstall MSI package '$ProductName' with MSI module" -LogLevel '3'
+	try {
+		$ChildModulesPath = '\\configmanager\deploymentmodules'
+		if (!(Test-Path "$ChildModulesPath\MSI")) {
+			Write-Log -Message "Required MSI module is not available. Moving to msiexec.exe uninstall method" -LogLevel '2'
+			$false
+		} elseif ((Get-OperatingSystem) -notmatch 'XP') {
+			Write-Log -Message "Importing MSI module..."
+			Import-Module "$ChildModulesPath\MSI"
+		}
+		
+		$UninstallParams = @{
+			'Log' = $script:LogFilePath
+			'Chain' = $true
+			'Force' = $true
+		}
+		
+		Get-MSIProductInfo -Name $ProductName | Uninstall-MsiProduct @UninstallParams -Properties 'REBOOT=ReallySuppress'
+		Wait-WindowsInstaller
+		if (!(Validate-IsSoftwareInstalled $ProductName)) {
+			Write-Log -Message "Successfully uninstalled MSI package '$ProductName' with MSI module"
+			$true
+		} else {
+			Write-Log -Message "Failed to uninstall MSI package '$ProductName' with MSI module" -LogLevel '3'
+			$false
+		}
+	} catch {
+		Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
 		$false
 	}
 }
@@ -1657,7 +1658,7 @@ function Set-MyFileSystemAcl {
 	
 	process {
 		try {
-			$Acl = Get-Acl $Path
+			$Acl = (Get-Item $Path).GetAccessControl('Access')
 			$Ar = New-Object System.Security.AccessControl.FileSystemAccessRule($Identity, $Right, $InheritanceFlags, $PropagationFlags, $Type)
 			$Acl.SetAccessRule($Ar)
 			Set-Acl $Path $Acl
@@ -2491,13 +2492,11 @@ function Install-Software {
 				$ProcessParams['FilePath'] = $InstallerFilePath
 				$ProcessParams['ArgumentList'] = $InstallArgs
 			} elseif ($OtherInstallerFilePath) {
-				if (!$OtherInstallArgs) {
-					$InstallArgs = ""
-				} else {
-					$InstallArgs = $OtherInstallArgs
+				if ($OtherInstallArgs) {
+					$ProcessParams['ArgumentList'] = $OtherInstallArgs
 				}
 				$ProcessParams['FilePath'] = $OtherInstallerFilePath
-				$ProcessParams['ArgumentList'] = $InstallArgs
+				
 			}
 			if ($KillProcess) {
 				Write-Log -Message 'Killing existing processes'
@@ -2511,7 +2510,7 @@ function Install-Software {
 			}
 			Check-Process $Process
 		} catch {
-			Write-Log -Message $_.Exception.Message -LogLevel '3'
+			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
 		}
 	}
 	
