@@ -813,9 +813,9 @@ function Set-RegistryValueForAllUsers {
 					Write-Log -Message "Removing registry key '$($instance.path)'"
 					Remove-Item -Path "HKU:\$sid\$($instance.Path)" -Recurse -Force -ea 'SilentlyContinue'
 				} else {
-					if (!(Get-Item -Path "HKU:\$sid\$($instance.Path | Split-Path -Parent)" -ea 'SilentlyContinue')) {
+					if (!(Get-Item -Path "HKU:\$sid\$($instance.Path)" -ea 'SilentlyContinue')) {
 						Write-Log -Message "The registry key HKU:\$sid\$($instance.Path) does not exist.  Creating..."
-						New-Item -Path "HKU:\$sid\$($instance.Path)" -Name ($instance.Path | Split-Path -Leaf) -Force | Out-Null
+						New-Item -Path "HKU:\$sid\$($instance.Path | Split-Path -Parent)" -Name ($instance.Path | Split-Path -Leaf) -Force | Out-Null
 					} else {
 						Write-Log -Message "The registry key HKU:\$sid\$($instance.Path) already exists. No need to create."
 					}
