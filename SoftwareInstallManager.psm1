@@ -160,7 +160,7 @@ function Validate-IsSoftwareInstalled {
 				$true
 			}
 		} catch {
-			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'	
+			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
 		}
 	}
 }
@@ -252,7 +252,7 @@ function Get-InstallerType {
 		registry value.
 	#>
 	[CmdletBinding()]
-	param(
+	param (
 		[string]$UninstallString
 	)
 	
@@ -297,18 +297,24 @@ function Get-32BitRegistrySoftwarePath {
 	.SYNOPSIS
 		On x64 machines the x86 Software registry key path is HKLM:\SOFTWARE\Wow6432Node while on x86 machines it's just 
 		HKLM:\Software. This function does that decision for you and just outputs the x86 path regardless of OS architecture.
+	.PARAMETER Scope
+		Specify either HKLM or HKCU.  Defaults to HKLM.
 	#>
 	[CmdletBinding()]
-	param ()
+	param (
+		[ValidateSet('HKLM', 'HKCU')]
+		[string]$Scope = 'HKLM'
+	)
 	process {
 		try {
 			if ((Get-Architecture) -eq 'x64') {
-				'HKLM:\SOFTWARE\Wow6432Node'
+				"$Scope`:\SOFTWARE\Wow6432Node"
 			} else {
-				'HKLM:\SOFTWARE'
+				"$Scope`:\SOFTWARE"
 			}
 		} catch {
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			$false
 		}
 	}
 }
@@ -555,7 +561,7 @@ function Copy-FileWithHashCheck {
 			if (!$Force.IsPresent -and (Test-Path $DestinationFilePath)) {
 				throw "The proposed destination file path '$DestinationFilePath' already exists."
 			} else {
-				$CopyParams.Force = $true	
+				$CopyParams.Force = $true
 			}
 			
 			Copy-Item @CopyParams
@@ -705,7 +711,7 @@ function Compare-FilePath {
 	[CmdletBinding()]
 	param (
 		[Parameter(Mandatory = $true)]
-		[ValidateScript({Test-Path -Path $_ -PathType Leaf })]
+		[ValidateScript({ Test-Path -Path $_ -PathType Leaf })]
 		[string]$ReferenceFilePath,
 		[Parameter(Mandatory = $true)]
 		[ValidateScript({ Test-Path -Path $_ -PathType Leaf })]
@@ -718,7 +724,7 @@ function Compare-FilePath {
 			if ($ReferenceHash.SHA256 -ne $DifferenceHash.SHA256) {
 				$false
 			} else {
-				$true	
+				$true
 			}
 		} catch {
 			Write-Log -Message $_.Exception.Message -LogLevel '3'
@@ -751,7 +757,7 @@ function Compare-FolderPath {
 	)
 	process {
 		try {
-			$ReferenceFiles = Get-ChildItem -Path $ReferenceFolderPath -Recurse | where {!$_.PsIsContainer }
+			$ReferenceFiles = Get-ChildItem -Path $ReferenceFolderPath -Recurse | where { !$_.PsIsContainer }
 			$DifferenceFiles = Get-ChildItem -Path $DifferenceFolderPath -Recurse | where { !$_.PsIsContainer }
 			if ($ReferenceFiles.Count -ne $DifferenceFiles.Count) {
 				Write-Log -Message "Folder path '$ReferenceFolderPath' and '$DifferenceFolderPath' file counts are different" -LogLevel '2'
@@ -808,8 +814,12 @@ function Set-RegistryValueForAllUsers {
 					Remove-Item -Path "HKU:\$sid\$($instance.Path)" -Recurse -Force -ea 'SilentlyContinue'
 				} else {
 					if (!(Get-Item -Path "HKU:\$sid\$($instance.Path | Split-Path -Parent)" -ea 'SilentlyContinue')) {
-						New-Item -Path "HKU:\$sid\$($instance.Path | Split-Path -Parent)" -Name ($instance.Path | Split-Path -Leaf) -Force | Out-Null
+						Write-Log -Message "The registry key HKU:\$sid\$($instance.Path) does not exist.  Creating..."
+						New-Item -Path "HKU:\$sid\$($instance.Path)" -Name ($instance.Path | Split-Path -Leaf) -Force | Out-Null
+					} else {
+						Write-Log -Message "The registry key HKU:\$sid\$($instance.Path) already exists. No need to create."
 					}
+					Write-Log -Message "Setting registry value $($instance.Name) at path HKU:\$sid\$($instance.Path) to $($instance.Value)"
 					Set-ItemProperty -Path "HKU:\$sid\$($instance.Path)" -Name $instance.Name -Value $instance.Value -Type $instance.Type -Force
 				}
 			}
