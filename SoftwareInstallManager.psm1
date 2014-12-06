@@ -1215,19 +1215,23 @@ function Import-RegistryFile {
 				#########
 				Write-Log -Message "Detected registry file with $RegFileHive keys"
 				$LoggedOnSids = Get-LoggedOnUserSID
-				Write-Log -Message "Found $($LoggedOnSids.Count) logged on user SIDs"
-				foreach ($sid in $LoggedOnSids) {
-					## Replace all HKEY_CURRENT_USER references to HKCU\%SID% so that it can be applied to HKCU while not
-					## actually running under that context.  Create a new reg file with the replacements in the system's temp folder
-					$HkcuRegFilePath = "$(Get-SystemTempFilePath)\$($FilePath | Split-Path -Leaf)"
-					Write-Log -Message "Replacing HKEY_CURRENT_USER references with HKEY_USERS\$sid and placing temp file in $HkcuRegFilePath"
-					Find-InTextFile -FilePath $FilePath -Find $RegFileHive -Replace "HKEY_USERS\$sid" -NewFilePath $HkcuRegFilePath -Force
-					
-					## Perform a recursive function call to itself to import the newly created reg file
-					Write-Log -Message "Importing reg file $HkcuRegFilePath"
-					Import-RegistryFile -FilePath $HkcuRegFilePath
-					Write-Log -Message "Removing temporary registry file $HkcuRegFilePath"
-					Remove-Item $HkcuRegFilePath -Force
+				if ($LoggedOnSids.Count -gt 0) {
+					Write-Log -Message "Found $($LoggedOnSids.Count) logged on user SIDs"
+					foreach ($sid in $LoggedOnSids) {
+						## Replace all HKEY_CURRENT_USER references to HKCU\%SID% so that it can be applied to HKCU while not
+						## actually running under that context.  Create a new reg file with the replacements in the system's temp folder
+						$HkcuRegFilePath = "$(Get-SystemTempFilePath)\$($FilePath | Split-Path -Leaf)"
+						Write-Log -Message "Replacing HKEY_CURRENT_USER references with HKEY_USERS\$sid and placing temp file in $HkcuRegFilePath"
+						Find-InTextFile -FilePath $FilePath -Find $RegFileHive -Replace "HKEY_USERS\$sid" -NewFilePath $HkcuRegFilePath -Force
+						
+						## Perform a recursive function call to itself to import the newly created reg file
+						Write-Log -Message "Importing reg file $HkcuRegFilePath"
+						Import-RegistryFile -FilePath $HkcuRegFilePath
+						Write-Log -Message "Removing temporary registry file $HkcuRegFilePath"
+						Remove-Item $HkcuRegFilePath -Force
+					}
+				} else {
+					Write-Log -Message 'No users currently logged on.  Skipping current user registry import'	
 				}
 				
 				########
@@ -2340,27 +2344,31 @@ function Get-Shortcut {
 		[System.Collections.ArrayList]$Shortcuts = @()
 		
 		foreach ($Path in $FolderPath) {
-			Write-Log -Message "Searching for shortcuts in $Path..."
-			[System.Collections.ArrayList]$WhereConditions = @()
-			$Params['Path'] = $Path
-			if ($MatchingTargetPath) {
-				$WhereConditions.Add('(($ShellObject.CreateShortcut($_.FullName)).TargetPath -like "*$MatchingTargetPath*")') | Out-Null
-			}
-			if ($MatchingName) {
-				$WhereConditions.Add('($_.Name -like "*$MatchingName*")') | Out-Null
-			}
-			if ($MatchingFilePath) {
-				$WhereConditions.Add('($_.FullName -like "*$MatchingFilePath*")') | Out-Null
-			}
-			if ($WhereConditions.Count -gt 0) {
-				$WhereBlock = [scriptblock]::Create($WhereConditions -join ' -and ')
-				## TODO: Figure out a way to make this cleanly log access denied errors and continue
-				Get-ChildItem @Params | where $WhereBlock
-			} else {
-				Get-ChildItem @Params
-			}
-			if ($NewShortcuts) {
-				$Shortcuts.Add($NewShortcuts) | Out-Null
+			try {
+				Write-Log -Message "Searching for shortcuts in $Path..."
+				[System.Collections.ArrayList]$WhereConditions = @()
+				$Params['Path'] = $Path
+				if ($MatchingTargetPath) {
+					$WhereConditions.Add('(($ShellObject.CreateShortcut($_.FullName)).TargetPath -like "*$MatchingTargetPath*")') | Out-Null
+				}
+				if ($MatchingName) {
+					$WhereConditions.Add('($_.Name -like "*$MatchingName*")') | Out-Null
+				}
+				if ($MatchingFilePath) {
+					$WhereConditions.Add('($_.FullName -like "*$MatchingFilePath*")') | Out-Null
+				}
+				if ($WhereConditions.Count -gt 0) {
+					$WhereBlock = [scriptblock]::Create($WhereConditions -join ' -and ')
+					## TODO: Figure out a way to make this cleanly log access denied errors and continue
+					Get-ChildItem @Params | where $WhereBlock
+				} else {
+					Get-ChildItem @Params
+				}
+				if ($NewShortcuts) {
+					$Shortcuts.Add($NewShortcuts) | Out-Null
+				}
+			} catch {
+				Write-Log -Message "Error: $($_.Exception.Message) when checking for shortcuts in $FolderPath" -LogLevel '3'	
 			}
 		}
 	}
