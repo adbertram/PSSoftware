@@ -8,3 +8,5 @@
 *.psproj
 
 *.RestorePoint.*
+
+SoftwareInstallManager.TempPoint.psd1
