@@ -1,14 +1,4 @@
-﻿<#	
-===========================================================================
- Created on:   	6/23/2014 4:18 PM
- Created by:   	Adam Bertram
- Filename:     	SoftwareInstallManager.psm1
--------------------------------------------------------------------------
- Module Name: SoftwareInstallManager
-===========================================================================
-#>
-
-function Get-OperatingSystem {
+﻿function Get-OperatingSystem {
 	<#
 	.SYNOPSIS
 		This function queries the operating system name from WMI.
@@ -32,6 +22,7 @@ function Get-OperatingSystem {
 			(Get-WmiObject -ComputerName $Computername -Query "SELECT Caption FROM Win32_OperatingSystem").Caption
 		} catch {
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			$false
 		}
 	}
 }
@@ -172,6 +163,7 @@ function Validate-IsSoftwareInstalled {
 			}
 		} catch {
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			$false
 		}
 	}
 }
@@ -190,6 +182,7 @@ function Get-RootUserProfileFolderPath {
 			(Get-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList' -Name ProfilesDirectory).ProfilesDirectory
 		} catch {
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			$false
 		}
 	}
 }
@@ -208,6 +201,7 @@ function Get-AllUsersProfileFolderPath {
 			$env:ALLUSERSPROFILE
 		} catch {
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			$false
 		}
 	}
 }
@@ -248,6 +242,7 @@ function Get-AllUsersDesktopFolderPath {
 			$Shell.SpecialFolders.Item('AllUsersDesktop')
 		} catch {
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			$false
 		}
 	}
 }
@@ -278,6 +273,7 @@ function Get-InstallerType {
 			}
 		} catch {
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			$false
 		}
 	}
 }
@@ -299,6 +295,7 @@ function Get-32BitProgramFilesPath {
 			}
 		} catch {
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			$false
 		}
 	}
 }
@@ -351,42 +348,47 @@ function Get-InstallLocation {
 		[string]$Guid
 	)
 	process {
-		if ($PSBoundParameters.ProductName) {
-			Write-Log -Message "Checking WMI for install location for name '$ProductName'..."
-			## Prefer to use the GUID to find the software rather than the name.  It won't happen very often but there's been
-			## times when duplicate titles show up while the GUIDs are different
-			$Params = @{ 'Name' = $ProductName }
-		} elseif ($PSBoundParameters.Guid) {
-			Write-Log -Message "Checking WMI for install location for GUID '$Guid'..."
-			$Params = @{ 'Guid' = $Guid }
-		}
-
-		$SoftwareInstance = Get-InstalledSoftware @Params
-		if ($SoftwareInstance.InstalledLocation) {
-			$SoftwareInstance.InstalledLocation.TrimEnd('\')
-		} else {
-			Write-Log -Message 'Install location not found in WMI.  Checking registry...'
-			Write-Log -Message "Checking for installer reg keys for '$ProductName'..."
-			$UninstallRegKey = 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall'
-			$InstallerRegKeys = Get-ChildItem $UninstallRegKey | where { $_.GetValue('DisplayName') -eq $ProductName }
-			if (!$InstallerRegKeys) {
-				Write-Log -Message "No matches for '$ProductName' in registry"
+		try {
+			if ($PSBoundParameters.ProductName) {
+				Write-Log -Message "Checking WMI for install location for name '$ProductName'..."
+				## Prefer to use the GUID to find the software rather than the name.  It won't happen very often but there's been
+				## times when duplicate titles show up while the GUIDs are different
+				$Params = @{ 'Name' = $ProductName }
+			} elseif ($PSBoundParameters.Guid) {
+				Write-Log -Message "Checking WMI for install location for GUID '$Guid'..."
+				$Params = @{ 'Guid' = $Guid }
+			}
+			
+			$SoftwareInstance = Get-InstalledSoftware @Params
+			if ($SoftwareInstance.InstalledLocation) {
+				$SoftwareInstance.InstalledLocation.TrimEnd('\')
 			} else {
-				Write-Log -Message "Found '$($InstallerRegKeys.Count)' installer registry keys..."
-				$Processes = @()
-				Write-Log -Message "Checking for matches in uninstall strings.."
-				foreach ($Key in $InstallerRegKeys) {
-					$InstallFolderPath = $Key.GetValue('InstallLocation')
-					if ($InstallFolderPath) {
-						$InstallFolderPath.TrimEnd('\')
-					} elseif (!$InstallFolderPath -and (($Key.GetValue('UninstallString') -match '\w:\\([a-zA-Z0-9 _.(){}-]+\\)+')) -and (($Key.GetValue('UninstallString') -notmatch 'Installshield Installation Information'))) {
-						Write-Log -Message 'No install location found but did find a file path in the uninstall string...'
-						$Matches.Values | select -Unique | where { Test-Path $_ } | foreach  { $_.TrimEnd('\') }
-					} else {
-						Write-Log -Message "Could not find the install folder path" -LogLevel '2'
+				Write-Log -Message 'Install location not found in WMI.  Checking registry...'
+				Write-Log -Message "Checking for installer reg keys for '$ProductName'..."
+				$UninstallRegKey = 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall'
+				$InstallerRegKeys = Get-ChildItem $UninstallRegKey | where { $_.GetValue('DisplayName') -eq $ProductName }
+				if (!$InstallerRegKeys) {
+					Write-Log -Message "No matches for '$ProductName' in registry"
+				} else {
+					Write-Log -Message "Found '$($InstallerRegKeys.Count)' installer registry keys..."
+					$Processes = @()
+					Write-Log -Message "Checking for matches in uninstall strings.."
+					foreach ($Key in $InstallerRegKeys) {
+						$InstallFolderPath = $Key.GetValue('InstallLocation')
+						if ($InstallFolderPath) {
+							$InstallFolderPath.TrimEnd('\')
+						} elseif (!$InstallFolderPath -and (($Key.GetValue('UninstallString') -match '\w:\\([a-zA-Z0-9 _.(){}-]+\\)+')) -and (($Key.GetValue('UninstallString') -notmatch 'Installshield Installation Information'))) {
+							Write-Log -Message 'No install location found but did find a file path in the uninstall string...'
+							$Matches.Values | select -Unique | where { Test-Path $_ } | foreach  { $_.TrimEnd('\') }
+						} else {
+							Write-Log -Message "Could not find the install folder path" -LogLevel '2'
+						}
 					}
 				}
 			}
+		} catch {
+			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			$false
 		}
 	}
 }
@@ -438,7 +440,9 @@ function Import-Certificate {
 		try {
 			[void][System.Reflection.Assembly]::LoadWithPartialName("System.Security")
 		} catch {
-			Write-Error $_.Exception.Message
+			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			$false
+			exit
 		}
 	}
 	
@@ -454,6 +458,7 @@ function Import-Certificate {
 			}
 		} catch {
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			$false
 		}
 	}
 }
@@ -474,6 +479,7 @@ function Get-Architecture {
 			}
 		} catch {
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			$false
 		}
 	}
 }
@@ -490,6 +496,7 @@ function Get-ProfileSids {
 			(Get-Childitem 'HKLM:\Software\Microsoft\Windows NT\CurrentVersion\ProfileList' | Where { ($_.Name -match 'S-\d-\d+-(\d+-){1,14}\d+$') }).PSChildName
 		} catch {
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			$false
 		}
 	}
 }
@@ -521,14 +528,19 @@ function Get-UserProfilePath {
 	)
 	
 	process {
-		if ($Sid) {
-			$WhereBlock = { $_.PSChildName -eq $Sid }
-		} elseif ($Username) {
-			$WhereBlock = { $_.GetValue('ProfileImagePath').Split('\')[-1] -eq $Username }
-		} else {
-			$WhereBlock = { $_.PSChildName -ne $null }
+		try {
+			if ($Sid) {
+				$WhereBlock = { $_.PSChildName -eq $Sid }
+			} elseif ($Username) {
+				$WhereBlock = { $_.GetValue('ProfileImagePath').Split('\')[-1] -eq $Username }
+			} else {
+				$WhereBlock = { $_.PSChildName -ne $null }
+			}
+			Get-ChildItem 'HKLM:\Software\Microsoft\Windows NT\CurrentVersion\ProfileList' | where $WhereBlock | % { $_.GetValue('ProfileImagePath') }
+		} catch {
+			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			$false
 		}
-		Get-ChildItem 'HKLM:\Software\Microsoft\Windows NT\CurrentVersion\ProfileList' | where $WhereBlock | % { $_.GetValue('ProfileImagePath') }
 	}
 }
 
@@ -545,6 +557,7 @@ function Get-LoggedOnUserSID {
 			(Get-ChildItem HKU: | where { $_.Name -match 'S-\d-\d+-(\d+-){1,14}\d+$' }).PSChildName
 		} catch {
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			$false
 		}
 	}
 }
@@ -597,7 +610,7 @@ function Copy-FileWithHashCheck {
 				$true
 			}
 		} catch {
-			Write-Log -Message $_.Exception.Message -LogLevel '3'
+			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
 			$false
 		}
 	}
@@ -688,33 +701,38 @@ function Get-MyFileHash {
 	)
 	Process {
 		ForEach ($item in $Path) {
-			$item = (Resolve-Path $item).ProviderPath
-			If (-Not ([uri]$item).IsAbsoluteUri) {
-				Write-Verbose ("{0} is not a full path, using current directory: {1}" -f $item, $pwd)
-				$item = (Join-Path $pwd ($item -replace "\.\\", ""))
+			try {
+				$item = (Resolve-Path $item).ProviderPath
+				If (-Not ([uri]$item).IsAbsoluteUri) {
+					Write-Verbose ("{0} is not a full path, using current directory: {1}" -f $item, $pwd)
+					$item = (Join-Path $pwd ($item -replace "\.\\", ""))
+				}
+				If (Test-Path $item -Type Container) {
+					Write-Warning ("Cannot calculate hash for directory: {0}" -f $item)
+					Return
+				}
+				$object = New-Object PSObject -Property @{
+					Path = $item
+				}
+				#Open the Stream
+				$stream = ([IO.StreamReader]$item).BaseStream
+				foreach ($Type in $Algorithm) {
+					[string]$hash = -join ([Security.Cryptography.HashAlgorithm]::Create($Type).ComputeHash($stream) |
+					ForEach { "{0:x2}" -f $_ })
+					$null = $stream.Seek(0, 0)
+					#If multiple algorithms are used, then they will be added to existing object
+					$object = Add-Member -InputObject $Object -MemberType NoteProperty -Name $Type -Value $Hash -PassThru
+				}
+				$object.pstypenames.insert(0, 'System.IO.FileInfo.Hash')
+				#Output an object with the hash, algorithm and path
+				Write-Output $object
+				
+				#Close the stream
+				$stream.Close()
+			} catch {
+				Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+				$false
 			}
-			If (Test-Path $item -Type Container) {
-				Write-Warning ("Cannot calculate hash for directory: {0}" -f $item)
-				Return
-			}
-			$object = New-Object PSObject -Property @{
-				Path = $item
-			}
-			#Open the Stream
-			$stream = ([IO.StreamReader]$item).BaseStream
-			foreach ($Type in $Algorithm) {
-				[string]$hash = -join ([Security.Cryptography.HashAlgorithm]::Create($Type).ComputeHash($stream) |
-				ForEach { "{0:x2}" -f $_ })
-				$null = $stream.Seek(0, 0)
-				#If multiple algorithms are used, then they will be added to existing object
-				$object = Add-Member -InputObject $Object -MemberType NoteProperty -Name $Type -Value $Hash -PassThru
-			}
-			$object.pstypenames.insert(0, 'System.IO.FileInfo.Hash')
-			#Output an object with the hash, algorithm and path
-			Write-Output $object
-			
-			#Close the stream
-			$stream.Close()
 		}
 	}
 }
@@ -751,7 +769,7 @@ function Compare-FilePath {
 				$true
 			}
 		} catch {
-			Write-Log -Message $_.Exception.Message -LogLevel '3'
+			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
 			$false
 		}
 	}
@@ -794,7 +812,7 @@ function Compare-FolderPath {
 				$true
 			}
 		} catch {
-			Write-Log -Message $_.Exception.Message -LogLevel '3'
+			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
 			$false
 		}
 	}
@@ -995,7 +1013,8 @@ function Set-RegistryValueForAllUsers {
 				
 			}
 		} catch {
-			Write-Log -Message $_.Exception.Message -LogLevel '3'
+			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			$false
 		}
 	}
 }
@@ -1073,7 +1092,8 @@ function Get-RegistryValueForAllUsers {
 			}
 		}
 	} catch {
-		Write-Log -Message $_.Exception.Message -LogLevel '3'
+		Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+		$false
 	}
 }
 
@@ -1103,6 +1123,7 @@ function Check-Error {
 			}
 		} catch {
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			$false
 		}
 	}
 }
@@ -1157,6 +1178,7 @@ function Convert-ToUncPath {
 			"\\$Computername\$RemoteFilePathDrive`$$($LocalFilePath | Split-Path -NoQualifier)"
 		} catch {
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			$false
 		}
 	}
 }
@@ -1332,9 +1354,14 @@ function Uninstall-ViaMsizap {
 		[string]$LogFilePath = "$(Get-SystemTempFilePath)\msizap.log"
 	)
 	process {
-		Write-Log -Message "-Starting the process `"$MsiZapFilePath $Params $Guid`"..."
-		$NewProcess = Start-Process $MsiZapFilePath -ArgumentList "$Params $Guid" -Wait -NoNewWindow -PassThru -RedirectStandardOutput $LogFilePath
-		Wait-MyProcess -ProcessId $NewProcess.Id
+		try {
+			Write-Log -Message "-Starting the process `"$MsiZapFilePath $Params $Guid`"..."
+			$NewProcess = Start-Process $MsiZapFilePath -ArgumentList "$Params $Guid" -Wait -NoNewWindow -PassThru -RedirectStandardOutput $LogFilePath
+			Wait-MyProcess -ProcessId $NewProcess.Id
+		} catch {
+			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			$false
+		}
 	}
 }
 
@@ -1386,181 +1413,300 @@ function Uninstall-WindowsInstallerPackage {
 	}
 }
 
-function Uninstall-WindowsInstallerPackageWithMsiexec ($ProductName,$Guid) {
-	try {
-		if ($ProductName) {
-			Write-Log -Message "Attempting to uninstall Windows Installer with msiexec.exe using name '$ProductName'..."
-			$Params = @{ 'Name' = $ProductName }
-		} elseif ($Guid) {
-			Write-Log -Message "Attempting to uninstall Windows Installer with msiexec.exe using GUID '$Guid'..."
-			$Params = @{ 'Guid' = $Guid }
-		}
-		$Product = Get-InstalledSoftware @Params
-		Write-Log -Message "Initiating msiexec.exe with arguments '/x $($Product.SoftwareCode) /qn REBOOT=ReallySuppress'"
-		$Process = Start-Process 'msiexec.exe' -ArgumentList "/x $($Product.SoftwareCode) /qn REBOOT=ReallySuppress" -PassThru -Wait -NoNewWindow
-		Wait-WindowsInstaller
-		Check-Process $Process
-		if (!(Validate-IsSoftwareInstalled @Params)) {
-			Write-Log -Message "Successfully uninstalled MSI package with msiexec.exe"
-			$true
-		} else {
-			Write-Log -Message "Failed to uninstall MSI package with msiexec.exe" -LogLevel '3'
+function Uninstall-WindowsInstallerPackageWithMsiexec {
+	<#
+	.SYNOPSIS
+		This function runs an uninstall for a Windows Installer package using msiexec.exe /x
+	.PARAMETER ProductName
+		The software title of the Windows installer package you'd like to uninstall.  Use either the ProductName
+		param or the Guid param to find the Windows installer package.
+	.PARAMETER Guid
+		The GUID of the Windows Installer package
+	#>
+	[CmdletBinding(DefaultParameterSetName = 'Guid')]
+	param (
+		[Parameter(ParameterSetName = 'Name')]
+		[Alias('Name')]
+		[string]$ProductName,
+		[Parameter(ParameterSetName = 'Guid')]
+		[ValidatePattern('\b[A-F0-9]{8}(?:-[A-F0-9]{4}){3}-[A-F0-9]{12}\b')]
+		[string]$Guid
+	)
+	process {
+		try {
+			if ($ProductName) {
+				Write-Log -Message "Attempting to uninstall Windows Installer with msiexec.exe using name '$ProductName'..."
+				$Params = @{ 'Name' = $ProductName }
+			} elseif ($Guid) {
+				Write-Log -Message "Attempting to uninstall Windows Installer with msiexec.exe using GUID '$Guid'..."
+				$Params = @{ 'Guid' = $Guid }
+			}
+			$Product = Get-InstalledSoftware @Params
+			Write-Log -Message "Initiating msiexec.exe with arguments '/x $($Product.SoftwareCode) /qn REBOOT=ReallySuppress'"
+			$Process = Start-Process 'msiexec.exe' -ArgumentList "/x $($Product.SoftwareCode) /qn REBOOT=ReallySuppress" -PassThru -Wait -NoNewWindow
+			Wait-WindowsInstaller
+			Check-Process $Process
+			if (!(Validate-IsSoftwareInstalled @Params)) {
+				Write-Log -Message "Successfully uninstalled MSI package with msiexec.exe"
+				$true
+			} else {
+				Write-Log -Message "Failed to uninstall MSI package with msiexec.exe" -LogLevel '3'
+				$false
+			}
+		} catch {
+			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
 			$false
 		}
-	} catch {
-		Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-		$false
 	}
 }
 
-function Uninstall-WindowsInstallerPackageWithMsiModule ($ProductName,$Guid) {
-	try {
-		$ChildModulesPath = '\\configmanager\deploymentmodules'
-		if (!(Test-Path "$ChildModulesPath\MSI")) {
-			Write-Log -Message "Required MSI module is not available. Moving to msiexec.exe uninstall method" -LogLevel '2'
+function Uninstall-WindowsInstallerPackageWithMsiModule {
+	<#
+	.SYNOPSIS
+		This function runs an uninstall for a Windows Installer package using the Windows Installer Powershell module
+		https://psmsi.codeplex.com
+	.PARAMETER ProductName
+		The software title of the Windows installer package you'd like to uninstall.  Use either the ProductName
+		param or the Guid param to find the Windows installer package.
+	.PARAMETER Guid
+		The GUID of the Windows Installer package
+	#>
+	[CmdletBinding(DefaultParameterSetName = 'Guid')]
+	param (
+		[Parameter(ParameterSetName = 'Name')]
+		[Alias('Name')]
+		[string]$ProductName,
+		[Parameter(ParameterSetName = 'Guid')]
+		[ValidatePattern('\b[A-F0-9]{8}(?:-[A-F0-9]{4}){3}-[A-F0-9]{12}\b')]
+		[string]$Guid
+	)
+	process {
+		try {
+			$ChildModulesPath = '\\configmanager\deploymentmodules'
+			if (!(Test-Path "$ChildModulesPath\MSI")) {
+				Write-Log -Message "Required MSI module is not available. Moving to msiexec.exe uninstall method" -LogLevel '2'
+				$false
+			} elseif ((Get-OperatingSystem) -notmatch 'XP') {
+				Write-Log -Message "Importing MSI module..."
+				Import-Module "$ChildModulesPath\MSI"
+			}
+			
+			$UninstallParams = @{
+				'Log' = $script:LogFilePath
+				'Chain' = $true
+				'Force' = $true
+				'ErrorAction' = 'SilentlyContinue'
+				'Properties' = 'REBOOT=ReallySuppress'
+			}
+			
+			if ($ProductName) {
+				$MsiProductParams = @{ 'Name' = $ProductName }
+			} elseif ($Guid) {
+				$MsiProductParams = @{ 'ProductCode' = $Guid }
+			}
+			
+			Get-MSIProductInfo @MsiProductParams | Uninstall-MsiProduct @UninstallParams
+			Wait-WindowsInstaller
+			if (!(Validate-IsSoftwareInstalled @MsiProductParams)) {
+				Write-Log -Message "Successfully uninstalled MSI package '$ProductName' with MSI module"
+				$true
+			} else {
+				Write-Log -Message "Failed to uninstall MSI package '$ProductName' with MSI module" -LogLevel '2'
+				$false
+			}
+		} catch {
+			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
 			$false
-		} elseif ((Get-OperatingSystem) -notmatch 'XP') {
-			Write-Log -Message "Importing MSI module..."
-			Import-Module "$ChildModulesPath\MSI"
 		}
-		
-		$UninstallParams = @{
-			'Log' = $script:LogFilePath
-			'Chain' = $true
-			'Force' = $true
-			'ErrorAction' = 'SilentlyContinue'
-			'Properties' = 'REBOOT=ReallySuppress'
-		}
-		
-		if ($ProductName) {
-			$MsiProductParams = @{ 'Name' = $ProductName }
-		} elseif ($Guid) {
-			$MsiProductParams = @{ 'ProductCode' = $Guid }
-		}
-		
-		Get-MSIProductInfo @MsiProductParams | Uninstall-MsiProduct @UninstallParams
-		Wait-WindowsInstaller
-		if (!(Validate-IsSoftwareInstalled @MsiProductParams)) {
-			Write-Log -Message "Successfully uninstalled MSI package '$ProductName' with MSI module"
-			$true
-		} else {
-			Write-Log -Message "Failed to uninstall MSI package '$ProductName' with MSI module" -LogLevel '2'
-			$false
-		}
-	} catch {
-		Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-		$false
 	}
 }
 
 function Wait-WindowsInstaller {
-	$MsiexecProcesses = Get-WmiObject -Class Win32_Process -Filter "Name = 'msiexec.exe'" | where { $_.CommandLine -ne 'C:\Windows\system32\msiexec.exe /V' }
-	if ($MsiExecProcesses) {
-		Write-Log -Message "Found '$($MsiexecProcesses.Count)' Windows installer processes.  Waiting..."
-		foreach ($Process in $MsiexecProcesses) {
-			Wait-MyProcess -ProcessId $Process.ProcessId
+	<#
+	.SYNOPSIS
+		This function should be called immediately after the Uninstall-WindowsInstallerPackage function.  This is a specific
+		process waiting function especially for msiexec.exe.  It was built because the Wait-MyProcess function will sometimes
+		not work with msiexec installs/uninstalls.  This is because msiexec.exe creates a process tree which doesn't necessarily
+		mean child processes.  Using this function will ensure your script always wait for the msiexec.exe process you
+		kicked off to complete before continuing.
+	#>
+	[CmdletBinding()]
+	param ()
+	process {
+		try {
+			$MsiexecProcesses = Get-WmiObject -Class Win32_Process -Filter "Name = 'msiexec.exe'" | where { $_.CommandLine -ne 'C:\Windows\system32\msiexec.exe /V' }
+			if ($MsiExecProcesses) {
+				Write-Log -Message "Found '$($MsiexecProcesses.Count)' Windows installer processes.  Waiting..."
+				foreach ($Process in $MsiexecProcesses) {
+					Wait-MyProcess -ProcessId $Process.ProcessId
+				}
+				Wait-WindowsInstaller
+			} else {
+				Write-Log -Message "No Windows installer processes found"
+			}
+		} catch {
+			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			$false
 		}
-		Wait-WindowsInstaller
-	} else {
-		Write-Log -Message "No Windows installer processes found"
 	}
 }
 
-function Uninstall-InstallShieldPackage([string[]]$ProductName, $IssFilePath, $SetupFilePath, $InstallshieldLogFilePath) {
-	try {
-		foreach ($Product in $ProductName) {
-			Write-Log -Message "Beginning uninstall for Installshield product '$ProductName'"
-			## Find the uninstall string to find the cached setup.exe
-			$Products = Get-InstalledSoftware $Product
-			## If multiple products are found, remove them all
-			foreach ($p in $Products) {
-				$Title = $p.ARPDisplayName
-				$UninstallString = $p.UninstallString
-				## Check to ensure anything is in the UninstallString property
-				if (!$p.UninstallString) {
-					Write-Log -Message "No uninstall string found for product $Title" -LogLevel '2'
-				} elseif ($p.UninstallString -match '(\w:\\[a-zA-Z0-9 _.() { }-]+\\.*.exe)+') {
-					## Test to ensure the cached setup.exe exists
-					if (!(Test-Path $Matches[0])) {
-						Write-Log -Message "Installer file path not found in $($p.UninstallString) or cannot be found on the file system" -LogLevel '2'
-					} else {
-						$InstallerFilePath = $Matches[0]
-						Write-Log -Message "Valid installer file path is $InstallerFilePath"
+function Uninstall-InstallShieldPackage {
+	<#
+	.SYNOPSIS
+		This function runs an uninstall for any InstallShield packaged software.  This function utilitizes an
+		InstallShield ISS file to silently uninstall the application.
+	.PARAMETER ProductName
+		One or more software titles of the InstallShield package you'd like to uninstall.
+	.PARAMETER IssFilePath
+		The file path where the pre-built silent answer file (ISS) is located.
+	.PARAMETER SetupFilePath
+		The file path where the EXE InstallShield installer is located.
+	.PARAMETER LogFilePath
+		The log file path where the InstallShield installer will log results.  If not log file path
+		is specified it will be created in the system temp folder.
+	#>
+	[CmdletBinding()]
+	param (
+		[Parameter(Mandatory = $true)]
+		[Alias('Name')]
+		[string[]]$ProductName,
+		[Parameter(Mandatory = $true)]
+		[ValidateScript({Test-Path -Path $_ -PathType 'Leaf' })]
+		[string]$IssFilePath,
+		[Parameter(Mandatory = $true)]
+		[ValidateScript({ Test-Path -Path $_ -PathType 'Leaf' })]
+		[string]$SetupFilePath,
+		[ValidateScript({ Test-Path -Path ($_ | Split-Path -Parent) -PathType 'Container' })]
+		[string]$LogFilePath = "(Get-SystemTempFilePath)\IssSetupLog.log"
+	)
+	process {
+		try {
+			foreach ($Product in $ProductName) {
+				Write-Log -Message "Beginning uninstall for Installshield product '$ProductName'"
+				## Find the uninstall string to find the cached setup.exe
+				$Products = Get-InstalledSoftware $Product
+				## If multiple products are found, remove them all
+				foreach ($p in $Products) {
+					$Title = $p.ARPDisplayName
+					$UninstallString = $p.UninstallString
+					## Check to ensure anything is in the UninstallString property
+					if (!$p.UninstallString) {
+						Write-Log -Message "No uninstall string found for product $Title" -LogLevel '2'
+					} elseif ($p.UninstallString -match '(\w:\\[a-zA-Z0-9 _.() { }-]+\\.*.exe)+') {
+						## Test to ensure the cached setup.exe exists
+						if (!(Test-Path $Matches[0])) {
+							Write-Log -Message "Installer file path not found in $($p.UninstallString) or cannot be found on the file system" -LogLevel '2'
+						} else {
+							$InstallerFilePath = $Matches[0]
+							Write-Log -Message "Valid installer file path is $InstallerFilePath"
+						}
 					}
-				}
-				if (!$InstallerFilePath) {
-					if (!$SetupFilePath) {
-						Write-Log -Message "No setup folder path specified. This software cannot be removed" -LogLevel '2'
-						continue
-					} else {
-						$InstallerFilePath = $SetupFilePath	
+					if (!$InstallerFilePath) {
+						if (!$SetupFilePath) {
+							Write-Log -Message "No setup folder path specified. This software cannot be removed" -LogLevel '2'
+							continue
+						} else {
+							$InstallerFilePath = $SetupFilePath
+						}
 					}
-				}
-				## Run the setup.exe passing the ISS file to uninstall
-				if ($InstallshieldLogFilePath) {
-					$MyLogFilePath = $InstallshieldLogFilePath
-				} else {
-					$MyLogFilePath = $script:LogFilePath
-				}
-				$InstallArgs = "/s /f1`"$IssFilePath`" /f2`"$MyLogFilePath`" /SMS"
-				Write-Log -Message "Running the install syntax `"$InstallerFilePath`" $InstallArgs"
-				$Process = Start-Process "`"$InstallerFilePath`"" -ArgumentList $InstallArgs -Wait -NoNewWindow -PassThru
-				if (!(Validate-IsSoftwareInstalled $Title)) {
-					Write-Log -Message "The product $Title was successfully removed!"
-					$true
-				} else {
-					Write-Log -Message "The product $Title was not removed.  Attempting secondary uninstall method" -LogLevel '2'
-					## Parse out the EXE file path and arguments.  This regex could be improved on big time.
-					$FilePathRegex = '(([a-zA-Z]\:|\\)\\([^\\]+\\)*[^\/:*?"<>|]+\.[a-zA-Z]{3})" (.+)'
-					if ($UninstallString -match $FilePathRegex) {
-						$InstallerFilePath = $matches[1]
-						$InstallArgs = $matches[4]
-						$InstallArgs = "$InstallArgs /s /f1`"$IssFilePath`" /f2`"$MyLogFilePath`" /SMS"
-						Write-Log -Message "Running the install syntax `"$InstallerFilePath`" $InstallArgs"
-						$Process = Start-Process "`"$InstallerFilePath`"" -ArgumentList $InstallArgs -Wait -NoNewWindow -PassThru
-						if (!(Validate-IsSoftwareInstalled $Title)) {
-							Write-Log -Message "The product '$Title' was not removed!"
+					## Run the setup.exe passing the ISS file to uninstall
+					if ($InstallshieldLogFilePath) {
+						$MyLogFilePath = $InstallshieldLogFilePath
+					} else {
+						$MyLogFilePath = $script:LogFilePath
+					}
+					$InstallArgs = "/s /f1`"$IssFilePath`" /f2`"$MyLogFilePath`" /SMS"
+					Write-Log -Message "Running the install syntax `"$InstallerFilePath`" $InstallArgs"
+					$Process = Start-Process "`"$InstallerFilePath`"" -ArgumentList $InstallArgs -Wait -NoNewWindow -PassThru
+					if (!(Validate-IsSoftwareInstalled $Title)) {
+						Write-Log -Message "The product $Title was successfully removed!"
+						$true
+					} else {
+						Write-Log -Message "The product $Title was not removed.  Attempting secondary uninstall method" -LogLevel '2'
+						## Parse out the EXE file path and arguments.  This regex could be improved on big time.
+						$FilePathRegex = '(([a-zA-Z]\:|\\)\\([^\\]+\\)*[^\/:*?"<>|]+\.[a-zA-Z]{3})" (.+)'
+						if ($UninstallString -match $FilePathRegex) {
+							$InstallerFilePath = $matches[1]
+							$InstallArgs = $matches[4]
+							$InstallArgs = "$InstallArgs /s /f1`"$IssFilePath`" /f2`"$MyLogFilePath`" /SMS"
+							Write-Log -Message "Running the install syntax `"$InstallerFilePath`" $InstallArgs"
+							$Process = Start-Process "`"$InstallerFilePath`"" -ArgumentList $InstallArgs -Wait -NoNewWindow -PassThru
+							if (!(Validate-IsSoftwareInstalled $Title)) {
+								Write-Log -Message "The product '$Title' was not removed!"
+								$false
+							}
+						} else {
+							Write-Log -Message "Could not parse out the setup installer and arguments from uninstall string. The product '$Title' was not removed!"
 							$false
 						}
-					} else {
-						Write-Log -Message "Could not parse out the setup installer and arguments from uninstall string. The product '$Title' was not removed!"
-						$false
+						
 					}
-					
 				}
 			}
+		} catch {
+			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			$false
 		}
-	} catch {
-		Write-Log -Message $_.Exception.Message -LogLevel '3'
-		return
 	}
 }
 
-function Wait-MyProcess ($ProcessId) {
-	## This function not only waits for the process but waits for all it's child processes as well
-	$Process = Get-Process -Id $ProcessId -ea 'SilentlyContinue'
-	if ($Process) {
-		Write-Log -Message "Waiting for process ID '$ProcessId' to finish"
-		$ChildProcessIds = @()
-		## While waiting for the initial process to stop, collect all child IDs it spawns
-		while (!$Process.HasExited) {
-			$ChildProcesses += Get-WmiObject -Class Win32_Process -Filter "ParentProcessId = '$ProcessId'"
-			sleep 1
-		}
-		if ($ChildProcesses) {
-			Write-Log -Message "Process ID '$ProcessId' spawned '$($ChildProcesses.Count)' processes.  Waiting on these to finish."
-			foreach ($Process in $ChildProcesses) {
-				Wait-MyProcess -ProcessId $Process.ProcessId
+function Wait-MyProcess {
+	<#
+	.SYNOPSIS
+		This function waits for a process and waits for all that process's children before releasing control
+	.PARAMETER ProcessId
+		A process Id
+	#>
+	[CmdletBinding()]
+	param (
+		[Parameter(Mandatory = $true)]
+		[string]$ProcessId
+	)
+	process {
+		try {
+			$Process = Get-Process -Id $ProcessId -ea 'SilentlyContinue'
+			if ($Process) {
+				Write-Log -Message "Waiting for process ID '$ProcessId' to finish"
+				$ChildProcessIds = @()
+				## While waiting for the initial process to stop, collect all child IDs it spawns
+				while (!$Process.HasExited) {
+					$ChildProcesses += Get-WmiObject -Class Win32_Process -Filter "ParentProcessId = '$ProcessId'"
+					sleep 1
+				}
+				if ($ChildProcesses) {
+					Write-Log -Message "Process ID '$ProcessId' spawned '$($ChildProcesses.Count)' processes.  Waiting on these to finish."
+					foreach ($Process in $ChildProcesses) {
+						Wait-MyProcess -ProcessId $Process.ProcessId
+					}
+				}
+				Write-Log -Message "Finished waiting for process ID '$ProcessId' and all child processes"
+			} else {
+				Write-Log -Message "Process ID '$ProcessId' not found"
 			}
-		} 
-		Write-Log -Message "Finished waiting for process ID '$ProcessId' and all child processes"
-	} else {
-		Write-Log -Message "Process ID '$ProcessId' not found"
+		} catch {
+			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			$false
+		}
 	}
 }
 
 function Get-SystemTempFilePath {
-	[environment]::GetEnvironmentVariable('TEMP', 'Machine')
+	<#
+	.SYNOPSIS
+		This function uses the TEMP system environment variable to easily discover the folder path
+		to the system's temp folder
+	#>
+	[CmdletBinding()]
+	param ()
+	process {
+		try {
+			[environment]::GetEnvironmentVariable('TEMP', 'Machine')
+		} catch {
+			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			$false
+		}
+	}
 }
 
 function Find-InTextFile {
@@ -1638,34 +1784,49 @@ function Find-InTextFile {
 				}
 			}
 		} catch {
-			Write-Error $_.Exception.Message
+			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			$false
 		}
 	}
 }
 
-function Stop-MyProcess ([string[]]$ProcessName) {
-	try {
-		$ProcessesToStop = Get-Process -Name $ProcessName -ErrorAction 'SilentlyContinue'
-		if (!$ProcessesToStop) {
-			Write-Log -Message "-No processes to be killed found..."
-		} else {
-			foreach ($process in $ProcessesToStop) {
-				Write-Log -Message "-Process $($process.Name) is running. Attempting to stop..."
-				$WmiProcess = Get-WmiObject -Class Win32_Process -Filter "name='$($process.Name).exe'" -ea 'SilentlyContinue' -ev WMIError
-				if ($WmiError) {
-					Write-Log -Message "Unable to stop process $($process.Name). WMI query errored with `"$($WmiError.Exception.Message)`"" -LogLevel '2'
-				} elseif ($WmiProcess) {
-					$WmiResult = $WmiProcess.Terminate()
-					if ($WmiResult.ReturnValue -ne 0) {
-						Write-Log -Message "-Unable to stop process $($process.name). Return value was $($WmiResult.ReturnValue)" -LogLevel '2'
-					} else {
-						Write-Log -Message "-Successfully stopped process $($process.Name)..."
+function Stop-MyProcess {
+	<#
+	.SYNOPSIS
+		This function stops a process while provided robust logging of the activity
+	.PARAMETER ProcessName
+		One more process names
+	#>
+	[CmdletBinding()]
+	param (
+		[Parameter(Mandatory = $true)]
+		[string[]]$ProcessName
+	)
+	process {
+		try {
+			$ProcessesToStop = Get-Process -Name $ProcessName -ErrorAction 'SilentlyContinue'
+			if (!$ProcessesToStop) {
+				Write-Log -Message "-No processes to be killed found..."
+			} else {
+				foreach ($process in $ProcessesToStop) {
+					Write-Log -Message "-Process $($process.Name) is running. Attempting to stop..."
+					$WmiProcess = Get-WmiObject -Class Win32_Process -Filter "name='$($process.Name).exe'" -ea 'SilentlyContinue' -ev WMIError
+					if ($WmiError) {
+						Write-Log -Message "Unable to stop process $($process.Name). WMI query errored with `"$($WmiError.Exception.Message)`"" -LogLevel '2'
+					} elseif ($WmiProcess) {
+						$WmiResult = $WmiProcess.Terminate()
+						if ($WmiResult.ReturnValue -ne 0) {
+							Write-Log -Message "-Unable to stop process $($process.name). Return value was $($WmiResult.ReturnValue)" -LogLevel '2'
+						} else {
+							Write-Log -Message "-Successfully stopped process $($process.Name)..."
+						}
 					}
 				}
 			}
+		} catch {
+			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			$false
 		}
-	} catch {
-		Write-Log -Message "Error: $($_.Exception.Message) - $($_.InvocationInfo.ScriptLineNumber)"	-LogLevel '3'
 	}
 }
 
@@ -1684,34 +1845,45 @@ function Remove-MyService {
 		[ValidateScript({ Get-Service -Name $_ -ea 'SilentlyContinue' })]
 		[string]$Name
 	)
-	Write-Debug "Initiating the $($MyInvocation.MyCommand.Name) function...";
-	$ServicesToRemove = Get-Service $Name -ea 'SilentlyContinue' -ev MyError
-	Check-Error $MyError "Found $($ServicesToRemove.Count) services to remove"
-	if (!$ServicesToRemove) {
-		Write-Log -Message "-No services to be removed found..."
-	} else {
-		foreach ($Service in $ServicesToRemove) {
-			Write-Log -Message "-Found service $($Service.DisplayName)."
-			if ($Service.Status -ne 'Stopped') {
-				Write-Log -Message "-Service $($Service.Displayname) is not stopped."
-				Stop-Service $Service -ErrorAction 'SilentlyContinue' -Force -ev ServiceError
-				Check-Error $ServiceError "-Successfully stopped $($Service.Displayname)"
+	process {
+		try {
+			$ServicesToRemove = Get-Service $Name -ea 'SilentlyContinue' -ev MyError
+			Check-Error $MyError "Found $($ServicesToRemove.Count) services to remove"
+			if (!$ServicesToRemove) {
+				Write-Log -Message "-No services to be removed found..."
 			} else {
-				Write-Log -Message "-Service $($Service.Displayname) is already stopped."
-			}
-			Write-Log -Message "-Attempting to remove service $($Service.DisplayName)..."
-			$WmiService = Get-WmiObject -Class Win32_Service -Filter "Name='$($Service.ServiceName)'" -ea 'SilentlyContinue' -ev WMIError
-			if ($WmiError) {
-				Write-Log -Message "-Unable to remove service $($Service.DisplayName). WMI query errored with `"$($WmiError.Exception.Message)`"" -LogLevel '2'
-			} else {
-				$DeleteService = $WmiService.Delete()
-				if ($DeleteService.ReturnValue -ne 0) {
-					## Delete method error codes http://msdn.microsoft.com/en-us/library/aa389960(v=vs.85).aspx
-					Write-Log -Message "-Service $($Service.DisplayName) failed to remove. Delete error code was $($DeleteService.ReturnValue).." -LogLevel '2'
-				} else {
-					Write-Log -Message "-Service $($Service.DisplayName) successfully removed..."
+				foreach ($Service in $ServicesToRemove) {
+					try {
+						Write-Log -Message "-Found service $($Service.DisplayName)."
+						if ($Service.Status -ne 'Stopped') {
+							Write-Log -Message "-Service $($Service.Displayname) is not stopped."
+							Stop-Service $Service -ErrorAction 'SilentlyContinue' -Force -ev ServiceError
+							Check-Error $ServiceError "-Successfully stopped $($Service.Displayname)"
+						} else {
+							Write-Log -Message "-Service $($Service.Displayname) is already stopped."
+						}
+						Write-Log -Message "-Attempting to remove service $($Service.DisplayName)..."
+						$WmiService = Get-WmiObject -Class Win32_Service -Filter "Name='$($Service.ServiceName)'" -ea 'SilentlyContinue' -ev WMIError
+						if ($WmiError) {
+							Write-Log -Message "-Unable to remove service $($Service.DisplayName). WMI query errored with `"$($WmiError.Exception.Message)`"" -LogLevel '2'
+						} else {
+							$DeleteService = $WmiService.Delete()
+							if ($DeleteService.ReturnValue -ne 0) {
+								## Delete method error codes http://msdn.microsoft.com/en-us/library/aa389960(v=vs.85).aspx
+								Write-Log -Message "-Service $($Service.DisplayName) failed to remove. Delete error code was $($DeleteService.ReturnValue).." -LogLevel '2'
+							} else {
+								Write-Log -Message "-Service $($Service.DisplayName) successfully removed..."
+							}
+						}
+					} catch {
+						Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+						$false
+					}
 				}
 			}
+		} catch {
+			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			$false
 		}
 	}
 }
@@ -1787,51 +1959,43 @@ function Get-InstalledSoftware {
 	process {
 		try {
 			foreach ($Computer in $Computername) {
-				$Params['ComputerName'] = $Computer;
-				$Software = Get-WmiObject @Params
-				Check-Error $MyError "Successfully queried computer $Computer for installed software"
-				$Software | Sort-Object ARPDisplayname;
+				try {
+					$Params['ComputerName'] = $Computer;
+					$Software = Get-WmiObject @Params
+					Check-Error $MyError "Successfully queried computer $Computer for installed software"
+					$Software | Sort-Object ARPDisplayname;
+				} catch {
+					Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+					$false
+				}
 			}
-		} catch [System.Exception] {
+		} catch {
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			$false
 		}##endtry
 	}
-}##endfunction
-
-function New-ValidationDynamicParam {
-	[CmdletBinding()]
-	[OutputType('System.Management.Automation.RuntimeDefinedParameter')]
-	param (
-		[Parameter(Mandatory=$true)]
-		[ValidateNotNullOrEmpty()]
-		[string]$Name,
-		[ValidateNotNullOrEmpty()]
-		[Parameter(Mandatory=$true)]
-		[array]$ValidateSetOptions,
-		[Parameter()]
-		[switch]$Mandatory = $false,
-		[Parameter()]
-		[string]$ParameterSetName = '__AllParameterSets',
-		[Parameter()]
-		[switch]$ValueFromPipeline = $false,
-		[Parameter()]
-		[switch]$ValueFromPipelineByPropertyName = $false
-	)
-	
-	$AttribColl = New-Object System.Collections.ObjectModel.Collection[System.Attribute]
-	$ParamAttrib = New-Object System.Management.Automation.ParameterAttribute
-	$ParamAttrib.Mandatory = $Mandatory.IsPresent
-	$ParamAttrib.ParameterSetName = $ParameterSetName
-	$ParamAttrib.ValueFromPipeline = $ValueFromPipeline.IsPresent
-	$ParamAttrib.ValueFromPipelineByPropertyName = $ValueFromPipelineByPropertyName.IsPresent
-	$AttribColl.Add($ParamAttrib)
-	$AttribColl.Add((New-Object System.Management.Automation.ValidateSetAttribute($Param.ValidateSetOptions)))
-	$RuntimeParam = New-Object System.Management.Automation.RuntimeDefinedParameter($Param.Name, [string], $AttribColl)
-	$RuntimeParam
-	
 }
 
 function Set-MyFileSystemAcl {
+	<#
+	.SYNOPSIS
+		This function allows an easy method to set a file system access ACE
+	.PARAMETER Path
+	 	The file path of a file
+	.PARAMETER Identity
+		The security principal you'd like to set the ACE to.  This should be specified like
+		DOMAIN\user or LOCALMACHINE\User.
+	.PARAMETER Right
+		One of many file system rights.  For a list http://msdn.microsoft.com/en-us/library/system.security.accesscontrol.filesystemrights(v=vs.110).aspx
+	.PARAMETER InheritanceFlags
+		The flags to set on how you'd like the object inheritance to be set.  Possible values are
+		ContainerInherit, None or ObjectInherit. http://msdn.microsoft.com/en-us/library/system.security.accesscontrol.inheritanceflags(v=vs.110).aspx
+	.PARAMETER PropagationFlags
+		The flag that specifies on how you'd permission propagation to behave. Possible values are
+		InheritOnly, None or NoPropagateInherit. http://msdn.microsoft.com/en-us/library/system.security.accesscontrol.propagationflags(v=vs.110).aspx
+	.PARAMETER Type
+		The type (Allow or Deny) of permissions to add. http://msdn.microsoft.com/en-us/library/w4ds5h86(v=vs.110).aspx
+	#>
 	[CmdletBinding()]
 	param (
 		[Parameter(Mandatory=$true)]
@@ -1856,7 +2020,8 @@ function Set-MyFileSystemAcl {
 			$Acl.SetAccessRule($Ar)
 			Set-Acl $Path $Acl
 		} catch {
-			Write-Error $_.Exception.Message
+			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			$false
 		}
 	}
 }
@@ -1906,7 +2071,8 @@ function Convert-GuidToCompressedGuid {
 			}
 			$CompressedGuid
 		} catch {
-			Write-Error $_.Exception.Message	
+			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			$false
 		}
 	}
 }
@@ -1957,7 +2123,8 @@ function Convert-CompressedGuidToGuid {
 			$Guid = $Guid.Insert(9, '-').Insert(14, '-').Insert(19, '-').Insert(24, '-')
 			$Guid + '}'
 		} catch {
-			Write-Error $_.Exception.Message	
+			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			$false
 		}
 	}
 }
@@ -2231,6 +2398,7 @@ function Remove-Software {
 			}
 		} catch {
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			$false
 		}
 	}
 }
@@ -2275,7 +2443,8 @@ function Remove-ItemFromAllUserProfiles {
 				}
 			}
 		} catch {
-			Write-Error $_.Exception.Message
+			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			$false
 		}
 	}
 }
@@ -2325,51 +2494,57 @@ function Get-Shortcut {
 		[switch]$NoRecurse
 	)
 	process {
-		if (!$FolderPath) {
-			$FolderPath = (Get-RootUserProfileFolderPath), (Get-AllUsersProfileFolderPath)
-		}
-		
-		$Params = @{
-			'Include' = @('*.url', '*.lnk');
-			'ErrorAction' = 'SilentlyContinue';
-			'ErrorVariable' = 'MyError';
-			'Force' = $true
-		}
-		
-		if (!$NoRecurse) {
-			$Params['Recurse'] = $true
-		}
-		
-		$ShellObject = New-Object -ComObject Wscript.Shell
-		[System.Collections.ArrayList]$Shortcuts = @()
-		
-		foreach ($Path in $FolderPath) {
-			try {
-				Write-Log -Message "Searching for shortcuts in $Path..."
-				[System.Collections.ArrayList]$WhereConditions = @()
-				$Params['Path'] = $Path
-				if ($MatchingTargetPath) {
-					$WhereConditions.Add('(($ShellObject.CreateShortcut($_.FullName)).TargetPath -like "*$MatchingTargetPath*")') | Out-Null
-				}
-				if ($MatchingName) {
-					$WhereConditions.Add('($_.Name -like "*$MatchingName*")') | Out-Null
-				}
-				if ($MatchingFilePath) {
-					$WhereConditions.Add('($_.FullName -like "*$MatchingFilePath*")') | Out-Null
-				}
-				if ($WhereConditions.Count -gt 0) {
-					$WhereBlock = [scriptblock]::Create($WhereConditions -join ' -and ')
-					## TODO: Figure out a way to make this cleanly log access denied errors and continue
-					Get-ChildItem @Params | where $WhereBlock
-				} else {
-					Get-ChildItem @Params
-				}
-				if ($NewShortcuts) {
-					$Shortcuts.Add($NewShortcuts) | Out-Null
-				}
-			} catch {
-				Write-Log -Message "Error: $($_.Exception.Message) when checking for shortcuts in $FolderPath" -LogLevel '3'	
+		try {
+			if (!$FolderPath) {
+				$FolderPath = (Get-RootUserProfileFolderPath), (Get-AllUsersProfileFolderPath)
 			}
+			
+			$Params = @{
+				'Include' = @('*.url', '*.lnk');
+				'ErrorAction' = 'SilentlyContinue';
+				'ErrorVariable' = 'MyError';
+				'Force' = $true
+			}
+			
+			if (!$NoRecurse) {
+				$Params['Recurse'] = $true
+			}
+			
+			$ShellObject = New-Object -ComObject Wscript.Shell
+			[System.Collections.ArrayList]$Shortcuts = @()
+			
+			foreach ($Path in $FolderPath) {
+				try {
+					Write-Log -Message "Searching for shortcuts in $Path..."
+					[System.Collections.ArrayList]$WhereConditions = @()
+					$Params['Path'] = $Path
+					if ($MatchingTargetPath) {
+						$WhereConditions.Add('(($ShellObject.CreateShortcut($_.FullName)).TargetPath -like "*$MatchingTargetPath*")') | Out-Null
+					}
+					if ($MatchingName) {
+						$WhereConditions.Add('($_.Name -like "*$MatchingName*")') | Out-Null
+					}
+					if ($MatchingFilePath) {
+						$WhereConditions.Add('($_.FullName -like "*$MatchingFilePath*")') | Out-Null
+					}
+					if ($WhereConditions.Count -gt 0) {
+						$WhereBlock = [scriptblock]::Create($WhereConditions -join ' -and ')
+						## TODO: Figure out a way to make this cleanly log access denied errors and continue
+						Get-ChildItem @Params | where $WhereBlock
+					} else {
+						Get-ChildItem @Params
+					}
+					if ($NewShortcuts) {
+						$Shortcuts.Add($NewShortcuts) | Out-Null
+					}
+				} catch {
+					Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+					$false
+				}
+			}
+		} catch {
+			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			$false
 		}
 	}
 }
@@ -2442,7 +2617,8 @@ function New-Shortcut {
 			Write-Log -Message "Creating shortcut at $FilePath using targetpath $TargetFilePath"
 			$Object.Save()
 		} catch {
-			Write-Log -Message $_.Exception.Message -LogLevel '3'	
+			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			$false
 		}
 	}
 }
@@ -2503,48 +2679,57 @@ function Get-DriveFreeSpace {
 	Process {
 		try {
 			foreach ($Computer in $Computername) {
-				$WmiParams.Computername = $Computer
-				$WmiResult = Get-WmiObject @WmiParams
-				Check-Error $MyError "Sucessfull WMI query"
-				if (!$WmiResult) {
-					throw "Drive letter does not exist on target system"
-				}
-				foreach ($Result in $WmiResult) {
-					if ($Result.Freespace) {
-						[pscustomobject]@{
-							'Computername' = $Computer;
-							'DriveLetter' = $Result.DeviceID;
-							'Freespace' = [int]($Result.FreeSpace / "1$SizeOutputLabel")
+				try {
+					$WmiParams.Computername = $Computer
+					$WmiResult = Get-WmiObject @WmiParams
+					Check-Error $MyError "Sucessfull WMI query"
+					if (!$WmiResult) {
+						throw "Drive letter does not exist on target system"
+					}
+					foreach ($Result in $WmiResult) {
+						if ($Result.Freespace) {
+							[pscustomobject]@{
+								'Computername' = $Computer;
+								'DriveLetter' = $Result.DeviceID;
+								'Freespace' = [int]($Result.FreeSpace / "1$SizeOutputLabel")
+							}
 						}
 					}
-					#$iFreeSpace =
+				} catch {
+					Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+					$false
 				}
 			}
 		} catch {
-			Write-Log -Message $_.Exception.Message -LogLevel '3'
+			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			$false
 		}
 	}
 }
 
-function Get-FileVersion ($sPc, $sPath, $sFileName) {
-	try {
-		Write-Debug "Initiating the $($MyInvocation.MyCommand.Name) function...";
-		$sFilePath = "\\$sPc\c$\$sPath\$sFileName";
-		if (!(Test-Path $sFilePath)) {
-			$mResult = $false;
-		} else {
-			$oFile = (dir $sFilePath).VersionInfo;
-		}##endif
-		
-		if (!(Test-Path variable:/mResult)) {
-			$mResult = $oFile.FileVersion;
-		}##endif
-		return $mResult
-		
-	} catch [System.Exception] {
-		Write-Log -Message $_.Exception.Message -LogLevel '3'
-	}##endtry
-}##endfunction
+function Get-FileVersion {
+	<#
+	.SYNOPSIS
+		This function finds the file version of a file.  This is useful for applications that don't
+		register themselves properly with Windows Installer
+	.PARAMETER FilePath
+	 	A valid file path
+	#>
+	[CmdletBinding()]
+	param (
+		[Parameter(Mandatory = $true)]
+		[ValidateScript({ Test-Path -Path $_ -PathType 'Leaf' })]
+		[string]$FilePath
+	)
+	process {
+		try {
+			(Get-ItemProperty -Path $FilePath).VersionInfo.FileVersion
+		} catch {
+			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			$false
+		}
+	}
+}
 
 function Install-Software {
 	<#
@@ -2714,10 +2899,7 @@ function Install-Software {
 			Check-Process $Process
 		} catch {
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			$false
 		}
-	}
-	
-	end {
-		Write-Log -Message "Ending software install "
 	}
 }
