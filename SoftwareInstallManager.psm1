@@ -656,6 +656,31 @@ function Set-RegistryValueForAllUsers {
 		}
 	}
 }
+
+function Register-File {
+	<#
+	.SYNOPSIS
+		A function that uses the utility regsvr32.exe utility to register a file
+	.PARAMETER FilePath
+		The file path
+	#>
+	[CmdletBinding()]
+	param (
+		[Parameter()]
+		[ValidateScript({ Test-Path -Path $_ -PathType 'Leaf' })]
+		[string]$FilePath
+	)
+	process {
+		try {
+			$Result = Start-Process -FilePath 'regsvr32.exe' -Args "/s `"$FilePath`"" -Wait -NoNewWindow -PassThru
+			Wait-MyProcess -ProcessId $Result.Id
+			Check-Error -SuccessString "Successfully registered file $FilePath"
+		} catch {
+			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			$false
+		}
+	}
+}
 #endregion
 
 #region SoftwareManagement
@@ -760,8 +785,6 @@ function Install-Software {
 		Todos:			Allow multiple software products to be installed	
 	.EXAMPLE
 		Install-Software -MsiInstallerFilePath install.msi -InstallArgs "/qn "	
-	.EXAMPLE
-		
 	.PARAMETER InstallShieldInstallerFilePath
 	 	This is the file path to the EXE InstallShield installer.
 	.PARAMETER MsiInstallerFilePath
@@ -785,6 +808,13 @@ function Install-Software {
 	.PARAMETER KillProcess
 		A list of process names that will be terminated prior to attempting the install.  This is useful
 		in upgrade scenarios where you need to terminate the previous version's processes.
+	.PARAMETER KillProcessDuringInstall
+		A list of process names that will be terminated during the install routine.  While the parent process (either msiexec.exe, 
+		setup.exe (or similar for InstallShield) or another EXE specified by OtherInstallerPath) is running, this will kill
+		any child processes that are spawned during that time.
+	.PARAMETER ProcessTimeout
+		A value (in seconds) that the installer script will wait for the installation process to complete.  If the installation
+		goes over this value, any processes (parent or child) will be terminated.
 	.PARAMETER LogFilePath
 		This is the path where the installer log file will be written.  If not passed, it will default
 		to being named install.log in the system temp folder.
@@ -827,25 +857,27 @@ function Install-Software {
 		[Parameter(ParameterSetName = 'InstallShield')]
 		[string]$InstallShieldInstallArgs,
 		[Parameter(ParameterSetName = 'Other')]
-		[string]$OtherInstallArgs,
+		[string]$OtherInstallerArgs,
+		[Alias('OtherInstallerArguments')]
 		[Parameter()]
 		[string[]]$KillProcess,
+		[Alias('KillProcesPreInstall')]
+		[string[]]$KillProcessDuringInstall,
+		[int]$ProcessTimeout,
 		[string]$LogFilePath,
 		[switch]$NoDefaultLogFilePath,
 		[string]$RequiredFreeSpace
 	)
 	
 	begin {
-		Write-Debug "Initiating the $($MyInvocation.MyCommand.Name) function...";
 		try {
 			Write-Log -Message "Beginning software install..."
 			
 			$ProcessParams = @{
-				'Wait' = $true;
 				'NoNewWindow' = $true;
 				'Passthru' = $true
 			}
-			
+						
 			$SystemTempFolder = Get-SystemTempFilePath
 			Write-Log -Message "Using temp folder $SystemTempFolder..."
 			
@@ -896,8 +928,8 @@ function Install-Software {
 				$ProcessParams['FilePath'] = $InstallerFilePath
 				$ProcessParams['ArgumentList'] = $InstallArgs
 			} elseif ($OtherInstallerFilePath) {
-				if ($OtherInstallArgs) {
-					$ProcessParams['ArgumentList'] = $OtherInstallArgs
+				if ($OtherInstallerArgs) {
+					$ProcessParams['ArgumentList'] = $OtherInstallerArgs
 				}
 				$ProcessParams['FilePath'] = $OtherInstallerFilePath
 				
@@ -908,11 +940,16 @@ function Install-Software {
 			}
 			
 			Write-Log -Message "Starting the command line process `"$($ProcessParams['FilePath'])`" $($ProcessParams['ArgumentList'])..."
-			$Process = Start-Process @ProcessParams
-			while (!$Process.HasExited) {
-				sleep 1
+			$Result = Start-Process @ProcessParams
+			Write-Log "Waiting for process ID $($Result.Id)"
+			
+			$WaitParams = @{'ProcessId' = $Result.Id }
+			if ($PSBoundParameters.ProcessTimeout) {
+				$WaitParams.ProcessTimeout = $PSBoundParameters.ProcessTimeout
+				$WaitParams.KillProcessDuringWait = $PSBoundParameters.KillProcessDuringInstall
 			}
-			Check-Process $Process
+			Wait-MyProcess @WaitParams
+			Check-Error -SuccessString "Process ID $($Result.Id) ran successfully"
 		} catch {
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
 			$false
@@ -1772,7 +1809,7 @@ function Start-Log {
 	[CmdletBinding()]
 	param (
 		[ValidateScript({ Split-Path $_ -Parent | Test-Path })]
-		[string]$FilePath = "$(Get-SystemTempFilePath)\$((Get-Item $MyInvocation.ScriptName).Basename + '.log')"
+		[string]$FilePath = "$(Get-SystemTempFilePath)\$((Get-Date -f 'MM-dd-yyyy (hhmm tt)') + 'Software.log')"
 	)
 	
 	try {
@@ -1875,6 +1912,28 @@ function Check-Process {
 	}
 }
 
+function Get-ChildProcess {
+	<#
+	.SYNOPSIS
+		This function childs all child processes a parent process has spawned
+	.PARAMETER ProcessId
+		The potential parent process ID
+	#>
+	[CmdletBinding()]
+	param (
+		[Parameter(Mandatory = $true)]
+		[string]$ProcessId
+	)
+	process {
+		try {
+			Get-WmiObject -Class Win32_Process -Filter "ParentProcessId = '$ProcessId'"
+		} catch {
+			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			$false
+		}
+	}
+}
+
 function Stop-MyProcess {
 	<#
 	.SYNOPSIS
@@ -1921,32 +1980,70 @@ function Wait-MyProcess {
 		This function waits for a process and waits for all that process's children before releasing control
 	.PARAMETER ProcessId
 		A process Id
+	.PARAMETER ProcessTimeout
+		An interval (in seconds) to wait for the process to finish.  If the process hasn't exited within this timeout
+		it will be terminated.  The default is 600 seconds (5 minutes) so no process will run longer than that.
+	.PARAMETER ReportInterval
+		The number of seconds between when it is logged that the process is still pending
+	.PARAMETER SleepInterval
+		The number of seconds the process should be checked to ensure it's still running
+	.PARAMETER KillProcessDuringWait
+		One or more chid process names that will be killed if found during the running of the parent process.
 	#>
 	[CmdletBinding()]
 	param (
 		[Parameter(Mandatory = $true)]
-		[string]$ProcessId
+		[string]$ProcessId,
+		[int]$ProcessTimeout = 600,
+		[int]$ReportInterval = 15,
+		[int]$SleepInterval = 1,
+		[string[]]$KillProcessDuringWait
 	)
 	process {
 		try {
 			$Process = Get-Process -Id $ProcessId -ea 'SilentlyContinue'
 			if ($Process) {
-				Write-Log -Message "Waiting for process ID '$ProcessId' to finish"
+				Write-Log -Message "Process '$($Process.Name)' ($($Process.Id)) found. Waiting to finish and capturing all child processes."
 				$ChildProcessIds = @()
 				## While waiting for the initial process to stop, collect all child IDs it spawns
+				$ChildProcessesToLive = @()
+				$Timer = [Diagnostics.Stopwatch]::StartNew()
+				$i = 0
 				while (!$Process.HasExited) {
-					$ChildProcesses += Get-WmiObject -Class Win32_Process -Filter "ParentProcessId = '$ProcessId'"
-					sleep 1
+					$ChildProcesses = Get-ChildProcess -ProcessId $ProcessId
+					if ($ChildProcesses) {
+						if ($KillProcessDuringWait) {
+							$ToKill = $ChildProcesses | where { $KillProcessDuringWait -contains $_.Name }
+							Write-Log -Message "Found $($ToKill | Get-Count) child processes spawned that should be killed. Stopping processes now."
+							$ChildProcessesToLive += $ChildProcesses | where { $KillProcessDuringWait -contains $_.Name }
+							Stop-MyProcess -ProcessName $ToKill
+						} else {
+							$ChildProcessesToLive += $ChildProcesses
+						}
+					}
+					if ($Timer.Elapsed.TotalSeconds -ge $ProcessTimeout) {
+						Write-Log -Message "The process '$($Process.Name)' ($($Process.Id)) has exceeded the timeout of $ProcessTimeout seconds.  Killing process."
+						$Timer.Stop()
+						Stop-MyProcess -ProcessName $Process.Name
+					} elseif (($i % $ReportInterval) -eq 0) {
+						Write-Log "Still waiting for process '$($Process.Name)' ($($Process.Id)) after $([Math]::Round($Timer.Elapsed.TotalSeconds,0)) seconds"
+					}
+					Start-Sleep -Seconds $SleepInterval
+					$i++
 				}
-				if ($ChildProcesses) {
-					Write-Log -Message "Process ID '$ProcessId' spawned '$($ChildProcesses.Count)' processes.  Waiting on these to finish."
-					foreach ($Process in $ChildProcesses) {
+				$Timer.Stop()
+				if ($ChildProcessesToLive) {
+					$ChildProcessesToLive = $ChildProcessesToLive | Select-Object -Unique
+					Write-Log -Message "Parent process '$($Process.Name)' ($($Process.Id)) has finished but still has $($ChildProcessesToLive | Get-Count) child processes ($($ChildProcessesToLive.Name -join ',')) left.  Waiting on these to finish."
+					foreach ($Process in $ChildProcessesToLive) {
 						Wait-MyProcess -ProcessId $Process.ProcessId
 					}
+				} else {
+					Write-Log -Message 'No child processes found spawned'	
 				}
-				Write-Log -Message "Finished waiting for process ID '$ProcessId' and all child processes"
+				Write-Log -Message "Finished waiting for process '$($Process.Name)' ($($Process.Id)) and all child processes"
 			} else {
-				Write-Log -Message "Process ID '$ProcessId' not found"
+				Write-Log -Message "Process ID '$ProcessId' not found.  No need to wait on it."
 			}
 		} catch {
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
@@ -2421,6 +2518,24 @@ function Get-Architecture {
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
 			$false
 		}
+	}
+}
+
+function Get-Count {
+	<#
+	.SYNOPSIS
+		This function was created to account for collections where the output from a command
+		is 1 and simply using .Count doesn't work well.
+	#>
+	param (
+		[Parameter(ValueFromPipeline)]
+		$Value
+	)
+	if (!$Input) {
+		0
+	} else {
+		$count = $Input.Count
+		$count
 	}
 }
 
