@@ -743,7 +743,7 @@ function Get-InstalledSoftware {
 			}
 		}
 		$WhereQuery = "$WhereQuery $($BuiltQueryParams -join ' AND ')"
-		Write-Verbose "Using WMI query $WhereQuery..."
+		Write-Log "Using WMI query $WhereQuery..."
 		
 		$Params = @{
 			'Namespace' = 'root\cimv2\sms';
@@ -758,8 +758,9 @@ function Get-InstalledSoftware {
 				try {
 					$Params['ComputerName'] = $Computer;
 					$Software = Get-WmiObject @Params
-					Check-Error $MyError "Successfully queried computer $Computer for installed software"
-					$Software | Sort-Object ARPDisplayname;
+					if (Check-Error $MyError "Successfully queried computer $Computer for installed software") {
+						$Software | Sort-Object ARPDisplayname;
+					}
 				} catch {
 					Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
 					$false
@@ -2249,8 +2250,9 @@ function Remove-MyService {
 	process {
 		try {
 			$ServicesToRemove = Get-Service $Name -ea 'SilentlyContinue' -ev MyError
-			Check-Error $MyError "Found $($ServicesToRemove.Count) services to remove"
-			if (!$ServicesToRemove) {
+			if (!(Check-Error $MyError "Found $($ServicesToRemove.Count) services to remove")) {
+				throw $MyError
+			} elseif (!$ServicesToRemove) {
 				Write-Log -Message "-No services to be removed found..."
 			} else {
 				foreach ($Service in $ServicesToRemove) {
@@ -2259,7 +2261,9 @@ function Remove-MyService {
 						if ($Service.Status -ne 'Stopped') {
 							Write-Log -Message "-Service $($Service.Displayname) is not stopped."
 							Stop-Service $Service -ErrorAction 'SilentlyContinue' -Force -ev ServiceError
-							Check-Error $ServiceError "-Successfully stopped $($Service.Displayname)"
+							if (!(Check-Error $ServiceError "-Successfully stopped $($Service.Displayname)")) {
+								throw $MyError	
+							}
 						} else {
 							Write-Log -Message "-Service $($Service.Displayname) is already stopped."
 						}
@@ -2601,8 +2605,9 @@ function Get-DriveFreeSpace {
 				try {
 					$WmiParams.Computername = $Computer
 					$WmiResult = Get-WmiObject @WmiParams
-					Check-Error $MyError "Sucessfull WMI query"
-					if (!$WmiResult) {
+					if (!(Check-Error $MyError "Sucessfull WMI query")) {
+						throw $MyError
+					} elseif (!$WmiResult) {
 						throw "Drive letter does not exist on target system"
 					}
 					foreach ($Result in $WmiResult) {
