@@ -2031,7 +2031,7 @@ function Wait-MyProcess {
 					Start-Sleep -Seconds $SleepInterval
 					$i++
 				}
-				$Timer.Stop()
+				Write-Log "Process '$($Process.Name)' ($($Process.Id)) has finished after $([Math]::Round($Timer.Elapsed.TotalSeconds,0)) seconds"
 				if ($ChildProcessesToLive) {
 					$ChildProcessesToLive = $ChildProcessesToLive | Select-Object -Unique
 					Write-Log -Message "Parent process '$($Process.Name)' ($($Process.Id)) has finished but still has $($ChildProcessesToLive | Get-Count) child processes ($($ChildProcessesToLive.Name -join ',')) left.  Waiting on these to finish."
@@ -2042,6 +2042,7 @@ function Wait-MyProcess {
 					Write-Log -Message 'No child processes found spawned'	
 				}
 				Write-Log -Message "Finished waiting for process '$($Process.Name)' ($($Process.Id)) and all child processes"
+				return $true
 			} else {
 				Write-Log -Message "Process ID '$ProcessId' not found.  No need to wait on it."
 			}
@@ -2311,8 +2312,10 @@ function Check-Error {
 		try {
 			if ($MyError) {
 				Write-Log -Message $MyError.Exception.Message -LogLevel '2'
+				$false
 			} else {
 				Write-Log -Message $SuccessString
+				$true
 			}
 		} catch {
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
@@ -2528,7 +2531,7 @@ function Get-Count {
 		is 1 and simply using .Count doesn't work well.
 	#>
 	param (
-		[Parameter(ValueFromPipeline)]
+		[Parameter(ValueFromPipeline=$true)]
 		$Value
 	)
 	if (!$Input) {
