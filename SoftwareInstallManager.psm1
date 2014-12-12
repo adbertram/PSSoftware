@@ -757,7 +757,7 @@ function Get-InstalledSoftware {
 				try {
 					$Params['ComputerName'] = $Computer
 					$Software = Get-WmiObject @Params
-					if (Check-Error $MyError "Successfully queried computer $Computer for installed software") {
+					if (Check-Error -MyError $MyError -SuccessString "Successfully queried computer $Computer for installed software") {
 						$Software | Sort-Object ARPDisplayname;
 					}
 				} catch {
@@ -2313,12 +2313,11 @@ function Check-Error {
 	)
 	process {
 		try {
-			if ($MyError) {
-				Write-Log -Message $MyError.Exception.Message -LogLevel '2'
-				$false
-			} else {
+			if (!$MyError) {
 				Write-Log -Message $SuccessString
 				$true
+			} else {
+				throw $MyError
 			}
 		} catch {
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
