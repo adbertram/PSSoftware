@@ -503,7 +503,7 @@ function Import-RegistryFile {
 			if ($RegFileHive -ne 'HKEY_CURRENT_USER') {
 				Write-Log -Message "Detected registry file with $RegFileHive keys"
 				Write-Log -Message 'Starting registry import...'
-				$Result = Start-Process "$($env:Systemdrive)\Windows\$RegPath\reg.exe" -Args "import $FilePath" -Wait -NoNewWindow -PassThru
+				($Result = Start-Process "$($env:Systemdrive)\Windows\$RegPath\reg.exe" -Args "import `"$FilePath`"" -Wait -NoNewWindow -PassThru) | Out-Null
 				Check-Process -Process $Result
 				Write-Log -Message 'Registry file import done'
 			} else {
