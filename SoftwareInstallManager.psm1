@@ -400,7 +400,6 @@ function Get-RegistryValueForAllUsers {
 		[hashtable[]]$RegistryInstance
 	)
 	try {
-		Start-Log
 		New-PSDrive -Name HKU -PSProvider Registry -Root Registry::HKEY_USERS | Out-Null
 		
 		## Find the registry values for the currently logged on user
@@ -756,7 +755,7 @@ function Get-InstalledSoftware {
 		try {
 			foreach ($Computer in $Computername) {
 				try {
-					$Params['ComputerName'] = $Computer;
+					$Params['ComputerName'] = $Computer
 					$Software = Get-WmiObject @Params
 					if (Check-Error $MyError "Successfully queried computer $Computer for installed software") {
 						$Software | Sort-Object ARPDisplayname;
