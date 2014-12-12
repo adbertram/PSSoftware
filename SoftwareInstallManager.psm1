@@ -486,6 +486,8 @@ function Import-RegistryFile {
 			$RegFileHive = $HiveNames | Select-Object -Unique
 			if ($RegFileHive -is [array]) {
 				throw "The registry file at '$FilePath' contains more than one hive reference."
+			} else {
+				Write-Log -Message "Detected hive type as $RegFileHive"
 			}
 			if ((Get-Architecture) -eq 'x64') {
 				$RegPath = 'syswow64'
@@ -501,8 +503,7 @@ function Import-RegistryFile {
 	process {
 		try {
 			if ($RegFileHive -ne 'HKEY_CURRENT_USER') {
-				Write-Log -Message "Detected registry file with $RegFileHive keys"
-				Write-Log -Message 'Starting registry import...'
+				Write-Log -Message "Starting registry import of reg file $FilePath..."
 				($Result = Start-Process "$($env:Systemdrive)\Windows\$RegPath\reg.exe" -Args "import `"$FilePath`"" -Wait -NoNewWindow -PassThru) | Out-Null
 				Check-Process -Process $Result
 				Write-Log -Message 'Registry file import done'
@@ -510,7 +511,6 @@ function Import-RegistryFile {
 				#########
 				## Import the registry file for the currently logged on user
 				#########
-				Write-Log -Message "Detected registry file with $RegFileHive keys"
 				$LoggedOnSids = Get-LoggedOnUserSID
 				if ($LoggedOnSids.Count -gt 0) {
 					Write-Log -Message "Found $($LoggedOnSids.Count) logged on user SIDs"
@@ -877,7 +877,7 @@ function Install-Software {
 				'NoNewWindow' = $true;
 				'Passthru' = $true
 			}
-						
+			
 			$SystemTempFolder = Get-SystemTempFilePath
 			Write-Log -Message "Using temp folder $SystemTempFolder..."
 			
@@ -943,7 +943,7 @@ function Install-Software {
 			$Result = Start-Process @ProcessParams
 			Write-Log "Waiting for process ID $($Result.Id)"
 			
-			$WaitParams = @{'ProcessId' = $Result.Id }
+			$WaitParams = @{ 'ProcessId' = $Result.Id }
 			if ($PSBoundParameters.ProcessTimeout) {
 				$WaitParams.ProcessTimeout = $PSBoundParameters.ProcessTimeout
 				$WaitParams.KillProcessDuringWait = $PSBoundParameters.KillProcessDuringInstall
@@ -2039,7 +2039,7 @@ function Wait-MyProcess {
 						Wait-MyProcess -ProcessId $Process.ProcessId
 					}
 				} else {
-					Write-Log -Message 'No child processes found spawned'	
+					Write-Log -Message 'No child processes found spawned'
 				}
 				Write-Log -Message "Finished waiting for process '$($Process.Name)' ($($Process.Id)) and all child processes"
 				return $true
@@ -2261,7 +2261,7 @@ function Remove-MyService {
 							Write-Log -Message "-Service $($Service.Displayname) is not stopped."
 							Stop-Service $Service -ErrorAction 'SilentlyContinue' -Force -ev ServiceError
 							if (!(Check-Error $ServiceError "-Successfully stopped $($Service.Displayname)")) {
-								throw $MyError	
+								throw $MyError
 							}
 						} else {
 							Write-Log -Message "-Service $($Service.Displayname) is already stopped."
@@ -2533,7 +2533,7 @@ function Get-Count {
 		is 1 and simply using .Count doesn't work well.
 	#>
 	param (
-		[Parameter(ValueFromPipeline=$true)]
+		[Parameter(ValueFromPipeline = $true)]
 		$Value
 	)
 	if (!$Input) {
