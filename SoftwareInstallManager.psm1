@@ -949,7 +949,13 @@ function Install-Software {
 				$WaitParams.KillProcessDuringWait = $PSBoundParameters.KillProcessDuringInstall
 			}
 			Wait-MyProcess @WaitParams
-			Check-Error -SuccessString "Process ID $($Result.Id) ran successfully"
+			if (Check-Error -SuccessString "Process ID $($Result.Id) ran successfully") {
+				Write-Log "Successfully installed the installer $($ProcessParams['FilePath'])"
+				$true
+			} else {
+				Write-Log "Failed to install the installer $($ProcessParams['FilePath'])"
+				$false
+			}
 		} catch {
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
 			$false
@@ -2893,25 +2899,42 @@ function Copy-FileWithHashCheck {
 		[Parameter()]
 		[switch]$Force
 	)
-	process {
-		try {
-			$CopyParams = @{ 'Path' = $SourceFilePath; 'Destination' = $DestinationFolderPath }
-			
-			$DestinationFilePath = "$DestinationFolderPath\$($SourceFilePath | Split-Path -Leaf)"
-			if (!$Force.IsPresent -and (Test-Path $DestinationFilePath)) {
-				throw "The proposed destination file path '$DestinationFilePath' already exists."
-			} else {
-				$CopyParams.Force = $true
-			}
-			
-			Copy-Item @CopyParams
-			$SourceHash = Get-MyFileHash -Path $SourceFilePath
-			$DestHash = Get-MyFileHash -Path "$DestinationFolderPath\$($SourceFilePath | Split-Path -Leaf)"
+	begin {
+		function Test-HashEqual ($FilePath1,$FilePath2) {
+			$SourceHash = Get-MyFileHash -Path $FilePath1
+			$DestHash = Get-MyFileHash -Path $FilePath2
 			if ($SourceHash.SHA256 -ne $DestHash.SHA256) {
 				$false
 			} else {
 				$true
 			}
+		}
+		
+		$CopyParams = @{ 'Path' = $SourceFilePath; 'Destination' = $DestinationFolderPath }
+	}
+	process {
+		try {
+			## If the file is already there, check to see if it's the one we're copying in the first place
+			$DestFilePath = "$DestinationFolderPath\$($SourceFilePath | Split-Path -Leaf)"
+			if (Test-Path -Path $DestFilePath -PathType 'Leaf') {
+				if (Test-HashEqual -FilePath1 $SourceFilePath -FilePath2 $DestFilePath) {
+					Write-Log -Message "The file $SourceFilePath is already in $DestinationFolderPath and is the same. No need to copy"
+					return $true
+				} elseif (!$Force.IsPresent) {
+					throw "The file $SourceFilePath is already in $DestinationFolderPath but is not the same file being copied and -Force was not used."
+				} else {
+					$CopyParams.Force = $true
+				}
+			}
+			
+			Copy-Item @CopyParams
+			if (Test-HashEqual -FilePath1 $SourceFilePath -FilePath2 $DestFilePath) {
+				Write-Log -Message "The file $SourceFilePath was successfully copied to $DestinationFolderPath. Hash value is "
+				return $true
+			} else {
+				throw "Attempted to copy the file $SourceFilePath to $DestinationFolderPath but failed the hash check"
+			}
+			
 		} catch {
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
 			$false
