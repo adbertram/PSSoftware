@@ -772,6 +772,82 @@ function Get-InstalledSoftware {
 	}
 }
 
+function Get-InstalledSoftwareInRegistry {
+	<#
+	.SYNOPSIS
+		Retrieves a list of all software installed	
+	.DESCRIPTION
+		Retrieves a list of all software installed via the specified method
+	.EXAMPLE
+		Get-InstalledSoftware -Name adobe* -Publisher adobe
+		This example retrieves all software installed matching the string starting with 'adobe' and
+		with a publisher equal to 'adobe'.
+	.EXAMPLE
+		Get-InstalledSoftware
+		This example retrieves all software installed on the local computer
+	.PARAMETER Name
+		The software title you'd like to limit the query to.  Wildcards are permitted.
+	.PARAMETER Guid
+		The software GUID you'e like to limit the query to. No wildcards.
+	.PARAMETER Publisher
+		The software publisher you'd like to limit the query to. Wildcards are permitted.
+	.PARAMETER Version
+		The software version you'd like to limit the query to. Wildcards are permitted.
+	#>
+	[CmdletBinding()]
+	param (
+		[string]$Name,
+		[string]$Publisher,
+		[string]$Version,
+		[ValidatePattern('\b[A-F0-9]{8}(?:-[A-F0-9]{4}){3}-[A-F0-9]{12}\b')]
+		[string]$Guid
+	)
+	begin {
+		$UninstallKeys = "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall","HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall"
+        New-PSDrive -Name HKU -PSProvider Registry -Root Registry::HKEY_USERS | Out-Null
+		$UninstallKeys += Get-ChildItem HKU: | where { $_.Name -match 'S-\d-\d+-(\d+-){1,14}\d+$' }| foreach {"HKU:\$($_.PSChildName)\Software\Microsoft\Windows\CurrentVersion\Uninstall" }
+		
+	}
+    process {
+	    foreach ($UninstallKey in $UninstallKeys) {
+            $Keys = Get-ItemProperty -Path "$UninstallKey\*" -ErrorAction SilentlyContinue
+            foreach ($Key in ($Keys | where {$_.SystemComponent -ne '1'})) {
+                $KeyName = $Key.PSChildName
+                $SwEntry = @{}
+                if ($Key.PsObject.Properties.Name -eq 'DisplayName') { 
+                    foreach ($Value in $Key.PsObject.Properties) {
+                        if (($Value.Name -eq 'PsChildName') -and ($Value.Value -match '\b[A-F0-9]{8}(?:-[A-F0-9]{4}){3}-[A-F0-9]{12}\b')) {
+                            $SwEntry['GUID'] = $Value.Value 
+                        } else {
+                            $SwEntry[$Value.Name] = $Value.Value
+                        }
+                    }
+                }
+                $ParamToRegValMaps = @{
+				    'Name' = 'DisplayName';
+				    'Publisher' = 'Publisher';
+				    'Version' = 'DisplayVersion';
+				    'Guid' = 'GUID'
+			    }
+                if ($PSBoundParameters.Count -eq 0) {
+                    [pscustomobject]$SwEntry
+                } else {
+                    $PSBoundParameters.GetEnumerator() | foreach {
+                        $RegValName = $ParamToRegValMaps[$_.Key]
+                        $ParamVal = $_.Value
+                        if ($SwEntry.Keys -contains $RegValName) {
+                            if (($ParamVal -match '\*') -and ($SwEntry.GetEnumerator() | where {($_.Key -eq $RegValName) -and ($_.Value -like $ParamVal)})) {
+                                return [pscustomobject]$SwEntry
+                            } elseif ($SwEntry.GetEnumerator() | where {($_.Key -eq $RegValName) -and ($_.Value -eq $ParamVal)}) {
+                                return [pscustomobject]$SwEntry
+                            }
+                        } 
+                    }
+                }
+            }
+        }
+    }
+
 function Install-Software {
 	<#
 	.SYNOPSIS
