@@ -847,6 +847,7 @@ function Get-InstalledSoftwareInRegistry {
             }
         }
     }
+}
 
 function Install-Software {
 	<#
