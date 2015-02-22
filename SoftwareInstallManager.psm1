@@ -2466,14 +2466,14 @@ function Get-32BitProgramFilesPath {
 	<#
 	.SYNOPSIS
 		On x64 machines the x86 program files path is Program Files (x86) while on x86 machines it's just Program Files.  This function
-		does that decision for you and just outputs the x86 program files path regardless of OS architecture.
+		does that decision for you and just outputs the x86 program files path regardless of OS architecture
 	#>
 	[CmdletBinding()]
 	param ()
 	process {
 		try {
 			if ((Get-Architecture) -eq 'x64') {
-				${ env:ProgramFiles(x86) }
+				${env:ProgramFiles(x86)}
 			} else {
 				$env:ProgramFiles
 			}
