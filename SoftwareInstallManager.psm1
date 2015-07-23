@@ -728,9 +728,11 @@ function Set-RegistryValueForAllUsers
 	[CmdletBinding()]
 	param (
 		[Parameter(Mandatory = $true)]
-		[hashtable[]]
-		$RegistryInstance,
+		[ValidateNotNullOrEmpty()]
+		[hashtable[]]$RegistryInstance,
 		
+		[Parameter()]
+		[ValidateNotNullOrEmpty()]
 		[switch]$Remove
 	)
 	process
@@ -738,7 +740,12 @@ function Set-RegistryValueForAllUsers
 		try
 		{
 			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
-			New-PSDrive -Name HKU -PSProvider Registry -Root Registry::HKEY_USERS | Out-Null
+			
+			## By default, the HKU provider is not added
+			if (-not (Get-PSDrive -Name 'HKU' -ErrorAction SilentlyContinue))
+			{
+				$null = New-PSDrive -Name HKU -PSProvider Registry -Root Registry::HKEY_USERS
+			}
 			
 			## Change the registry values for the currently logged on user
 			$LoggedOnSids = Get-LoggedOnUserSID
@@ -755,7 +762,7 @@ function Set-RegistryValueForAllUsers
 					}
 					else
 					{
-						if (!(Get-Item -Path "HKU:\$sid\$($instance.Path)" -ea 'SilentlyContinue'))
+						if (-not (Get-Item -Path "HKU:\$sid\$($instance.Path)" -ea 'SilentlyContinue'))
 						{
 							Write-Log -Message "The registry key HKU:\$sid\$($instance.Path) does not exist.  Creating..."
 							New-Item -Path "HKU:\$sid\$($instance.Path | Split-Path -Parent)" -Name ($instance.Path | Split-Path -Leaf) -Force | Out-Null
@@ -811,7 +818,7 @@ function Set-RegistryValueForAllUsers
 							throw "Registry type '$($instance.Type)' not recognized"
 						}
 					}
-					if (!(Get-Item -Path "HKCU:\$($instance.Path)" -ea 'SilentlyContinue'))
+					if (-not (Get-Item -Path "HKCU:\$($instance.Path)" -ea 'SilentlyContinue'))
 					{
 						Write-Log -Message "The registry key 'HKCU:\$($instance.Path)'' does not exist.  Creating..."
 						New-Item -Path "HKCU:\$($instance.Path) | Split-Path -Parent)" -Name ("HKCU:\$($instance.Path)" | Split-Path -Leaf) -Force | Out-Null
@@ -821,13 +828,15 @@ function Set-RegistryValueForAllUsers
 				Set-AllUserStartupAction -CommandLine $CommandLine
 				
 			}
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
 		}
 		catch
 		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
 			$false
+		}
+		finally
+		{
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
 		}
 	}
 }
@@ -3444,15 +3453,22 @@ function Get-LoggedOnUserSID
 		try
 		{
 			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
-			New-PSDrive -Name HKU -PSProvider Registry -Root Registry::HKEY_USERS | Out-Null
-			(Get-ChildItem HKU: | where { $_.Name -match 'S-\d-\d+-(\d+-){1,14}\d+$' }).PSChildName
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			
+			if (-not (Get-PSDrive -Name 'HKU' -ErrorAction SilentlyContinue))
+			{
+				New-PSDrive -Name HKU -PSProvider Registry -Root Registry::HKEY_USERS | Out-Null
+				## Every user that's logged on has a registry key in HKU with their SID
+				(Get-ChildItem HKU: | where { $_.Name -match 'S-\d-\d+-(\d+-){1,14}\d+$' }).PSChildName
+			}
 		}
 		catch
 		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
 			$false
+		}
+		finally
+		{
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
 		}
 	}
 }
@@ -3475,6 +3491,7 @@ function Get-OperatingSystem
 	[CmdletBinding()]
 	param (
 		[Parameter()]
+		[ValidateNotNullOrEmpty()]
 		[string]$Computername = 'localhost'
 	)
 	process
@@ -3482,14 +3499,16 @@ function Get-OperatingSystem
 		try
 		{
 			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
-			(Get-WmiObject -ComputerName $Computername -Query "SELECT Caption FROM Win32_OperatingSystem").Caption
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			(Get-WmiObject -ComputerName $Computername -Query 'SELECT Caption FROM Win32_OperatingSystem').Caption
 		}
 		catch
 		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
 			$false
+		}
+		finally
+		{
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
 		}
 	}
 }
