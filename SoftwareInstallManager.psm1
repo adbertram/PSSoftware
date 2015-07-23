@@ -1009,10 +1009,6 @@ function Install-Software
 	.PARAMETER KillProcess
 		A list of process names that will be terminated prior to attempting the install.  This is useful
 		in upgrade scenarios where you need to terminate the previous version's processes.
-	.PARAMETER KillProcessDuringInstall
-		A list of process names that will be terminated during the install routine.  While the parent process (either msiexec.exe, 
-		setup.exe (or similar for InstallShield) or another EXE specified by OtherInstallerPath) is running, this will kill
-		any child processes that are spawned during that time.
 	.PARAMETER ProcessTimeout
 		A value (in seconds) that the installer script will wait for the installation process to complete.  If the installation
 		goes over this value, any processes (parent or child) will be terminated.
@@ -1045,7 +1041,7 @@ function Install-Software
 		[ValidateNotNullOrEmpty()]
 		[string]$MsiInstallerFilePath,
 		
-		[Parameter()]
+		[Parameter(ParameterSetName = 'MSI')]
 		[ValidateNotNullOrEmpty()]
 		[string]$MsiExecSwitches,
 		
@@ -1073,11 +1069,6 @@ function Install-Software
 		[Parameter()]
 		[ValidateNotNullOrEmpty()]
 		[string[]]$KillProcess,
-		
-		[Parameter()]
-		[ValidateNotNullOrEmpty()]
-		[Alias('KillProcesPreInstall')]
-		[string[]]$KillProcessDuringInstall,
 		
 		[Parameter()]
 		[ValidateNotNullOrEmpty()]
