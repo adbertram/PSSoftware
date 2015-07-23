@@ -1019,115 +1019,94 @@ function Install-Software
 	.PARAMETER LogFilePath
 		This is the path where the installer log file will be written.  If not passed, it will default
 		to being named install.log in the system temp folder.
-	.PARAMETER NoDefaultLogFilePath
-		Use this switch parameter to prevent the default log folder path to be applied.  This is useful
-		when you have an installer that uses a proprietary format for logging specified in the installer
-		arguments such as 'msiexec.exe install.msi /log logfile.log'
-	.PARAMETER RequiredFreeSpace
-		This is the free space required on the C drive to check prior to installation.
+
 	#>
 	[CmdletBinding(DefaultParameterSetName = 'MSI')]
 	param (
-		[Parameter(ParameterSetName = 'InstallShield',
-				   Mandatory = $true)]
+		[Parameter(ParameterSetName = 'InstallShield',Mandatory = $true)]
 		[ValidateScript({ Test-Path -Path $_ -PathType 'Leaf' })]
 		[ValidatePattern('\.exe$')]
+		[ValidateNotNullOrEmpty()]
 		[string]$InstallShieldInstallerFilePath,
 		
-		[Parameter(ParameterSetName = 'Other',
-				   Mandatory = $true)]
+		[Parameter(ParameterSetName = 'Other',Mandatory = $true)]
 		[ValidateScript({ Test-Path -Path $_ -PathType 'Leaf' })]
 		[ValidatePattern('\.exe$')]
+		[ValidateNotNullOrEmpty()]
 		[string]$OtherInstallerFilePath,
 		
-		[Parameter(ParameterSetName = 'InstallShield',
-				   Mandatory = $true)]
+		[Parameter(ParameterSetName = 'InstallShield',Mandatory = $true)]
 		[ValidatePattern('\.iss$')]
+		[ValidateNotNullOrEmpty()]
 		[string]$IssFilePath,
 		
-		[Parameter(ParameterSetName = 'MSI',
-				   Mandatory = $true)]
+		[Parameter(ParameterSetName = 'MSI',Mandatory = $true)]
 		[ValidateScript({ Test-Path -Path $_ -PathType 'Leaf' })]
+		[ValidateNotNullOrEmpty()]
 		[string]$MsiInstallerFilePath,
 		
+		[Parameter()]
+		[ValidateNotNullOrEmpty()]
 		[string]$MsiExecSwitches,
 		
 		[Parameter(ParameterSetName = 'MSI')]
 		[ValidateScript({ Test-Path -Path $_ -PathType 'Leaf' })]
 		[ValidatePattern('\.msp$')]
+		[ValidateNotNullOrEmpty()]
 		[string]$MspFilePath,
 		
 		[Parameter(ParameterSetName = 'MSI')]
 		[ValidateScript({ Test-Path -Path $_ -PathType 'Leaf' })]
 		[ValidatePattern('\.mst$')]
+		[ValidateNotNullOrEmpty()]
 		[string]$MstFilePath,
 		
 		[Parameter(ParameterSetName = 'InstallShield')]
+		[ValidateNotNullOrEmpty()]
 		[string]$InstallShieldInstallArgs,
 		
 		[Parameter(ParameterSetName = 'Other')]
+		[ValidateNotNullOrEmpty()]
+		[Alias('OtherInstallerArguments')]
 		[string]$OtherInstallerArgs,
 		
-		[Alias('OtherInstallerArguments')]
 		[Parameter()]
+		[ValidateNotNullOrEmpty()]
 		[string[]]$KillProcess,
 		
+		[Parameter()]
+		[ValidateNotNullOrEmpty()]
 		[Alias('KillProcesPreInstall')]
 		[string[]]$KillProcessDuringInstall,
 		
-		[int]$ProcessTimeout,
+		[Parameter()]
+		[ValidateNotNullOrEmpty()]
+		[int]$ProcessTimeout = 600, 
 		
-		[string]$LogFilePath,
-		
-		[switch]$NoDefaultLogFilePath
-	)
+		[Parameter()]
+		[ValidateNotNullOrEmpty()]
+		[string]$LogFilePath = "$(Get-SystemTempFolderPath)\$SystemTempFolder\$($InstallerFilePath | Split-Path -Leaf).log"
 	
-	begin
+	)
+
+	process
 	{
 		try
 		{
 			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
 			
+			## Common Start-Process parameters across all installers. We'll add to this hashtable as we go
 			$ProcessParams = @{
 				'NoNewWindow' = $true;
 				'Passthru' = $true
 			}
 			
-			$SystemTempFolder = Get-SystemTempFolderPath
-			Write-Log -Message "Using temp folder $SystemTempFolder..."
-			
-		}
-		catch
-		{
-			Write-Log -Message $_.Exception.Message -LogLevel '3'
-		}
-	}
-	
-	process
-	{
-		try
-		{
-			if ($InstallShieldInstallerFilePath)
-			{
-				$InstallerFilePath = $InstallShieldInstallerFilePath
-			}
-			elseif ($MsiInstallerFilePath)
-			{
+			if ($PSBoundParameters.ContainsKey('MsiInstallerFilePath')) {
 				$InstallerFilePath = $MsiInstallerFilePath
-			}
-			elseif ($OtherInstallerFilePath)
-			{
-				$InstallerFilePath = $OtherInstallerFilePath
-			}
-			if (!$LogFilePath -and !$NoDefaultLogFilePath.IsPresent)
-			{
-				$InstallerFileName = $InstallerFilePath | Split-Path -Leaf
-				$LogFilePath = "$SystemTempFolder\$InstallerFileName.log"
-			}
-			Write-Log -Message "Using log file path '$LogFilePath'..."
-			
-			if ($MsiInstallerFilePath)
-			{
+				Write-Log -Message 'Creating the msiexec install string'
+				
+				## We're creating common msiexec switches here.  /i specifies I want to run an install, /qn
+				## says I want that install to be quiet (no prompts) and n means no UI so no progress bars
 				$InstallArgs = @()
 				$InstallArgs += "/i `"$InstallerFilePath`" /qn"
 				if ($MstFilePath)
@@ -1143,15 +1122,27 @@ function Install-Software
 					$InstallArgs += $MsiExecSwitches
 				}
 				
+				## Once we've added all of the custom syntax elements we'll then add a few more default
+				## switches.  REBOOT=ReallySuppress prevents the computer from rebooting if it exists with an
+				## exit code of 3010, ALLUSERS=1 means that we'd like to make this software for all users
+				## on the machine and /Lvx* is the most verbose way to specify a log file path and to log as
+				## much information as possible.
 				$InstallArgs += "REBOOT=ReallySuppress ALLUSERS=1 /Lvx* `"$LogFilePath`""
 				$InstallArgs = $InstallArgs -join ' '
 				
+				## Add Start-Process parameters
 				$ProcessParams['FilePath'] = 'msiexec.exe'
 				$ProcessParams['ArgumentList'] = $InstallArgs
 			}
-			elseif ($InstallShieldInstallerFilePath)
+			elseif ($PSBoundParameters.ContainsKey('InstallShieldInstallerFilePath'))
 			{
-				if (!$InstallShieldInstallArgs)
+				$InstallerFilePath = $InstallShieldInstallerFilePath
+				Write-Log -Message 'Creating the InstallShield setup install string'
+				
+				## We're adding common InstallShield switches here. -s is silent, -f1 specifies where the 
+				## ISS file we createed previously lives, -f2 specifies a log file location and /SMS is a special
+				## switch that prevents the setup.exe was exiting prematurely.
+				if (-not $InstallShieldInstallArgs)
 				{
 					$InstallArgs = "-s -f1`"$IssFilePath`" -f2`"$LogFilePath`" /SMS"
 				}
@@ -1159,19 +1150,28 @@ function Install-Software
 				{
 					$InstallArgs = "-s -f1`"$IssFilePath`" $InstallShieldInstallArgs -f2`"$LogFilePath`" /SMS"
 				}
+				## Add Start-Process parameters
 				$ProcessParams['FilePath'] = $InstallerFilePath
 				$ProcessParams['ArgumentList'] = $InstallArgs
 			}
-			elseif ($OtherInstallerFilePath)
+			elseif ($PSBoundParameters.ContainsKey('OtherInstallerFilePath'))
 			{
-				if ($OtherInstallerArgs)
+				$InstallerFilePath = $OtherInstallerFilePath
+				Write-Log -Message 'Creating a generic setup install string'
+				
+				## Nothing fancy here. Since we don't know any common switches to run I'll just take whatever
+				## arguments are provided as a parameter.
+				if ($PSBoundParameters.ContainsKey('OtherInstallerArgs'))
 				{
 					$ProcessParams['ArgumentList'] = $OtherInstallerArgs
 				}
 				$ProcessParams['FilePath'] = $OtherInstallerFilePath
 				
 			}
-			if ($KillProcess)
+			
+			## Thiw was added for upgrade scenarios where the previous version would be running and the installer
+			## itself isn't smart enough to kill it.
+			if ($PSBoundParameters.ContainsKey('KillProcess'))
 			{
 				Write-Log -Message 'Killing existing processes'
 				$KillProcess | foreach { Stop-MyProcess -ProcessName $_ }
@@ -1180,40 +1180,34 @@ function Install-Software
 			Write-Log -Message "Starting the command line process `"$($ProcessParams['FilePath'])`" $($ProcessParams['ArgumentList'])..."
 			$Result = Start-Process @ProcessParams
 			
+			## This is required because sometimes depending on how the MSI is packaged, the parent process will exit
+			## but will leave child processes running and the function will exit before the install is finished.
 			if ($PSBoundParameters.ContainsKey('MsiInstallerFilePath'))
 			{
 				Wait-WindowsInstaller
 			}
 			else
 			{
+				## No special msiexec.exe waiting here.  We'll just use Wait-MyProcess to report on the waiting
+				## process.
 				Write-Log "Waiting for process ID $($Result.Id)"
 				
-				$WaitParams = @{ 'ProcessId' = $Result.Id }
-				if ($PSBoundParameters.ProcessTimeout)
-				{
-					$WaitParams.ProcessTimeout = $PSBoundParameters.ProcessTimeout
-					$WaitParams.KillProcessDuringWait = $PSBoundParameters.KillProcessDuringInstall
+				$WaitParams = @{
+					'ProcessId' = $Result.Id
+					'ProcessTimeout' = $ProcessTimeout
 				}
 				Wait-MyProcess @WaitParams
 			}
 			
-			if (Test-Error -SuccessString "Process ID $($Result.Id) ran successfully")
-			{
-				Write-Log "Successfully installed the installer $($ProcessParams['FilePath'])"
-				$true
-			}
-			else
-			{
-				Write-Log "Failed to install the installer $($ProcessParams['FilePath'])"
-				$false
-			}
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
 		}
 		catch
 		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
 			$false
+		}
+		finally
+		{
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
 		}
 	}
 }
@@ -1528,13 +1522,15 @@ function Remove-Software
 					}
 				}
 			}
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
 		}
 		catch
 		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
 			$false
+		}
+		finally
+		{
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
 		}
 	}
 }
