@@ -1,5 +1,6 @@
 ﻿#region SoftwareDetection
-function Compare-FilePath {
+function Compare-FilePath
+{
 	<#
 	.SYNOPSIS
 		This function checks the hash of 2 files see if they are the same
@@ -17,27 +18,39 @@ function Compare-FilePath {
 		[Parameter(Mandatory = $true)]
 		[ValidateScript({ Test-Path -Path $_ -PathType Leaf })]
 		[string]$ReferenceFilePath,
+		
 		[Parameter(Mandatory = $true)]
 		[ValidateScript({ Test-Path -Path $_ -PathType Leaf })]
 		[string]$DifferenceFilePath
 	)
-	process {
-		try {
+	process
+	{
+		try
+		{
+			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
 			$ReferenceHash = Get-MyFileHash -Path $ReferenceFilePath
 			$DifferenceHash = Get-MyFileHash -Path $DifferenceFilePath
-			if ($ReferenceHash.SHA256 -ne $DifferenceHash.SHA256) {
+			if ($ReferenceHash.SHA256 -ne $DifferenceHash.SHA256)
+			{
 				$false
-			} else {
+			}
+			else
+			{
 				$true
 			}
-		} catch {
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+		}
+		catch
+		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
 			$false
 		}
 	}
 }
 
-function Compare-FolderPath {
+function Compare-FolderPath
+{
 	<#
 	.SYNOPSIS
 		This function checks all files inside of a folder against another folder to see if they are the same
@@ -55,32 +68,46 @@ function Compare-FolderPath {
 		[Parameter(Mandatory = $true)]
 		[ValidateScript({ Test-Path -Path $_ -PathType Container })]
 		[string]$ReferenceFolderPath,
+		
 		[Parameter(Mandatory = $true)]
 		[ValidateScript({ Test-Path -Path $_ -PathType Container })]
 		[string]$DifferenceFolderPath
 	)
-	process {
-		try {
+	process
+	{
+		try
+		{
+			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
 			$ReferenceFiles = Get-ChildItem -Path $ReferenceFolderPath -Recurse | where { !$_.PsIsContainer }
 			$DifferenceFiles = Get-ChildItem -Path $DifferenceFolderPath -Recurse | where { !$_.PsIsContainer }
-			if ($ReferenceFiles.Count -ne $DifferenceFiles.Count) {
+			if ($ReferenceFiles.Count -ne $DifferenceFiles.Count)
+			{
 				Write-Log -Message "Folder path '$ReferenceFolderPath' and '$DifferenceFolderPath' file counts are different" -LogLevel '2'
 				$false
-			} elseif (Compare-Object -ReferenceObject ($ReferenceFiles | Get-MyFileHash) -DifferenceObject ($DifferenceFiles | Get-MyFileHash)) {
+			}
+			elseif (Compare-Object -ReferenceObject ($ReferenceFiles | Get-MyFileHash) -DifferenceObject ($DifferenceFiles | Get-MyFileHash))
+			{
 				Write-Log -Message "Folder path '$ReferenceFolderPath' and '$DifferenceFolderPath' file hashes are different" -LogLevel '2'
 				$false
-			} else {
+			}
+			else
+			{
 				Write-Log -Message "Folder path '$ReferenceFolderPath' and '$DifferenceFolderPath' have equal contents"
 				$true
 			}
-		} catch {
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+		}
+		catch
+		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
 			$false
 		}
 	}
 }
 
-function Compare-RegistryFileToRegistry {
+function Compare-RegistryFileToRegistry
+{
 	<#
 	.SYNOPSIS
 		This function compares a .reg file against the local computer registry and returns
@@ -99,18 +126,23 @@ function Compare-RegistryFileToRegistry {
 		[ValidateScript({ Test-Path -Path $_ -PathType 'Leaf' })]
 		[string]$FilePath
 	)
-	begin {
-		function Convert-Qualifier ($Path) {
+	begin
+	{
+		Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
+		function Convert-Qualifier ($Path)
+		{
 			$Qualifier = $Path
 			
-			switch ($Qualifier) {
+			switch ($Qualifier)
+			{
 				'HKEY_LOCAL_MACHINE' {
 					'HKLM'
 				}
 				'HKEY_CURRENT_USER' {
 					New-PSDrive -Name HKU -PSProvider Registry -Root Registry::HKEY_USERS | Out-Null
 					$LoggedOnSids = Get-LoggedOnUserSID
-					foreach ($sid in $LoggedOnSids) {
+					foreach ($sid in $LoggedOnSids)
+					{
 						"HKU:\$sid"
 					}
 				}
@@ -129,25 +161,32 @@ function Compare-RegistryFileToRegistry {
 			}
 		}
 	}
-	process {
-		try {
+	process
+	{
+		try
+		{
 			$FileContents = Get-Content -Path $FilePath -Raw
 			$Array = $FileContents -split "`n`r"
 			$KeyContents = ($Array[1..$Array.Length]).Trim()
 			$Keys = @()
-			foreach ($Key in $KeyContents) {
+			foreach ($Key in $KeyContents)
+			{
 				$KeyPath = [regex]::Match(($_ -split "`n")[0], '^\[(.*?)\\').Groups[1].Value
 				$Keys += $Key.Replace($KeyPath, (Convert-Qualifier -Path $_))
 			}
-			
-		} catch {
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+		}
+		catch
+		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
 			$false
 		}
 	}
 }
 
-function Get-FileVersion {
+function Get-FileVersion
+{
 	<#
 	.SYNOPSIS
 		This function finds the file version of a file.  This is useful for applications that don't
@@ -161,17 +200,25 @@ function Get-FileVersion {
 		[ValidateScript({ Test-Path -Path $_ -PathType 'Leaf' })]
 		[string]$FilePath
 	)
-	process {
-		try {
+	process
+	{
+		try
+		{
+			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
 			(Get-ItemProperty -Path $FilePath).VersionInfo.FileVersion
-		} catch {
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+		}
+		catch
+		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
 			$false
 		}
 	}
 }
 
-function Get-MyFileHash {
+function Get-MyFileHash
+{
     <#
         .SYNOPSIS
             Calculates the hash on a given file based on the seleced hash algorithm.
@@ -254,15 +301,21 @@ function Get-MyFileHash {
 		[ValidateSet("MD5", "SHA1", "SHA256", "SHA384", "SHA512", "RIPEMD160")]
 		[string[]]$Algorithm = "SHA256"
 	)
-	Process {
-		ForEach ($item in $Path) {
-			try {
+	Process
+	{
+		Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
+		ForEach ($item in $Path)
+		{
+			try
+			{
 				$item = (Resolve-Path $item).ProviderPath
-				If (-Not ([uri]$item).IsAbsoluteUri) {
+				If (-Not ([uri]$item).IsAbsoluteUri)
+				{
 					Write-Verbose ("{0} is not a full path, using current directory: {1}" -f $item, $pwd)
 					$item = (Join-Path $pwd ($item -replace "\.\\", ""))
 				}
-				If (Test-Path $item -Type Container) {
+				If (Test-Path $item -Type Container)
+				{
 					Write-Warning ("Cannot calculate hash for directory: {0}" -f $item)
 					Return
 				}
@@ -271,7 +324,8 @@ function Get-MyFileHash {
 				}
 				#Open the Stream
 				$stream = ([IO.StreamReader]$item).BaseStream
-				foreach ($Type in $Algorithm) {
+				foreach ($Type in $Algorithm)
+				{
 					[string]$hash = -join ([Security.Cryptography.HashAlgorithm]::Create($Type).ComputeHash($stream) |
 					ForEach { "{0:x2}" -f $_ })
 					$null = $stream.Seek(0, 0)
@@ -284,56 +338,80 @@ function Get-MyFileHash {
 				
 				#Close the stream
 				$stream.Close()
-			} catch {
+				Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			}
+			catch
+			{
 				Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+				Write-Log -Message "$($MyInvocation.MyCommand) - END"
 				$false
 			}
 		}
 	}
 }
 
-function Validate-IsSoftwareInstalled {
+function Test-InstalledSoftware
+{
 	<#
 	.SYNOPSIS
 		This function is used as a quick check to see if a specific software product is installed on the local host.
-	.PARAMETER ProductName
+	.PARAMETER Name
 	 	The name of the software you'd like to query as displayed by the Get-InstalledSoftware function
 	.PARAMETER Version
 		The version of the software you'd like to query as displayed by the Get-InstalledSofware function.
 	.PARAMETER Guid
 		The GUID of the installed software
 	#>
-	[CmdletBinding(DefaultParameterSetName = 'Productname')]
+	[CmdletBinding(DefaultParameterSetName = 'Name')]
 	param (
-		[Parameter(ParameterSetName = 'ProductName')]
-		[Alias('Name')]
-		[string]$ProductName,
-		[Parameter(ParameterSetName = 'ProductName')]
+		[Parameter(ParameterSetName = 'Name')]
+		[string]$Name,
+		
+		[Parameter(ParameterSetName = 'Name')]
 		[string]$Version,
+		
 		[Parameter(ParameterSetName = 'Guid')]
 		[Alias('ProductCode')]
 		[string]$Guid
 	)
-	process {
-		try {
-			if ($ProductName) {
-				$Params = @{ 'Name' = $ProductName }
-				if ($Version) {
-					$Params.Version = $Version
+	process
+	{
+		try
+		{
+			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
+			if ($Name)
+			{
+				if ($Version)
+				{
+					$SoftwareInstances = Get-InstalledSoftware -Name $Name | Where-Object { $_.Version -eq $Version }
 				}
-			} elseif ($Guid) {
-				$Params = @{ 'Guid' = $Guid }
+				else
+				{
+					$SoftwareInstances = Get-InstalledSoftware -Name $Name
+				}
 			}
-			$SoftwareInstances = Get-InstalledSoftware @Params
-			if (!$SoftwareInstances) {
-				Write-Log -Message "'$ProductName' is NOT installed."
+			elseif ($Guid)
+			{
+				$SoftwareInstances = Get-InstalledSoftware -Guid $Guid
+			}
+			
+			
+			if (-not $SoftwareInstances)
+			{
+				Write-Log -Message 'The software is NOT installed.'
 				$false
-			} else {
-				Write-Log -Message "'$ProductName' IS installed."
+			}
+			else
+			{
+				Write-Log -Message 'The software IS installed.'
 				$true
 			}
-		} catch {
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+		}
+		catch
+		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
 			$false
 		}
 	}
@@ -341,7 +419,8 @@ function Validate-IsSoftwareInstalled {
 #endregion
 
 #region Registry
-function Get-MyRegistryValue {
+function Get-RegistryValue
+{
 	<#
 	.SYNOPSIS
 		This functions finds the typical registry value like Get-ItemProperty does but also returns
@@ -360,28 +439,39 @@ function Get-MyRegistryValue {
 		[Parameter(Mandatory = $true)]
 		[ValidatePattern('^\w{4}:')]
 		[string]$Path,
+		
 		[Parameter(Mandatory = $true)]
 		[string]$Name
 	)
-	process {
-		try {
+	process
+	{
+		try
+		{
+			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
 			$Key = Get-Item -Path $Path -ea 'SilentlyContinue'
-			if (!$Key) {
+			if (!$Key)
+			{
 				throw "The registry key $Path does not exist"
 			}
 			$Value = $Key.GetValue($Name)
-			if (!$Value) {
+			if (!$Value)
+			{
 				throw "The registry value $Name in the key $Path does not exist"
 			}
 			[pscustomobject]@{ 'Path' = $Path; 'Value' = $Value; 'Type' = $key.GetValueKind($Name) }
-		} catch {
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+		}
+		catch
+		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
 			$false
 		}
 	}
 }
 
-function Get-RegistryValueForAllUsers {
+function Get-RegistryValueForAllUsers
+{
     <#
 	.SYNOPSIS
 		This function finds all of the user profile registry hives, mounts them and retrieves a registry value for each user.
@@ -397,21 +487,29 @@ function Get-RegistryValueForAllUsers {
 	[CmdletBinding()]
 	param (
 		[Parameter(Mandatory = $true)]
-		[hashtable[]]$RegistryInstance
+		[hashtable[]]
+		$RegistryInstance
 	)
-	try {
+	try
+	{
+		Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
 		New-PSDrive -Name HKU -PSProvider Registry -Root Registry::HKEY_USERS | Out-Null
 		
 		## Find the registry values for the currently logged on user
 		$LoggedOnSids = Get-LoggedOnUserSID
 		Write-Log -Message "Found $($LoggedOnSids.Count) logged on user SIDs"
-		foreach ($sid in $LoggedOnSids) {
+		foreach ($sid in $LoggedOnSids)
+		{
 			Write-Log -Message "Loading the user registry hive for the logged on SID $sid"
-			foreach ($instance in $RegistryInstance) {
+			foreach ($instance in $RegistryInstance)
+			{
 				$Value = Get-ItemProperty -Path "HKU:\$sid\$($instance.Path)" -Name $instance.Name -ea SilentlyContinue
-				if (!$Value) {
+				if (!$Value)
+				{
 					Write-Log -Message "Registry value $($instance.name) does not exist in HKU:\$sid\$($instance.Path)" -LogLevel '2'
-				} else {
+				}
+				else
+				{
 					$Value
 				}
 			}
@@ -419,46 +517,62 @@ function Get-RegistryValueForAllUsers {
 		
 		## Read all ProfileImagePath values from all reg keys that match a SID pattern in the ProfileList key
 		## Exclude all SIDs from the users that are currently logged on.  Those have already been processed.
-		$ProfileSids = Get-ProfileSids
+		$ProfileSids = (Get-UserProfile).SID
 		Write-Log -Message "Found $($ProfileSids.Count) SIDs for profiles"
 		$ProfileSids = $ProfileSids | where { $LoggedOnSids -notcontains $_ }
 		
 		$ProfileFolderPaths = $ProfileSids | foreach { Get-UserProfilePath -Sid $_ }
 		
-		if ((Get-Architecture) -eq 'x64') {
+		if ((Get-Architecture) -eq 'x64')
+		{
 			$RegPath = 'syswow64'
-		} else {
+		}
+		else
+		{
 			$RegPath = 'System32'
 		}
 		Write-Log -Message "Reg.exe path is $RegPath"
 		
 		## Load each user's registry hive into the HKEY_USERS\TempUserLoad key
-		foreach ($prof in $ProfileFolderPaths) {
+		foreach ($prof in $ProfileFolderPaths)
+		{
 			Write-Log -Message "Loading the user registry hive in the $prof profile"
 			$Process = Start-Process "$($env:Systemdrive)\Windows\$RegPath\reg.exe" -ArgumentList "load HKEY_USERS\TempUserLoad `"$prof\NTuser.dat`"" -Wait -NoNewWindow -PassThru
-			if (Check-Process $Process) {
-				foreach ($instance in $RegistryInstance) {
+			if (Test-Process $Process)
+			{
+				foreach ($instance in $RegistryInstance)
+				{
 					Write-Log -Message "Finding property in the HKU\$($instance.Path) path"
 					$Value = Get-ItemProperty -Path "HKU:\TempUserLoad\$($instance.Path)" -Name $instance.Name -ea SilentlyContinue
-					if (!$Value) {
+					if (!$Value)
+					{
 						Write-Log -Message "Registry value $($instance.name) does not exist in HKU:\TempUserLoad\$($instance.Path)" -LogLevel '2'
-					} else {
+					}
+					else
+					{
 						$Value
 					}
 				}
 				$Process = Start-Process "$($env:Systemdrive)\Windows\$RegPath\reg.exe" -ArgumentList "unload HKEY_USERS\TempUserLoad" -Wait -NoNewWindow -PassThru
-				Check-Process $Process | Out-Null
-			} else {
+				Test-Process $Process | Out-Null
+			}
+			else
+			{
 				Write-Log -Message "Failed to load registry hive for the '$prof' profile" -LogLevel '3'
 			}
 		}
-	} catch {
+		Write-Log -Message "$($MyInvocation.MyCommand) - END"
+	}
+	catch
+	{
 		Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+		Write-Log -Message "$($MyInvocation.MyCommand) - END"
 		$false
 	}
 }
 
-function Import-RegistryFile {
+function Import-RegistryFile
+{
 	<#
 	.SYNOPSIS
 		A function that uses the utility reg.exe to do a bulk import of registry changes.
@@ -478,46 +592,64 @@ function Import-RegistryFile {
 		[ValidateScript({ Test-Path -Path $_ -PathType 'Leaf' })]
 		[string]$FilePath
 	)
-	begin {
-		try {
+	begin
+	{
+		try
+		{
+			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
 			## Detect if this is a registry file for HKCU, HKLM, HKU, HKCR or HKCC keys
 			$Regex = 'HKEY_CURRENT_USER|HKEY_CLASSES_ROOT|HKEY_LOCAL_MACHINE|HKEY_USERS|HKEY_CURRENT_CONFIG'
 			$HiveNames = Select-String -Path $FilePath -Pattern $Regex | foreach { $_.Matches.Value }
 			$RegFileHive = $HiveNames | Select-Object -Unique
-			if ($RegFileHive -is [array]) {
+			if ($RegFileHive -is [array])
+			{
 				throw "The registry file at '$FilePath' contains more than one hive reference."
-			} else {
+			}
+			else
+			{
 				Write-Log -Message "Detected hive type as $RegFileHive"
 			}
-			if ((Get-Architecture) -eq 'x64') {
+			if ((Get-Architecture) -eq 'x64')
+			{
 				$RegPath = 'syswow64'
-			} else {
+			}
+			else
+			{
 				$RegPath = 'System32'
 			}
-		} catch {
+		}
+		catch
+		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
 			return $false
 		}
 		
 	}
-	process {
-		try {
-			if ($RegFileHive -ne 'HKEY_CURRENT_USER') {
+	process
+	{
+		try
+		{
+			if ($RegFileHive -ne 'HKEY_CURRENT_USER')
+			{
 				Write-Log -Message "Starting registry import of reg file $FilePath..."
 				($Result = Start-Process "$($env:Systemdrive)\Windows\$RegPath\reg.exe" -Args "import `"$FilePath`"" -Wait -NoNewWindow -PassThru) | Out-Null
-				Check-Process -Process $Result
+				Test-Process -Process $Result
 				Write-Log -Message 'Registry file import done'
-			} else {
+			}
+			else
+			{
 				#########
 				## Import the registry file for the currently logged on user
 				#########
 				$LoggedOnSids = Get-LoggedOnUserSID
-				if ($LoggedOnSids.Count -gt 0) {
+				if ($LoggedOnSids.Count -gt 0)
+				{
 					Write-Log -Message "Found $($LoggedOnSids.Count) logged on user SIDs"
-					foreach ($sid in $LoggedOnSids) {
+					foreach ($sid in $LoggedOnSids)
+					{
 						## Replace all HKEY_CURRENT_USER references to HKCU\%SID% so that it can be applied to HKCU while not
 						## actually running under that context.  Create a new reg file with the replacements in the system's temp folder
-						$HkcuRegFilePath = "$(Get-SystemTempFilePath)\$($FilePath | Split-Path -Leaf)"
+						$HkcuRegFilePath = "$(Get-SystemTempFolderPath)\$($FilePath | Split-Path -Leaf)"
 						Write-Log -Message "Replacing HKEY_CURRENT_USER references with HKEY_USERS\$sid and placing temp file in $HkcuRegFilePath"
 						Find-InTextFile -FilePath $FilePath -Find $RegFileHive -Replace "HKEY_USERS\$sid" -NewFilePath $HkcuRegFilePath -Force
 						
@@ -527,7 +659,9 @@ function Import-RegistryFile {
 						Write-Log -Message "Removing temporary registry file $HkcuRegFilePath"
 						Remove-Item $HkcuRegFilePath -Force
 					}
-				} else {
+				}
+				else
+				{
 					Write-Log -Message 'No users currently logged on.  Skipping current user registry import'
 				}
 				
@@ -535,10 +669,10 @@ function Import-RegistryFile {
 				## Use Active Setup to create a registry value to perform an import of the registry file for each logged on user
 				########
 				Write-Log -Message "Copying $FilePath to systemp temp folder for later user"
-				Copy-Item -Path $FilePath -Destination "$(Get-SystemTempFilePath)\$($FilePath | Split-Path -Leaf)"
+				Copy-Item -Path $FilePath -Destination "$(Get-SystemTempFolderPath)\$($FilePath | Split-Path -Leaf)"
 				Write-Log -Message "Setting Everyone full control on temp registry file so all users can import it"
 				$Params = @{
-					'Path' = "$(Get-SystemTempFilePath)\$($FilePath | Split-Path -Leaf)"
+					'Path' = "$(Get-SystemTempFolderPath)\$($FilePath | Split-Path -Leaf)"
 					'Identity' = 'Everyone'
 					'Right' = 'Modify';
 					'InheritanceFlags' = 'None';
@@ -550,19 +684,23 @@ function Import-RegistryFile {
 				Write-Log -Message "Setting registry file to import for each user"
 				
 				## This isn't the *best* way to do this because this doesn't prevent a user from clearing out all the temp files
-				Set-AllUserStartupAction -CommandLine "reg import `"$(Get-SystemTempFilePath)\$($FilePath | Split-Path -Leaf)`""
+				Set-AllUserStartupAction -CommandLine "reg import `"$(Get-SystemTempFolderPath)\$($FilePath | Split-Path -Leaf)`""
 				
 			}
 			
-			
-		} catch {
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+		}
+		catch
+		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
 			$false
 		}
 	}
 }
 
-function Set-RegistryValueForAllUsers {
+function Set-RegistryValueForAllUsers
+{
     <#
 	.SYNOPSIS
 		This function sets a registry value in every user profile hive.
@@ -579,31 +717,47 @@ function Set-RegistryValueForAllUsers {
 		A switch parameter that overrides the default setting to only change or add registry values.  This removes one of more registry keys instead.
 		If this parameter is used the only required key in the RegistryInstance parameter is Path.  This will automatically remove both
 		the x86 and x64 paths if the key is a child under the SOFTWARE key.  There's no need to specify the WOW6432Node path also.
+	.PARAMETER Force
+		A switch parameter that is used if the registry value key path doesn't exist will create the entire parent/child key hierachy and creates the 
+		registry value.  If this parameter is not used, if the key the value is supposed to be in does not exist the function will skip the value.
 	#>
 	[CmdletBinding()]
 	param (
 		[Parameter(Mandatory = $true)]
-		[hashtable[]]$RegistryInstance,
+		[hashtable[]]
+		$RegistryInstance,
+		
 		[switch]$Remove
 	)
-	process {
-		try {
+	process
+	{
+		try
+		{
+			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
 			New-PSDrive -Name HKU -PSProvider Registry -Root Registry::HKEY_USERS | Out-Null
 			
 			## Change the registry values for the currently logged on user
 			$LoggedOnSids = Get-LoggedOnUserSID
 			Write-Log -Message "Found $($LoggedOnSids.Count) logged on user SIDs"
-			foreach ($sid in $LoggedOnSids) {
+			foreach ($sid in $LoggedOnSids)
+			{
 				Write-Log -Message "Loading the user registry hive for the logged on SID $sid"
-				foreach ($instance in $RegistryInstance) {
-					if ($Remove.IsPresent) {
+				foreach ($instance in $RegistryInstance)
+				{
+					if ($Remove.IsPresent)
+					{
 						Write-Log -Message "Removing registry key '$($instance.path)'"
 						Remove-Item -Path "HKU:\$sid\$($instance.Path)" -Recurse -Force -ea 'SilentlyContinue'
-					} else {
-						if (!(Get-Item -Path "HKU:\$sid\$($instance.Path)" -ea 'SilentlyContinue')) {
+					}
+					else
+					{
+						if (!(Get-Item -Path "HKU:\$sid\$($instance.Path)" -ea 'SilentlyContinue'))
+						{
 							Write-Log -Message "The registry key HKU:\$sid\$($instance.Path) does not exist.  Creating..."
 							New-Item -Path "HKU:\$sid\$($instance.Path | Split-Path -Parent)" -Name ($instance.Path | Split-Path -Leaf) -Force | Out-Null
-						} else {
+						}
+						else
+						{
 							Write-Log -Message "The registry key HKU:\$sid\$($instance.Path) already exists. No need to create."
 						}
 						Write-Log -Message "Setting registry value $($instance.Name) at path HKU:\$sid\$($instance.Path) to $($instance.Value)"
@@ -613,18 +767,26 @@ function Set-RegistryValueForAllUsers {
 				}
 			}
 			
-			foreach ($instance in $RegistryInstance) {
-				if ($Remove.IsPresent) {
-					if ($instance.Path.Split('\')[0] -eq 'SOFTWARE' -and ((Get-Architecture) -eq 'x64')) {
+			foreach ($instance in $RegistryInstance)
+			{
+				if ($Remove.IsPresent)
+				{
+					if ($instance.Path.Split('\')[0] -eq 'SOFTWARE' -and ((Get-Architecture) -eq 'x64'))
+					{
 						$Split = $instance.Path.Split('\')
 						$x86Path = "HKCU\SOFTWARE\Wow6432Node\{0}" -f ($Split[1..($Split.Length)] -join '\')
-						$CommandLine = "reg delete `"{0}`" /f && reg delete `"{1}`"" -f "HKCU\$($instance.Path)", $x86Path
-					} else {
+						$CommandLine = "reg delete `"{0}`" /f && reg delete `"{1}`" /f" -f "HKCU\$($instance.Path)", $x86Path
+					}
+					else
+					{
 						$CommandLine = "reg delete `"{0}`" /f" -f "HKCU\$($instance.Path)"
 					}
-				} else {
+				}
+				else
+				{
 					## Convert the registry value type to one that reg.exe can understand
-					switch ($instance.Type) {
+					switch ($instance.Type)
+					{
 						'String' {
 							$RegValueType = 'REG_SZ'
 						}
@@ -640,23 +802,34 @@ function Set-RegistryValueForAllUsers {
 						'MultiString' {
 							$RegValueType = 'REG_MULTI_SZ'
 						}
-						default {
+						default
+						{
 							throw "Registry type '$($instance.Type)' not recognized"
 						}
+					}
+					if (!(Get-Item -Path "HKCU:\$($instance.Path)" -ea 'SilentlyContinue'))
+					{
+						Write-Log -Message "The registry key 'HKCU:\$($instance.Path)'' does not exist.  Creating..."
+						New-Item -Path "HKCU:\$($instance.Path) | Split-Path -Parent)" -Name ("HKCU:\$($instance.Path)" | Split-Path -Leaf) -Force | Out-Null
 					}
 					$CommandLine = "reg add `"{0}`" /v {1} /t {2} /d {3} /f" -f "HKCU\$($instance.Path)", $instance.Name, $RegValueType, $instance.Value
 				}
 				Set-AllUserStartupAction -CommandLine $CommandLine
 				
 			}
-		} catch {
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+		}
+		catch
+		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
 			$false
 		}
 	}
 }
 
-function Register-File {
+function Register-File
+{
 	<#
 	.SYNOPSIS
 		A function that uses the utility regsvr32.exe utility to register a file
@@ -669,13 +842,20 @@ function Register-File {
 		[ValidateScript({ Test-Path -Path $_ -PathType 'Leaf' })]
 		[string]$FilePath
 	)
-	process {
-		try {
+	process
+	{
+		try
+		{
+			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
 			$Result = Start-Process -FilePath 'regsvr32.exe' -Args "/s `"$FilePath`"" -Wait -NoNewWindow -PassThru
 			Wait-MyProcess -ProcessId $Result.Id
-			Check-Error -SuccessString "Successfully registered file $FilePath"
-		} catch {
+			Test-Error -SuccessString "Successfully registered file $FilePath"
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+		}
+		catch
+		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
 			$false
 		}
 	}
@@ -683,173 +863,117 @@ function Register-File {
 #endregion
 
 #region SoftwareManagement
-function Get-InstalledSoftware {
+function Get-InstalledSoftware
+{
 	<#
 	.SYNOPSIS
-		Retrieves a list of all software installed	
-	.DESCRIPTION
-		Retrieves a list of all software installed via the specified method
-	.EXAMPLE
-		Get-InstalledSoftware -Name adobe* -Publisher adobe -ComputerName COMPUTER
-		This example retrieves all software installed on COMPUTER matching the string starting with 'adobe' and
-		with a publisher equal to 'adobe'.
+		Retrieves a list of all software installed
 	.EXAMPLE
 		Get-InstalledSoftware
+		
 		This example retrieves all software installed on the local computer
 	.PARAMETER Name
-		The software title you'd like to limit the query to.  Wildcards are permitted.
+		The software title you'd like to limit the query to.
 	.PARAMETER Guid
-		The software GUID you'e like to limit the query to. No wildcards.
-	.PARAMETER Publisher
-		The software publisher you'd like to limit the query to. Wildcards are permitted.
-	.PARAMETER Version
-		The software version you'd like to limit the query to. Wildcards are permitted.
-	.PARAMETER Computername
-		The computer you'd like to query.  It defaults to the local machine if no computer specified. 
-		Multiple computer names are allowed.
+		The software GUID you'e like to limit the query to
 	#>
 	[CmdletBinding()]
 	param (
 		[string]$Name,
-		[string]$Publisher,
-		[string]$Version,
-		[ValidatePattern('\b[A-F0-9]{8}(?:-[A-F0-9]{4}){3}-[A-F0-9]{12}\b')]
-		[string]$Guid,
-		[Parameter(ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true)]
-		[string[]]$Computername = 'localhost'
-	)
-	begin {
-		$WhereQuery = "SELECT * FROM SMS_InstalledSoftware"
 		
-		if ($PSBoundParameters.Count -ne 0) {
-			## Add any new parameters added here to match with the WMI property name
-			$QueryBuild = @{
-				'Name' = 'ProductName';
-				'Publisher' = 'Publisher';
-				'Version' = 'ProductVersion';
-				'Guid' = 'SoftwareCode'
-			}
-			$QueryParams = $PSBoundParameters.GetEnumerator() | where { $QueryBuild.ContainsKey($_.Key) }
-			if ($QueryParams) {
-				$WhereQuery += ' WHERE'
-				$BuiltQueryParams = { @() }.Invoke()
-				foreach ($Param in $QueryParams) {
-					## Allow asterisks in cmdlet but WQL requires percentage and double backslashes
-					$ParamValue = $Param.Value | foreach { $_.Replace('*', '%').Replace('\', '\\') }
-					$Operator = @{ $true = 'LIKE'; $false = '=' }[$ParamValue -match '\%']
-					$BuiltQueryParams.Add("$($QueryBuild[$Param.Key]) $Operator '$($ParamValue)'")
-				}
-			}
-		}
-		$WhereQuery = "$WhereQuery $($BuiltQueryParams -join ' AND ')"
-		Write-Log "Using WMI query $WhereQuery..."
-		
-		$Params = @{
-			'Namespace' = 'root\cimv2\sms';
-			'Query' = $WhereQuery;
-			'ErrorAction' = 'SilentlyContinue';
-			'ErrorVariable' = 'MyError'
-		}
-	}
-	process {
-		try {
-			foreach ($Computer in $Computername) {
-				try {
-					$Params['ComputerName'] = $Computer
-					$Software = Get-WmiObject @Params
-					if (Check-Error -MyError $MyError -SuccessString "Successfully queried computer $Computer for installed software") {
-						$Software | Sort-Object ARPDisplayname;
-					}
-				} catch {
-					Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-					$false
-				}
-			}
-		} catch {
-			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			$false
-		}##endtry
-	}
-}
-
-function Get-InstalledSoftwareInRegistry {
-	<#
-	.SYNOPSIS
-		Retrieves a list of all software installed	
-	.DESCRIPTION
-		Retrieves a list of all software installed via the specified method
-	.EXAMPLE
-		Get-InstalledSoftware -Name adobe* -Publisher adobe
-		This example retrieves all software installed matching the string starting with 'adobe' and
-		with a publisher equal to 'adobe'.
-	.EXAMPLE
-		Get-InstalledSoftware
-		This example retrieves all software installed on the local computer
-	.PARAMETER Name
-		The software title you'd like to limit the query to.  Wildcards are permitted.
-	.PARAMETER Guid
-		The software GUID you'e like to limit the query to. No wildcards.
-	.PARAMETER Publisher
-		The software publisher you'd like to limit the query to. Wildcards are permitted.
-	.PARAMETER Version
-		The software version you'd like to limit the query to. Wildcards are permitted.
-	#>
-	[CmdletBinding()]
-	param (
-		[string]$Name,
-		[string]$Publisher,
-		[string]$Version,
 		[ValidatePattern('\b[A-F0-9]{8}(?:-[A-F0-9]{4}){3}-[A-F0-9]{12}\b')]
 		[string]$Guid
 	)
-	begin {
-		$UninstallKeys = "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall","HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall"
-        New-PSDrive -Name HKU -PSProvider Registry -Root Registry::HKEY_USERS | Out-Null
-		$UninstallKeys += Get-ChildItem HKU: | where { $_.Name -match 'S-\d-\d+-(\d+-){1,14}\d+$' }| foreach {"HKU:\$($_.PSChildName)\Software\Microsoft\Windows\CurrentVersion\Uninstall" }
+	begin
+	{
+		Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
+		$UninstallKeys = "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall", "HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall"
+		New-PSDrive -Name HKU -PSProvider Registry -Root Registry::HKEY_USERS | Out-Null
+		$UninstallKeys += Get-ChildItem HKU: | where { $_.Name -match 'S-\d-\d+-(\d+-){1,14}\d+$' } | foreach { "HKU:\$($_.PSChildName)\Software\Microsoft\Windows\CurrentVersion\Uninstall" }
 		
 	}
-    process {
-	    foreach ($UninstallKey in $UninstallKeys) {
-            $Keys = Get-ItemProperty -Path "$UninstallKey\*" -ErrorAction SilentlyContinue
-            foreach ($Key in ($Keys | where {$_.SystemComponent -ne '1'})) {
-                $KeyName = $Key.PSChildName
-                $SwEntry = @{}
-                if ($Key.PsObject.Properties.Name -eq 'DisplayName') { 
-                    foreach ($Value in $Key.PsObject.Properties) {
-                        if (($Value.Name -eq 'PsChildName') -and ($Value.Value -match '\b[A-F0-9]{8}(?:-[A-F0-9]{4}){3}-[A-F0-9]{12}\b')) {
-                            $SwEntry['GUID'] = $Value.Value 
-                        } else {
-                            $SwEntry[$Value.Name] = $Value.Value
-                        }
-                    }
-                }
-                $ParamToRegValMaps = @{
-				    'Name' = 'DisplayName';
-				    'Publisher' = 'Publisher';
-				    'Version' = 'DisplayVersion';
-				    'Guid' = 'GUID'
-			    }
-                if ($PSBoundParameters.Count -eq 0) {
-                    [pscustomobject]$SwEntry
-                } else {
-                    $PSBoundParameters.GetEnumerator() | foreach {
-                        $RegValName = $ParamToRegValMaps[$_.Key]
-                        $ParamVal = $_.Value
-                        if ($SwEntry.Keys -contains $RegValName) {
-                            if (($ParamVal -match '\*') -and ($SwEntry.GetEnumerator() | where {($_.Key -eq $RegValName) -and ($_.Value -like $ParamVal)})) {
-                                return [pscustomobject]$SwEntry
-                            } elseif ($SwEntry.GetEnumerator() | where {($_.Key -eq $RegValName) -and ($_.Value -eq $ParamVal)}) {
-                                return [pscustomobject]$SwEntry
-                            }
-                        } 
-                    }
-                }
-            }
-        }
-    }
+	process
+	{
+		try
+		{
+			if (-not $UninstallKeys)
+			{
+				Write-Log -Message 'No software registry keys found' -LogLevel '2'
+			}
+			else
+			{
+				foreach ($UninstallKey in $UninstallKeys)
+				{
+					$friendlyNames = @{
+						'DisplayName' = 'Name'
+						'DisplayVersion' = 'Version'
+					}
+					Write-Log -Message "Checking uninstall key [$($UninstallKey)]"
+					if ($PSBoundParameters.ContainsKey('Name'))
+					{
+						$WhereBlock = { $_.GetValue('DisplayName') -like "$Name*" }
+					}
+					elseif ($PSBoundParameters.ContainsKey('GUID'))
+					{
+						$WhereBlock = { $_.PsChildName -eq $Guid }
+					}
+					else
+					{
+						$WhereBlock = { $_.GetValue('DisplayName') }
+					}
+					$SwKeys = Get-ChildItem -Path $UninstallKey -ErrorAction SilentlyContinue | Where-Object $WhereBlock
+					if (-not $SwKeys)
+					{
+						Write-Log -Message "No software keys in uninstall key $UninstallKey"
+					}
+					else
+					{
+						foreach ($SwKey in $SwKeys)
+						{
+							$output = @{ }
+							foreach ($ValName in $SwKey.GetValueNames())
+							{
+								if ($ValName -ne 'Version')
+								{
+									$output.InstallLocation = ''
+									if ($ValName -eq 'InstallLocation' -and ($SwKey.GetValue($ValName)) -and (@('C:', 'C:\Windows', 'C:\Windows\System32', 'C:\Windows\SysWOW64') -notcontains $SwKey.GetValue($ValName).TrimEnd('\')))
+									{
+										$output.InstallLocation = $SwKey.GetValue($ValName).TrimEnd('\')
+									}
+									[string]$ValData = $SwKey.GetValue($ValName)
+									if ($friendlyNames[$ValName])
+									{
+										$output[$friendlyNames[$ValName]] = $ValData.Trim() ## Some registry values have trailing spaces.
+									}
+									else
+									{
+										$output[$ValName] = $ValData.Trim() ## Some registry values trailing spaces
+									}
+								}
+							}
+							$output.GUID = ''
+							if ($SwKey.PSChildName -match '\b[A-F0-9]{8}(?:-[A-F0-9]{4}){3}-[A-F0-9]{12}\b')
+							{
+								$output.GUID = $SwKey.PSChildName
+							}
+							New-Object –TypeName PSObject –Prop $output
+						}
+					}
+				}
+			}
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+		}
+		catch
+		{
+			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			$false
+		}
+	}
 }
 
-function Install-Software {
+function Install-Software
+{
 	<#
 	.SYNOPSIS
 
@@ -880,7 +1004,7 @@ function Install-Software {
 	.PARAMETER InstallShieldInstallArgs
 		This is a string of arguments that are passed to the InstallShield installer.  Default arguments are
 		"/s /f1$IssFilePath /SMS"
-	.PARAMETER OtherInstallArgs
+	.PARAMETER OtherInstallerArgs
 		This is a string of arguments that are passed to any other EXE installer.  There is no default.
 	.PARAMETER KillProcess
 		A list of process names that will be terminated prior to attempting the install.  This is useful
@@ -909,85 +1033,113 @@ function Install-Software {
 		[ValidateScript({ Test-Path -Path $_ -PathType 'Leaf' })]
 		[ValidatePattern('\.exe$')]
 		[string]$InstallShieldInstallerFilePath,
+		
 		[Parameter(ParameterSetName = 'Other',
 				   Mandatory = $true)]
 		[ValidateScript({ Test-Path -Path $_ -PathType 'Leaf' })]
 		[ValidatePattern('\.exe$')]
 		[string]$OtherInstallerFilePath,
+		
 		[Parameter(ParameterSetName = 'InstallShield',
 				   Mandatory = $true)]
 		[ValidatePattern('\.iss$')]
 		[string]$IssFilePath,
+		
 		[Parameter(ParameterSetName = 'MSI',
 				   Mandatory = $true)]
 		[ValidateScript({ Test-Path -Path $_ -PathType 'Leaf' })]
 		[string]$MsiInstallerFilePath,
+		
 		[string]$MsiExecSwitches,
+		
 		[Parameter(ParameterSetName = 'MSI')]
 		[ValidateScript({ Test-Path -Path $_ -PathType 'Leaf' })]
 		[ValidatePattern('\.msp$')]
 		[string]$MspFilePath,
+		
 		[Parameter(ParameterSetName = 'MSI')]
 		[ValidateScript({ Test-Path -Path $_ -PathType 'Leaf' })]
 		[ValidatePattern('\.mst$')]
 		[string]$MstFilePath,
+		
 		[Parameter(ParameterSetName = 'InstallShield')]
 		[string]$InstallShieldInstallArgs,
+		
 		[Parameter(ParameterSetName = 'Other')]
 		[string]$OtherInstallerArgs,
+		
 		[Alias('OtherInstallerArguments')]
 		[Parameter()]
 		[string[]]$KillProcess,
+		
 		[Alias('KillProcesPreInstall')]
 		[string[]]$KillProcessDuringInstall,
+		
 		[int]$ProcessTimeout,
+		
 		[string]$LogFilePath,
-		[switch]$NoDefaultLogFilePath,
-		[string]$RequiredFreeSpace
+		
+		[switch]$NoDefaultLogFilePath
 	)
 	
-	begin {
-		try {
-			Write-Log -Message "Beginning software install..."
+	begin
+	{
+		try
+		{
+			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
 			
 			$ProcessParams = @{
 				'NoNewWindow' = $true;
 				'Passthru' = $true
 			}
 			
-			$SystemTempFolder = Get-SystemTempFilePath
+			$SystemTempFolder = Get-SystemTempFolderPath
 			Write-Log -Message "Using temp folder $SystemTempFolder..."
 			
-		} catch {
+		}
+		catch
+		{
 			Write-Log -Message $_.Exception.Message -LogLevel '3'
 		}
 	}
 	
-	process {
-		try {
-			if ($InstallShieldInstallerFilePath) {
+	process
+	{
+		try
+		{
+			if ($InstallShieldInstallerFilePath)
+			{
 				$InstallerFilePath = $InstallShieldInstallerFilePath
-			} elseif ($MsiInstallerFilePath) {
+			}
+			elseif ($MsiInstallerFilePath)
+			{
 				$InstallerFilePath = $MsiInstallerFilePath
-			} elseif ($OtherInstallerFilePath) {
+			}
+			elseif ($OtherInstallerFilePath)
+			{
 				$InstallerFilePath = $OtherInstallerFilePath
 			}
-			if (!$LogFilePath -and !$NoDefaultLogFilePath.IsPresent) {
+			if (!$LogFilePath -and !$NoDefaultLogFilePath.IsPresent)
+			{
 				$InstallerFileName = $InstallerFilePath | Split-Path -Leaf
 				$LogFilePath = "$SystemTempFolder\$InstallerFileName.log"
 			}
 			Write-Log -Message "Using log file path '$LogFilePath'..."
 			
-			if ($MsiInstallerFilePath) {
+			if ($MsiInstallerFilePath)
+			{
 				$InstallArgs = @()
 				$InstallArgs += "/i `"$InstallerFilePath`" /qn"
-				if ($MstFilePath) {
+				if ($MstFilePath)
+				{
 					$InstallArgs += "TRANSFORMS=`"$MstFilePath`""
 				}
-				if ($MspFilePath) {
+				if ($MspFilePath)
+				{
 					$InstallArgs += "PATCH=`"$MspFilePath`""
 				}
-				if ($MsiExecSwitches) {
+				if ($MsiExecSwitches)
+				{
 					$InstallArgs += $MsiExecSwitches
 				}
 				
@@ -996,88 +1148,109 @@ function Install-Software {
 				
 				$ProcessParams['FilePath'] = 'msiexec.exe'
 				$ProcessParams['ArgumentList'] = $InstallArgs
-			} elseif ($InstallShieldInstallerFilePath) {
-				if (!$InstallShieldInstallArgs) {
+			}
+			elseif ($InstallShieldInstallerFilePath)
+			{
+				if (!$InstallShieldInstallArgs)
+				{
 					$InstallArgs = "-s -f1`"$IssFilePath`" -f2`"$LogFilePath`" /SMS"
-				} else {
+				}
+				else
+				{
 					$InstallArgs = "-s -f1`"$IssFilePath`" $InstallShieldInstallArgs -f2`"$LogFilePath`" /SMS"
 				}
 				$ProcessParams['FilePath'] = $InstallerFilePath
 				$ProcessParams['ArgumentList'] = $InstallArgs
-			} elseif ($OtherInstallerFilePath) {
-				if ($OtherInstallerArgs) {
+			}
+			elseif ($OtherInstallerFilePath)
+			{
+				if ($OtherInstallerArgs)
+				{
 					$ProcessParams['ArgumentList'] = $OtherInstallerArgs
 				}
 				$ProcessParams['FilePath'] = $OtherInstallerFilePath
 				
 			}
-			if ($KillProcess) {
+			if ($KillProcess)
+			{
 				Write-Log -Message 'Killing existing processes'
 				$KillProcess | foreach { Stop-MyProcess -ProcessName $_ }
 			}
 			
 			Write-Log -Message "Starting the command line process `"$($ProcessParams['FilePath'])`" $($ProcessParams['ArgumentList'])..."
 			$Result = Start-Process @ProcessParams
-			Write-Log "Waiting for process ID $($Result.Id)"
 			
-			$WaitParams = @{ 'ProcessId' = $Result.Id }
-			if ($PSBoundParameters.ProcessTimeout) {
-				$WaitParams.ProcessTimeout = $PSBoundParameters.ProcessTimeout
-				$WaitParams.KillProcessDuringWait = $PSBoundParameters.KillProcessDuringInstall
+			if ($PSBoundParameters.ContainsKey('MsiInstallerFilePath'))
+			{
+				Wait-WindowsInstaller
 			}
-			Wait-MyProcess @WaitParams
-			if (Check-Error -SuccessString "Process ID $($Result.Id) ran successfully") {
+			else
+			{
+				Write-Log "Waiting for process ID $($Result.Id)"
+				
+				$WaitParams = @{ 'ProcessId' = $Result.Id }
+				if ($PSBoundParameters.ProcessTimeout)
+				{
+					$WaitParams.ProcessTimeout = $PSBoundParameters.ProcessTimeout
+					$WaitParams.KillProcessDuringWait = $PSBoundParameters.KillProcessDuringInstall
+				}
+				Wait-MyProcess @WaitParams
+			}
+			
+			if (Test-Error -SuccessString "Process ID $($Result.Id) ran successfully")
+			{
 				Write-Log "Successfully installed the installer $($ProcessParams['FilePath'])"
 				$true
-			} else {
+			}
+			else
+			{
 				Write-Log "Failed to install the installer $($ProcessParams['FilePath'])"
 				$false
 			}
-		} catch {
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+		}
+		catch
+		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
 			$false
 		}
 	}
 }
 
-function Remove-Software {
+function Remove-Software
+{
 	<#
 	.SYNOPSIS
 		This function removes any software registered via Windows Installer from the local computer    
 	.NOTES
 		Created on:   	6/4/2014
 		Created by:   	Adam Bertram
-		Requirements:   Installed SCCM Client for the SMS_InstalledSoftware WMI class and the 
-						Win32Reg_AddRemovePrograms WMI class.
-						The msizap utility (if user would like to run)
-		Todos:			Add ability to remove registry values/keys
-						Read the cached MSI file to get installation directory to use to find shortcuts
-						Funtionalize installed software query so user doesn't need SCCM client installed
-						Add ability to remove folders in the start menu
+		Requirements:   The msizap utility (if user would like to run)
 	.DESCRIPTION
 		This function searches a local computer for a specified application matching a name.  Based on the
 		parameters given, it can either remove services, kill proceseses and if the software is
 		installed, it uses the locally cached MSI to initiate an uninstall and has the option to 
 		ensure the software is completely removed by running the msizap.exe utility.
 	.EXAMPLE
-		Remove-Software -ProductName 'Adobe Reader' -KillProcess 'proc1','proc2'
+		Remove-Software -Name 'Adobe Reader' -KillProcess 'proc1','proc2'
 		This example would remove any software with 'Adobe Reader' in the name and look for and stop both the proc1 
 		and proc2 processes
 	.EXAMPLE
-	    Remove-Software -ProductName 'Adobe Reader'
+	    Remove-Software -Name 'Adobe Reader'
 		This example would remove any software with 'Adobe Reader' in the name.
 	.EXAMPLE
-	    Remove-Software -ProductName 'Adobe Reader' -RemoveService 'servicename' -Verbose
+	    Remove-Software -Name 'Adobe Reader' -RemoveService 'servicename' -Verbose
 		This example would remove any software with 'Adobe Reader' in the name, look for, stop and remove any service with a 
 		name of servicename. It will output all verbose logging as well.
 	.EXAMPLE
-	    Remove-Software -ProductName 'Adobe Reader' -RemoveFolder 'C:\Program Files Files\Install Folder'
+	    Remove-Software -Name 'Adobe Reader' -RemoveFolder 'C:\Program Files Files\Install Folder'
 		This example would remove any software with 'Adobe Reader' in the name, look for and remove the 
 		C:\Program Files\Install Folder, attempt to uninstall the software cleanly via msiexec using 
 		the syntax msiexec.exe /x PRODUCTMSI /qn REBOOT=ReallySuppress which would attempt to not force a reboot if needed.
 		If it doesn't uninstall cleanly, it would run copy the msizap utility from the default path to 
 		the local computer, execute it with the syntax msizap.exe TW! PRODUCTGUID and remove itself when done.
-	.PARAMETER ProductName
+	.PARAMETER Name
 		This is the name of the application to search for. This can be multiple products.  Each product will be removed in the
 		order you specify.
 	.PARAMETER KillProcess
@@ -1129,186 +1302,238 @@ function Remove-Software {
 	[CmdletBinding(DefaultParameterSetName = 'MSI')]
 	param (
 		[Parameter(Mandatory = $true,
-				   ValueFromPipeline = $true,
 				   ValueFromPipelineByPropertyName = $true)]
-		[string[]]$ProductName,
+		[string]$Name,
+		
 		[Parameter()]
 		[string[]]$KillProcess,
+		
 		[Parameter()]
 		[string[]]$RemoveService,
+		
 		[Parameter(ParameterSetName = 'MSI')]
 		[string]$MsiExecSwitches,
+		
 		[Parameter()]
 		[string]$LogFilePath,
+		
 		[Parameter(ParameterSetName = 'ISS')]
 		[string]$InstallshieldLogFilePath,
+		
 		[Parameter()]
 		[string[]]$RemoveFolder,
+		
 		[Parameter()]
 		[string[]]$RemoveRegistryKey,
+		
 		[Parameter()]
 		[hashtable]$Shortcut,
+		
 		[Parameter(ParameterSetName = 'Msizap')]
 		[switch]$RunMsizap,
+		
 		[Parameter(ParameterSetName = 'Msizap')]
 		[string]$MsizapParams = 'TWG!',
+		
 		[Parameter(ParameterSetName = 'Msizap')]
 		[ValidateScript({ Test-Path $_ -PathType 'Leaf' })]
-		[string]$MsizapFilePath = '\\configmanager\deploymentmodules\softwareinstallmanager\msizap.exe',
+		[string]$MsizapFilePath = 'C:\MyDeployment\msizap.exe',
+		
 		[Parameter(ParameterSetName = 'ISS',
 				   Mandatory = $true)]
 		[ValidateScript({ Test-Path $_ -PathType 'Leaf' })]
 		[ValidatePattern('\.iss$')]
 		[string]$IssFilePath,
+		
 		[Parameter(ParameterSetName = 'ISS')]
 		[ValidateScript({ Test-Path $_ -PathType 'Leaf' })]
 		[string]$InstallShieldSetupFilePath
 	)
-	
-	begin {
-		try {
-			$script:CmClientWmiNamespace = 'root\cimv2\sms'
-			
-		} catch {
-			Write-Log -Message $_.Exception.Message -LogLevel '3'
-			return
-		}
-	}
-	
-	process {
-		try {
-			if ($KillProcess) {
+	process
+	{
+		try
+		{
+			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
+			if ($KillProcess)
+			{
 				Stop-MyProcess $KillProcess
 			}
 			
-			if ($RemoveService) {
+			if ($RemoveService)
+			{
 				Remove-MyService $RemoveService
 			}
 			
-			foreach ($Product in $ProductName) {
-				Write-Log -Message "Finding all software titles registered under the name '$Product'"
-				$SoftwareInstances = Get-InstalledSoftware -Name $Product
-				if (!$SoftwareInstances) {
-					Write-Log -Message "No software installed that matches product '$Product'"
-					break
-				}
-				foreach ($SoftwareInstance in $SoftwareInstances) {
-					$Title = $SoftwareInstance.ARPDisplayname
-					$Guid = $SoftwareInstance.SoftwareCode
-					
-					$InstallFolderPath = Get-InstallLocation -Guid $Guid
-					if ($InstallFolderPath -and (@('C:', 'C:\Windows', 'C:\Windows\System32', 'C:\Windows\SysWOW64') -notcontains $InstallFolderPath.Trim())) {
-						Write-Log -Message "Checking for processes in install folder '$InstallFolderPath'...."
-						Write-Log -Message "Stopping all processes under the install folder $InstallFolderPath..."
-						$Processes = (Get-Process | where { $_.Path -like "$InstallFolderPath*" } | select -ExpandProperty Name)
-						if ($Processes) {
-							Write-Log -Message "Sending processes: $Processes to Stop-MyProcess..."
-							## Check to see if the process is still running.  It's possible the termination of other processes
-							## already killed this one.
-							$Processes = $Processes | where { Get-Process -Name $_ -ea 'SilentlyContinue' }
-							Stop-MyProcess $Processes
-						} else {
-							Write-Log -Message 'No processes running under the install folder path'
-						}
-					} else {
-						Write-Log -Message "Could not find the install folder path to stop open processes" -LogLevel '2'
-					}
-					
-					if ($SoftwareInstance.UninstallString) {
-						$InstallerType = Get-InstallerType $SoftwareInstance.UninstallString
-					} else {
-						Write-Log -Message "Uninstall string for $Title not found" -LogLevel '2'
-					}
-					if (!$PsBoundParameters['LogFilePath']) {
-						$WmiParams = @{
-							'Class' = 'Win32_Environment';
-							'Filter' = "Name = 'TEMP' AND Username = '<SYSTEM>'"
-						}
-						$script:LogFilePath = "$((Get-WmiObject @WmiParams).VariableValue)\$Title.log"
-						Write-Log -Message "No log file path specified.  Defaulting to $script:LogFilePath..."
-					}
-					if (!$InstallerType -or ($InstallerType -eq 'Windows Installer')) {
-						Write-Log -Message "Installer type detected to be Windows Installer or unknown for $Title. Attempting Windows Installer removal" -LogLevel '2'
-						Uninstall-WindowsInstallerPackage -ProductName $Title
-					} elseif ($InstallerType -eq 'InstallShield') {
-						Write-Log -Message "Installer type detected as Installshield."
-						Write-Log -Message "ISS file at $IssFilePath is valid for the GUID $Guid"
-						$Params = @{
-							'IssFilePath' = $IssFilePath;
-							'ProductName' = $Title;
-							'SetupFilePath' = $InstallShieldSetupFilePath
-						}
-						if ($InstallshieldLogFilePath) {
-							$Params.InstallshieldLogFilePath = $InstallshieldLogFilePath
-						}
-						Uninstall-InstallShieldPackage @Params
-					}
-					if (!(Validate-IsSoftwareInstalled -Name $Title)) {
-						Write-Log -Message "Successfully removed $Title!"
-					} else {
-						Write-Log -Message "$Title was not uninstalled via traditional uninstall" -LogLevel '2'
-						if ($RunMsizap.IsPresent) {
-							Write-Log -Message "Attempting Msizap..."
-							Uninstall-ViaMsizap -Guid $Guid -MsizapFilePath $MsizapFilePath -Params $MsiZapParams
-						} else {
-							Write-Log -Message "$Title failed to uninstall successfully" -LogLevel '3'
-						}
-					}
-				}
+			Write-Log -Message "Finding all software titles registered under the name '$Name'"
+			$swInstance = Get-InstalledSoftware -Name $Name
+			if (-not $swInstance)
+			{
+				Write-Log -Message "The software [$($Name)]	was not found"
 			}
-			
-			if ($RemoveRegistryKey) {
-				Write-Log -Message 'Beginning registry key removal...'
-				foreach ($Key in $RemoveRegistryKey) {
-					if (($Key | Split-Path -Qualifier) -eq 'HKLM:') {
-						Write-Log -Message "Removing HKLM registry key '$Key' for system"
-						Remove-Item -Path $Key -Recurse -Force -ea 'SilentlyContinue'
-					} elseif (($Key | Split-Path -Qualifier) -eq 'HKCU:') {
-						Write-Log -Message "Removing HKCU registry key '$Key' for all users"
-						Set-RegistryValueForAllUsers -RegistryInstance @{ 'Path' = $Key.Replace('HKCU:\', '') } -Remove
-					} else {
-						Write-Log -Message "Registry key '$Key' not in recognized format" -LogLevel '2'
-					}
-				}
-			}
-			
-			if ($InstallFolderPath) {
-				Write-Log -Message "Removing any user profile shortcuts associated with the software if an install location was found"
-				Get-Shortcut -MatchingTargetPath $InstallFolderPath | Remove-Item -Force
-			}
-			
-			if ($Shortcut) {
-				Write-Log -Message "Removing all shortcuts in all user profile folders"
-				foreach ($key in $Shortcut.GetEnumerator()) {
-					$Params = @{ $key.Name = $key.value }
-					Get-Shortcut $Params | Remove-Item -Force -ea 'Continue'
-				}
-			}
-			
-			if ($RemoveFolder) {
-				Write-Log -Message "Starting folder removal..."
-				foreach ($Folder in $RemoveFolder) {
-					try {
-						Write-Log -Message "Checking for $Folder existence..."
-						if (Test-Path $Folder -PathType 'Container') {
-							Write-Log -Message "Found folder $Folder.  Attempting to remove..."
-							Remove-Item $Folder -Force -Recurse -ea 'Continue'
-							if (!(Test-Path $Folder -PathType 'Container')) {
-								Write-Log -Message "Successfully removed $Folder"
-							} else {
-								Write-Log -Message "Failed to remove $Folder" -LogLevel '2'
+			else
+			{
+				foreach ($swEntry in $swInstance)
+				{
+					try
+					{
+						if ($swEntry.InstallLocation)
+						{
+							Write-Log -Message "Stopping all processes under the install folder $($swEntry.InstallLocation)..."
+							$Processes = (Get-Process | where { $_.Path -like "$($swEntry.InstallLocation)*" } | select -ExpandProperty Name)
+							if ($Processes)
+							{
+								Write-Log -Message "Sending processes: $Processes to Stop-MyProcess..."
+								## Check to see if the process is still running.  It's possible the termination of other processes
+								## already killed this one.
+								$Processes = $Processes | where { Get-Process -Name $_ -ea 'SilentlyContinue' }
+								Stop-MyProcess $Processes
 							}
-						} else {
-							Write-Log -Message "$Folder was not found..."
+							else
+							{
+								Write-Log -Message 'No processes running under the install folder path'
+							}
 						}
-						Get-Shortcut -MatchingTargetPath $Folder -ErrorAction 'SilentlyContinue' | Remove-Item -ea 'Continue' -Force
-					} catch {
-						Write-Log -Message "Error occurred: '$($_.Exception.Message)' attempting to remove folder" -LogLevel '3'
+						
+						if ($swEntry.UninstallString)
+						{
+							$InstallerType = Get-InstallerType $swEntry.UninstallString
+						}
+						else
+						{
+							Write-Log -Message "Uninstall string for $Name not found" -LogLevel '2'
+						}
+						if (!$PsBoundParameters['LogFilePath'])
+						{
+							$script:LogFilePath = "$(Get-SystemTempFolderPath)\$Name.log"
+							Write-Log -Message "No log file path specified.  Defaulting to $script:LogFilePath..."
+						}
+						if (!$InstallerType -or ($InstallerType -eq 'Windows Installer'))
+						{
+							Write-Log -Message "Installer type detected to be Windows Installer or unknown for $Name. Attempting Windows Installer removal" -LogLevel '2'
+							if ($swEntry.GUID)
+							{
+								Uninstall-WindowsInstallerPackage -Guid $swEntry.GUID
+							}
+							else
+							{
+								Uninstall-WindowsInstallerPackage -Name $Name
+							}
+						}
+						elseif ($InstallerType -eq 'InstallShield')
+						{
+							Write-Log -Message "Installer type detected as Installshield."
+							$Params = @{
+								'IssFilePath' = $IssFilePath;
+								'Name' = $Name;
+								'SetupFilePath' = $InstallShieldSetupFilePath
+							}
+							if ($InstallshieldLogFilePath)
+							{
+								$Params.InstallshieldLogFilePath = $InstallshieldLogFilePath
+							}
+							Uninstall-InstallShieldPackage @Params
+						}
+						if (!(Test-InstalledSoftware -Name $Name))
+						{
+							Write-Log -Message "Successfully removed $Name!"
+						}
+						else
+						{
+							Write-Log -Message "$Name was not uninstalled via traditional uninstall" -LogLevel '2'
+							if ($RunMsizap.IsPresent)
+							{
+								Write-Log -Message "Attempting Msizap..."
+								Uninstall-ViaMsizap -Guid $swEntry.GUID -MsizapFilePath $MsizapFilePath -Params $MsiZapParams
+							}
+							else
+							{
+								Write-Log -Message "$Name failed to uninstall successfully" -LogLevel '3'
+							}
+						}
+						if ($RemoveRegistryKey)
+						{
+							Write-Log -Message 'Beginning registry key removal...'
+							foreach ($Key in $RemoveRegistryKey)
+							{
+								if (($Key | Split-Path -Qualifier) -eq 'HKLM:')
+								{
+									Write-Log -Message "Removing HKLM registry key '$Key' for system"
+									Remove-Item -Path $Key -Recurse -Force -ea 'SilentlyContinue'
+								}
+								elseif (($Key | Split-Path -Qualifier) -eq 'HKCU:')
+								{
+									Write-Log -Message "Removing HKCU registry key '$Key' for all users"
+									Set-RegistryValueForAllUsers -RegistryInstance @{ 'Path' = $Key.Replace('HKCU:\', '') } -Remove
+								}
+								else
+								{
+									Write-Log -Message "Registry key '$Key' not in recognized format" -LogLevel '2'
+								}
+							}
+						}
+						
+						if ($InstallFolderPath)
+						{
+							Write-Log -Message "Removing any user profile shortcuts associated with the software if an install location was found"
+							Get-Shortcut -MatchingTargetPath $InstallFolderPath | Remove-Item -Force
+						}
+						
+						if ($Shortcut)
+						{
+							Write-Log -Message "Removing all shortcuts in all user profile folders"
+							foreach ($key in $Shortcut.GetEnumerator())
+							{
+								$Params = @{ $key.Name = $key.value }
+								Get-Shortcut $Params | Remove-Item -Force -ea 'Continue'
+							}
+						}
+						
+						if ($RemoveFolder)
+						{
+							Write-Log -Message "Starting folder removal..."
+							foreach ($Folder in $RemoveFolder)
+							{
+								try
+								{
+									Write-Log -Message "Checking for $Folder existence..."
+									if (Test-Path $Folder -PathType 'Container')
+									{
+										Write-Log -Message "Found folder $Folder.  Attempting to remove..."
+										Remove-Item $Folder -Force -Recurse -ea 'Continue'
+										if (!(Test-Path $Folder -PathType 'Container'))
+										{
+											Write-Log -Message "Successfully removed $Folder"
+										}
+										else
+										{
+											Write-Log -Message "Failed to remove $Folder" -LogLevel '2'
+										}
+									}
+									else
+									{
+										Write-Log -Message "$Folder was not found..."
+									}
+									Get-Shortcut -MatchingTargetPath $Folder -ErrorAction 'SilentlyContinue' | Remove-Item -ea 'Continue' -Force
+								}
+								catch
+								{
+									Write-Log -Message "Error occurred: '$($_.Exception.Message)' attempting to remove folder" -LogLevel '3'
+								}
+							}
+						}
+					}
+					catch
+					{
+						Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
 					}
 				}
 			}
-		} catch {
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+		}
+		catch
+		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
 			$false
 		}
 	}
@@ -1316,7 +1541,8 @@ function Remove-Software {
 #endregion
 
 #region UserProfiles
-function Get-AllUsersDesktopFolderPath {
+function Get-AllUsersDesktopFolderPath
+{
 	<#
 	.SYNOPSIS
 		Because sometimes the all users desktop folder path can be different this function is a placeholder to find
@@ -1324,18 +1550,26 @@ function Get-AllUsersDesktopFolderPath {
 	#>
 	[CmdletBinding()]
 	param ()
-	process {
-		try {
+	process
+	{
+		try
+		{
+			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
 			$Shell = New-Object -ComObject "WScript.Shell"
 			$Shell.SpecialFolders.Item('AllUsersDesktop')
-		} catch {
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+		}
+		catch
+		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
 			$false
 		}
 	}
 }
 
-function Get-AllUsersProfileFolderPath {
+function Get-AllUsersProfileFolderPath
+{
 	<#
 	.SYNOPSIS
 		Because sometimes the all users profile folder path can be different this function is a placeholder to find
@@ -1344,17 +1578,25 @@ function Get-AllUsersProfileFolderPath {
 	#>
 	[CmdletBinding()]
 	param ()
-	process {
-		try {
+	process
+	{
+		try
+		{
+			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
 			$env:ALLUSERSPROFILE
-		} catch {
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+		}
+		catch
+		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
 			$false
 		}
 	}
 }
 
-function Get-AllUsersStartMenuFolderPath {
+function Get-AllUsersStartMenuFolderPath
+{
 	<#
 	.SYNOPSIS
 		Because sometimes the all users profile folder path can be different this function is a placeholder to find
@@ -1362,38 +1604,58 @@ function Get-AllUsersStartMenuFolderPath {
 	#>
 	[CmdletBinding()]
 	param ()
-	process {
-		try {
-			if (((Get-OperatingSystem) -match 'XP') -or ((Get-OperatingSystem) -match '2003')) {
+	process
+	{
+		try
+		{
+			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
+			if (((Get-OperatingSystem) -match 'XP') -or ((Get-OperatingSystem) -match '2003'))
+			{
 				"$(Get-AllUsersProfileFolderPath)\Start Menu"
-			} else {
+			}
+			else
+			{
 				"$(Get-AllUsersProfileFolderPath)\Microsoft\Windows\Start Menu"
 			}
-		} catch {
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+		}
+		catch
+		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
 			$false
 		}
 	}
 }
 
-function Get-ProfileSids {
+function Get-UserProfile
+{
 	<#
 	.SYNOPSIS
-		This function queries the registry to find all of the SIDs of all the user profiles on the computer.
+		This function queries the registry to find all of the user profiles
 	#>
 	[CmdletBinding()]
 	param ()
-	process {
-		try {
-			(Get-Childitem 'HKLM:\Software\Microsoft\Windows NT\CurrentVersion\ProfileList' | Where { ($_.Name -match 'S-\d-\d+-(\d+-){1,14}\d+$') }).PSChildName
-		} catch {
+	process
+	{
+		try
+		{
+			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
+			Get-ItemProperty 'HKLM:\Software\Microsoft\Windows NT\CurrentVersion\ProfileList\*' |
+			Select-Object -ExcludeProperty SID *,@{ n='SID'; e={ $_.PSChildName } }, @{ n = 'Username'; e = { $_.ProfileImagePath | Split-Path -Leaf } }
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+		}
+		catch
+		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
 			$false
 		}
 	}
 }
 
-function Get-RootUserProfileFolderPath {
+function Get-RootUserProfileFolderPath
+{
 	<#
 	.SYNOPSIS
 		Because sometimes the root user profile folder path can be different this function is a placeholder to find
@@ -1402,17 +1664,25 @@ function Get-RootUserProfileFolderPath {
 	#>
 	[CmdletBinding()]
 	param ()
-	process {
-		try {
+	process
+	{
+		try
+		{
+			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
 			(Get-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList' -Name ProfilesDirectory).ProfilesDirectory
-		} catch {
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+		}
+		catch
+		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
 			$false
 		}
 	}
 }
 
-function Get-UserProfilePath {
+function Get-UserProfilePath
+{
 	<#
 	.SYNOPSIS
 		This function find the folder path of a user profile based off of a number of different criteria.  If no criteria is
@@ -1434,34 +1704,48 @@ function Get-UserProfilePath {
 	param (
 		[Parameter(ParameterSetName = 'SID')]
 		[string]$Sid,
+		
 		[Parameter(ParameterSetName = 'Username')]
 		[string]$Username
 	)
 	
-	process {
-		try {
-			if ($Sid) {
+	process
+	{
+		try
+		{
+			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
+			if ($Sid)
+			{
 				$WhereBlock = { $_.PSChildName -eq $Sid }
-			} elseif ($Username) {
+			}
+			elseif ($Username)
+			{
 				$WhereBlock = { $_.GetValue('ProfileImagePath').Split('\')[-1] -eq $Username }
-			} else {
+			}
+			else
+			{
 				$WhereBlock = { $_.PSChildName -ne $null }
 			}
 			Get-ChildItem 'HKLM:\Software\Microsoft\Windows NT\CurrentVersion\ProfileList' | where $WhereBlock | % { $_.GetValue('ProfileImagePath') }
-		} catch {
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+		}
+		catch
+		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
 			$false
 		}
 	}
 }
 
-function Remove-ItemFromAllUserProfiles {
+function Remove-ProfileItem
+{
 	<#
 	.SYNOPSIS
 		This function removes a file(s) or folder(s) with the same path in all user profiles including
 		system profiles like SYSTEM, NetworkService and AllUsers.
 	.EXAMPLE
-		PS> .\Remove-ItemFromAllUserProfiles -Path 'AppData\Adobe'
+		PS> .\Remove-ProfileItem -Path 'AppData\Adobe'
 	
 		This example will remove the folder path 'AppData\Adobe' from all user profiles
 	.PARAMETER Path
@@ -1473,35 +1757,51 @@ function Remove-ItemFromAllUserProfiles {
 		[string[]]$Path
 	)
 	
-	process {
-		try {
+	process
+	{
+		try
+		{
+			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
 			$AllUserProfileFolderPath = Get-AllUsersProfileFolderPath
 			$UserProfileFolderPaths = Get-UserProfilePath
 			
-			foreach ($p in $Path) {
-				if (!(Test-Path "$AllUserProfileFolderPath\$p")) {
+			foreach ($p in $Path)
+			{
+				if (!(Test-Path "$AllUserProfileFolderPath\$p"))
+				{
 					Write-Log -Message "The folder '$AllUserProfileFolderPath\$p' does not exist"
-				} else {
+				}
+				else
+				{
 					Remove-Item -Path "$AllUserProfileFolderPath\$p" -Force -Recurse
 				}
 				
 				
-				foreach ($ProfilePath in $UserProfileFolderPaths) {
-					if (!(Test-Path "$ProfilePath\$p")) {
+				foreach ($ProfilePath in $UserProfileFolderPaths)
+				{
+					if (!(Test-Path "$ProfilePath\$p"))
+					{
 						Write-Log -Message "The folder '$ProfilePath\$p' does not exist"
-					} else {
+					}
+					else
+					{
 						Remove-Item -Path "$ProfilePath\$p" -Force -Recurse
 					}
 				}
 			}
-		} catch {
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+		}
+		catch
+		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
 			$false
 		}
 	}
 }
 
-function Set-AllUserStartupAction {
+function Set-AllUserStartupAction
+{
 	<#
 	.SYNOPSIS
 		A function that executes a command line for the any current logged on user and uses the Active Setup registry key to set a 
@@ -1514,8 +1814,11 @@ function Set-AllUserStartupAction {
 		[Parameter(Mandatory = $true)]
 		[string]$CommandLine
 	)
-	process {
-		try {
+	process
+	{
+		try
+		{
+			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
 			## Create the Active Setup registry key so that the reg add cmd will get ran for each user
 			## logging into the machine.
 			## http://www.itninja.com/blog/view/an-active-setup-primer
@@ -1529,9 +1832,12 @@ function Set-AllUserStartupAction {
 			Set-ItemProperty -Path $ActiveSetupRegPath -Name '(Default)' -Value 'Active Setup Test' -Force
 			Set-ItemProperty -Path $ActiveSetupRegPath -Name 'Version' -Value '1' -Force
 			Set-ItemProperty -Path $ActiveSetupRegPath -Name 'StubPath' -Value $CommandLine -Force
-			Write-Log -Message 'Done'
-		} catch {
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+		}
+		catch
+		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
 			$false
 		}
 	}
@@ -1539,7 +1845,8 @@ function Set-AllUserStartupAction {
 #endregion
 
 #region WindowsInstaller
-function Uninstall-ViaMsizap {
+function Uninstall-ViaMsizap
+{
 	<#
 	.SYNOPSIS
 		This function runs the MSIzap utility to forcefully remove and cleanup MSI-installed software		
@@ -1563,30 +1870,41 @@ function Uninstall-ViaMsizap {
 		[ValidatePattern('\b[A-F0-9]{8}(?:-[A-F0-9]{4}){3}-[A-F0-9]{12}\b')]
 		[Parameter(Mandatory = $true)]
 		[string]$Guid,
+		
 		[string]$Params = 'TWG!',
+		
 		[ValidateScript({ Test-Path $_ -PathType 'Leaf' })]
-		[string]$MsizapFilePath = '\\configmanager\deploymentmodules\softwareinstallmanager\msizap.exe',
+		[string]$MsizapFilePath = "C:\MyDeployment\msizap.exe",
+		
 		[Parameter()]
-		[string]$LogFilePath = "$(Get-SystemTempFilePath)\msizap.log"
+		[string]$LogFilePath = "$(Get-SystemTempFolderPath)\msizap.log"
 	)
-	process {
-		try {
+	process
+	{
+		try
+		{
+			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
 			Write-Log -Message "-Starting the process `"$MsiZapFilePath $Params $Guid`"..."
 			$NewProcess = Start-Process $MsiZapFilePath -ArgumentList "$Params $Guid" -Wait -NoNewWindow -PassThru -RedirectStandardOutput $LogFilePath
 			Wait-MyProcess -ProcessId $NewProcess.Id
-		} catch {
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+		}
+		catch
+		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
 			$false
 		}
 	}
 }
 
-function Uninstall-WindowsInstallerPackage {
+function Uninstall-WindowsInstallerPackage
+{
 	<#
 	.SYNOPSIS
 		This function runs an uninstall for a Windows Installer package
-	.PARAMETER ProductName
-		The software title of the Windows installer package you'd like to uninstall.  Use either the ProductName
+	.PARAMETER Name
+		The software title of the Windows installer package you'd like to uninstall.  Use either the Name
 		param or the Guid param to find the Windows installer package.
 	.PARAMETER Guid
 		The GUID of the Windows Installer package
@@ -1594,47 +1912,46 @@ function Uninstall-WindowsInstallerPackage {
 	[CmdletBinding(DefaultParameterSetName = 'Guid')]
 	param (
 		[Parameter(ParameterSetName = 'Name')]
-		[Alias('Name')]
-		[string]$ProductName,
+		[string]$Name,
+		
 		[Parameter(ParameterSetName = 'Guid')]
 		[ValidatePattern('\b[A-F0-9]{8}(?:-[A-F0-9]{4}){3}-[A-F0-9]{12}\b')]
 		[string]$Guid
 	)
-	process {
-		try {
-			if ($ProductName) {
-				Write-Log -Message "Attempting to uninstall Windows Installer using name '$ProductName'..."
-				$Params = @{ 'ProductName' = $ProductName }
-			} elseif ($Guid) {
+	process
+	{
+		try
+		{
+			if ($Name)
+			{
+				Write-Log -Message "Attempting to uninstall Windows Installer using name '$Name'..."
+				$Params = @{ 'Name' = $Name }
+			}
+			elseif ($Guid)
+			{
 				Write-Log -Message "Attempting to uninstall Windows Installer using GUID '$Guid'..."
 				$Params = @{ 'Guid' = $Guid }
 			}
 			
-			## The MSI module does not work with PSv2
-			if ($psversiontable.psversion.major -eq 2) {
-				Uninstall-WindowsInstallerPackageWithMsiexec @Params
-			} else {
-				$Result = Uninstall-WindowsInstallerPackageWithMsiModule @Params
-				## I've seen instances where using the MSI module does not work but using the traditional msiexec.exe does
-				if (!$Result) {
-					Uninstall-WindowsInstallerPackageWithMsiexec @Params
-				} else {
-					$Result
-				}
-			}
-		} catch {
+			Uninstall-WindowsInstallerPackageWithMsiexec @Params
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+		}
+		catch
+		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
 			$false
 		}
 	}
 }
 
-function Uninstall-WindowsInstallerPackageWithMsiexec {
+function Uninstall-WindowsInstallerPackageWithMsiexec
+{
 	<#
 	.SYNOPSIS
 		This function runs an uninstall for a Windows Installer package using msiexec.exe /x
-	.PARAMETER ProductName
-		The software title of the Windows installer package you'd like to uninstall.  Use either the ProductName
+	.PARAMETER Name
+		The software title of the Windows installer package you'd like to uninstall.  Use either the Name
 		param or the Guid param to find the Windows installer package.
 	.PARAMETER Guid
 		The GUID of the Windows Installer package
@@ -1642,47 +1959,68 @@ function Uninstall-WindowsInstallerPackageWithMsiexec {
 	[CmdletBinding(DefaultParameterSetName = 'Guid')]
 	param (
 		[Parameter(ParameterSetName = 'Name')]
-		[Alias('Name')]
-		[string]$ProductName,
+		[string]$Name,
+		
 		[Parameter(ParameterSetName = 'Guid')]
 		[ValidatePattern('\b[A-F0-9]{8}(?:-[A-F0-9]{4}){3}-[A-F0-9]{12}\b')]
 		[string]$Guid
 	)
-	process {
-		try {
-			if ($ProductName) {
-				Write-Log -Message "Attempting to uninstall Windows Installer with msiexec.exe using name '$ProductName'..."
-				$Params = @{ 'Name' = $ProductName }
-			} elseif ($Guid) {
-				Write-Log -Message "Attempting to uninstall Windows Installer with msiexec.exe using GUID '$Guid'..."
-				$Params = @{ 'Guid' = $Guid }
+	process
+	{
+		Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
+		if ($Name)
+		{
+			Write-Log -Message "Attempting to uninstall Windows Installer with msiexec.exe using name '$Name'..."
+			$Params = @{ 'Name' = $Name }
+			$software = Get-InstalledSoftware @Params
+			if (-not $software)
+			{
+				throw 'Name specified for uninstall but could not find GUID to remove'
 			}
-			$Product = Get-InstalledSoftware @Params
-			Write-Log -Message "Initiating msiexec.exe with arguments '/x $($Product.SoftwareCode) /qn REBOOT=ReallySuppress'"
-			$Process = Start-Process 'msiexec.exe' -ArgumentList "/x $($Product.SoftwareCode) /qn REBOOT=ReallySuppress" -PassThru -Wait -NoNewWindow
-			Wait-WindowsInstaller
-			Check-Process $Process
-			if (!(Validate-IsSoftwareInstalled @Params)) {
-				Write-Log -Message "Successfully uninstalled MSI package with msiexec.exe"
-				$true
-			} else {
-				Write-Log -Message "Failed to uninstall MSI package with msiexec.exe" -LogLevel '3'
-				$false
+			else
+			{
+				## Sometimes multiple instances are returned. 1 having no GUID and 1 having a GUID.
+				## Cisco AnyConnect is an example where if the one with the GUID is removed both are removed.
+				$Guid = $software | Where-Object { $_.GUID }
+				if (-not $Guid)
+				{
+					throw 'Required GUID could not be found for software'
+				}
+				else
+				{
+					$Guid = $Guid.GUID
+					Write-Log -Message "Using GUID [$Guid] for the uninstall"
+				}
 			}
-		} catch {
-			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+		}
+		
+		Write-Log -Message "Initiating msiexec.exe with arguments '/x $Guid /qn REBOOT=ReallySuppress'"
+		$Process = Start-Process 'msiexec.exe' -ArgumentList "/x $Guid /qn REBOOT=ReallySuppress" -PassThru -Wait -NoNewWindow
+		Wait-WindowsInstaller
+		Test-Process $Process
+		if (!(Test-InstalledSoftware -Guid $Guid))
+		{
+			Write-Log -Message "Successfully uninstalled MSI package with msiexec.exe"
+			$true
+		}
+		else
+		{
+			Write-Log -Message "Failed to uninstall MSI package with msiexec.exe" -LogLevel '3'
 			$false
 		}
+		Write-Log -Message "$($MyInvocation.MyCommand) - END"
+		Write-Log -Message "$($MyInvocation.MyCommand) - END"
 	}
 }
 
-function Uninstall-WindowsInstallerPackageWithMsiModule {
+function Uninstall-WindowsInstallerPackageWithMsiModule
+{
 	<#
 	.SYNOPSIS
 		This function runs an uninstall for a Windows Installer package using the Windows Installer Powershell module
 		https://psmsi.codeplex.com
-	.PARAMETER ProductName
-		The software title of the Windows installer package you'd like to uninstall.  Use either the ProductName
+	.PARAMETER Name
+		The software title of the Windows installer package you'd like to uninstall.  Use either the Name
 		param or the Guid param to find the Windows installer package.
 	.PARAMETER Guid
 		The GUID of the Windows Installer package
@@ -1690,78 +2028,104 @@ function Uninstall-WindowsInstallerPackageWithMsiModule {
 	[CmdletBinding(DefaultParameterSetName = 'Guid')]
 	param (
 		[Parameter(ParameterSetName = 'Name')]
-		[Alias('Name')]
-		[string]$ProductName,
+		[string]$Name,
+		
 		[Parameter(ParameterSetName = 'Guid')]
 		[ValidatePattern('\b[A-F0-9]{8}(?:-[A-F0-9]{4}){3}-[A-F0-9]{12}\b')]
 		[string]$Guid
 	)
-	process {
-		try {
-			$ChildModulesPath = '\\configmanager\deploymentmodules'
-			if (!(Test-Path "$ChildModulesPath\MSI")) {
-				Write-Log -Message "Required MSI module is not available. Moving to msiexec.exe uninstall method" -LogLevel '2'
+	process
+	{
+		try
+		{
+			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
+			if (!(Test-Path 'C:\MyDeployment\MSI'))
+			{
+				Write-Log -Message "Required MSI module is not available" -LogLevel '2'
 				$false
-			} elseif ((Get-OperatingSystem) -notmatch 'XP') {
+			}
+			elseif (((Get-OperatingSystem) -notmatch 'XP') -and ((Get-OperatingSystem) -notmatch 'Server'))
+			{
 				Write-Log -Message "Importing MSI module..."
-				Import-Module "$ChildModulesPath\MSI"
+				Import-Module 'C:\MyDeployment\MSI'
+				Write-Log -Message "MSI module imported."
+				$UninstallParams = @{
+					'Log' = $script:LogFilePath
+					'Chain' = $true
+					'Force' = $true
+					'ErrorAction' = 'SilentlyContinue'
+					'Properties' = 'REBOOT=ReallySuppress'
+				}
+				
+				if ($Name)
+				{
+					$MsiProductParams = @{ 'Name' = $Name }
+				}
+				elseif ($Guid)
+				{
+					$MsiProductParams = @{ 'ProductCode' = $Guid }
+				}
+				
+				Get-MSIProductInfo @MsiProductParams | Uninstall-MsiProduct @UninstallParams
+				if (!(Test-InstalledSoftware @MsiProductParams))
+				{
+					Write-Log -Message "Successfully uninstalled MSI package '$Name' with MSI module"
+					$true
+				}
+				else
+				{
+					Write-Log -Message "Failed to uninstall MSI package '$Name' with MSI module" -LogLevel '2'
+					$false
+				}
 			}
-			
-			$UninstallParams = @{
-				'Log' = $script:LogFilePath
-				'Chain' = $true
-				'Force' = $true
-				'ErrorAction' = 'SilentlyContinue'
-				'Properties' = 'REBOOT=ReallySuppress'
-			}
-			
-			if ($ProductName) {
-				$MsiProductParams = @{ 'Name' = $ProductName }
-			} elseif ($Guid) {
-				$MsiProductParams = @{ 'ProductCode' = $Guid }
-			}
-			
-			Get-MSIProductInfo @MsiProductParams | Uninstall-MsiProduct @UninstallParams
-			Wait-WindowsInstaller
-			if (!(Validate-IsSoftwareInstalled @MsiProductParams)) {
-				Write-Log -Message "Successfully uninstalled MSI package '$ProductName' with MSI module"
-				$true
-			} else {
-				Write-Log -Message "Failed to uninstall MSI package '$ProductName' with MSI module" -LogLevel '2'
-				$false
-			}
-		} catch {
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+		}
+		catch
+		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
 			$false
 		}
 	}
 }
 
-function Wait-WindowsInstaller {
+function Wait-WindowsInstaller
+{
 	<#
 	.SYNOPSIS
 		This function should be called immediately after the Uninstall-WindowsInstallerPackage function.  This is a specific
 		process waiting function especially for msiexec.exe.  It was built because the Wait-MyProcess function will sometimes
-		not work with msiexec installs/uninstalls.  This is because msiexec.exe creates a process tree which doesn't necessarily
+		not work with msiexec installs/uninstalls.  This is because msiexec.exe creates a process tree which does not necessarily
 		mean child processes.  Using this function will ensure your script always wait for the msiexec.exe process you
 		kicked off to complete before continuing.
 	#>
 	[CmdletBinding()]
 	param ()
-	process {
-		try {
+	process
+	{
+		try
+		{
+			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
 			$MsiexecProcesses = Get-WmiObject -Class Win32_Process -Filter "Name = 'msiexec.exe'" | where { $_.CommandLine -ne 'C:\Windows\system32\msiexec.exe /V' }
-			if ($MsiExecProcesses) {
+			if ($MsiExecProcesses)
+			{
 				Write-Log -Message "Found '$($MsiexecProcesses.Count)' Windows installer processes.  Waiting..."
-				foreach ($Process in $MsiexecProcesses) {
+				foreach ($Process in $MsiexecProcesses)
+				{
 					Wait-MyProcess -ProcessId $Process.ProcessId
 				}
 				Wait-WindowsInstaller
-			} else {
+			}
+			else
+			{
 				Write-Log -Message "No Windows installer processes found"
 			}
-		} catch {
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+		}
+		catch
+		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
 			$false
 		}
 	}
@@ -1769,12 +2133,13 @@ function Wait-WindowsInstaller {
 #endregion
 
 #region InstallShield
-function Uninstall-InstallShieldPackage {
+function Uninstall-InstallShieldPackage
+{
 	<#
 	.SYNOPSIS
 		This function runs an uninstall for any InstallShield packaged software.  This function utilitizes an
 		InstallShield ISS file to silently uninstall the application.
-	.PARAMETER ProductName
+	.PARAMETER Name
 		One or more software titles of the InstallShield package you'd like to uninstall.
 	.PARAMETER IssFilePath
 		The file path where the pre-built silent answer file (ISS) is located.
@@ -1787,74 +2152,100 @@ function Uninstall-InstallShieldPackage {
 	[CmdletBinding()]
 	param (
 		[Parameter(Mandatory = $true)]
-		[Alias('Name')]
-		[string[]]$ProductName,
+		[string[]]$Name,
+		
 		[Parameter(Mandatory = $true)]
 		[ValidateScript({ Test-Path -Path $_ -PathType 'Leaf' })]
 		[string]$IssFilePath,
+		
 		[Parameter(Mandatory = $true)]
 		[ValidateScript({ Test-Path -Path $_ -PathType 'Leaf' })]
 		[string]$SetupFilePath,
+		
 		[ValidateScript({ Test-Path -Path ($_ | Split-Path -Parent) -PathType 'Container' })]
-		[string]$LogFilePath = "(Get-SystemTempFilePath)\IssSetupLog.log"
+		[string]$LogFilePath = "(Get-SystemTempFolderPath)\IssSetupLog.log"
 	)
-	process {
-		try {
-			foreach ($Product in $ProductName) {
-				Write-Log -Message "Beginning uninstall for Installshield product '$ProductName'"
+	process
+	{
+		try
+		{
+			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
+			foreach ($Product in $Name)
+			{
+				Write-Log -Message "Beginning uninstall for Installshield product '$Name'"
 				## Find the uninstall string to find the cached setup.exe
 				$Products = Get-InstalledSoftware $Product
 				## If multiple products are found, remove them all
-				foreach ($p in $Products) {
-					$Title = $p.ARPDisplayName
+				foreach ($p in $Products)
+				{
 					$UninstallString = $p.UninstallString
 					## Check to ensure anything is in the UninstallString property
-					if (!$p.UninstallString) {
+					if (!$p.UninstallString)
+					{
 						Write-Log -Message "No uninstall string found for product $Title" -LogLevel '2'
-					} elseif ($p.UninstallString -match '(\w:\\[a-zA-Z0-9 _.() { }-]+\\.*.exe)+') {
+					}
+					elseif ($p.UninstallString -match '(\w:\\[a-zA-Z0-9 _.() { }-]+\\.*.exe)+')
+					{
 						## Test to ensure the cached setup.exe exists
-						if (!(Test-Path $Matches[0])) {
+						if (!(Test-Path $Matches[0]))
+						{
 							Write-Log -Message "Installer file path not found in $($p.UninstallString) or cannot be found on the file system" -LogLevel '2'
-						} else {
+						}
+						else
+						{
 							$InstallerFilePath = $Matches[0]
 							Write-Log -Message "Valid installer file path is $InstallerFilePath"
 						}
 					}
-					if (!$InstallerFilePath) {
-						if (!$SetupFilePath) {
+					if (!$InstallerFilePath)
+					{
+						if (!$SetupFilePath)
+						{
 							Write-Log -Message "No setup folder path specified. This software cannot be removed" -LogLevel '2'
 							continue
-						} else {
+						}
+						else
+						{
 							$InstallerFilePath = $SetupFilePath
 						}
 					}
 					## Run the setup.exe passing the ISS file to uninstall
-					if ($InstallshieldLogFilePath) {
+					if ($InstallshieldLogFilePath)
+					{
 						$MyLogFilePath = $InstallshieldLogFilePath
-					} else {
+					}
+					else
+					{
 						$MyLogFilePath = $script:LogFilePath
 					}
 					$InstallArgs = "/s /f1`"$IssFilePath`" /f2`"$MyLogFilePath`" /SMS"
 					Write-Log -Message "Running the install syntax `"$InstallerFilePath`" $InstallArgs"
 					$Process = Start-Process "`"$InstallerFilePath`"" -ArgumentList $InstallArgs -Wait -NoNewWindow -PassThru
-					if (!(Validate-IsSoftwareInstalled $Title)) {
+					if (!(Test-InstalledSoftware $Title))
+					{
 						Write-Log -Message "The product $Title was successfully removed!"
 						$true
-					} else {
+					}
+					else
+					{
 						Write-Log -Message "The product $Title was not removed.  Attempting secondary uninstall method" -LogLevel '2'
 						## Parse out the EXE file path and arguments.  This regex could be improved on big time.
 						$FilePathRegex = '(([a-zA-Z]\:|\\)\\([^\\]+\\)*[^\/:*?"<>|]+\.[a-zA-Z]{3})" (.+)'
-						if ($UninstallString -match $FilePathRegex) {
+						if ($UninstallString -match $FilePathRegex)
+						{
 							$InstallerFilePath = $matches[1]
 							$InstallArgs = $matches[4]
 							$InstallArgs = "$InstallArgs /s /f1`"$IssFilePath`" /f2`"$MyLogFilePath`" /SMS"
 							Write-Log -Message "Running the install syntax `"$InstallerFilePath`" $InstallArgs"
 							$Process = Start-Process "`"$InstallerFilePath`"" -ArgumentList $InstallArgs -Wait -NoNewWindow -PassThru
-							if (!(Validate-IsSoftwareInstalled $Title)) {
+							if (!(Test-InstalledSoftware $Title))
+							{
 								Write-Log -Message "The product '$Title' was not removed!"
 								$false
 							}
-						} else {
+						}
+						else
+						{
 							Write-Log -Message "Could not parse out the setup installer and arguments from uninstall string. The product '$Title' was not removed!"
 							$false
 						}
@@ -1862,8 +2253,12 @@ function Uninstall-InstallShieldPackage {
 					}
 				}
 			}
-		} catch {
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+		}
+		catch
+		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
 			$false
 		}
 	}
@@ -1871,7 +2266,8 @@ function Uninstall-InstallShieldPackage {
 #endregion
 
 #region Logging
-function Start-Log {
+function Start-Log
+{
 	<#
 	.SYNOPSIS
 		This function creates the initial log file and sets a few global variables
@@ -1892,11 +2288,13 @@ function Start-Log {
 	[CmdletBinding()]
 	param (
 		[ValidateScript({ Split-Path $_ -Parent | Test-Path })]
-		[string]$FilePath = "$(Get-SystemTempFilePath)\$((Get-Date -f 'MM-dd-yyyy (hhmm tt)') + 'Software.log')"
+		[string]$FilePath = "$(Get-SystemTempFolderPath)\$((Get-Date -f 'MM-dd-yyyy (hhmm tt)') + 'Software.log')"
 	)
 	
-	try {
-		if (!(Test-Path $FilePath)) {
+	try
+	{
+		if (!(Test-Path $FilePath))
+		{
 			## Create the log file
 			New-Item $FilePath -Type File | Out-Null
 		}
@@ -1904,12 +2302,15 @@ function Start-Log {
 		## Set the global variable to be used as the FilePath for all subsequent Write-Log
 		## calls in this session
 		$global:ScriptLogFilePath = $FilePath
-	} catch {
+	}
+	catch
+	{
 		Write-Error $_.Exception.Message
 	}
 }
 
-function Write-Log {
+function Write-Log
+{
 	<#
 	.SYNOPSIS
 		This function creates or appends a line to a log file
@@ -1940,34 +2341,39 @@ function Write-Log {
 		[Parameter(
 				   Mandatory = $true)]
 		[string]$Message,
+		
 		[Parameter()]
 		[ValidateSet(1, 2, 3)]
 		[int]$LogLevel = 1
 	)
 	
-	try {
+	try
+	{
 		$TimeGenerated = "$(Get-Date -Format HH:mm:ss).$((Get-Date).Millisecond)+000"
 		## Build the line which will be recorded to the log file
 		$Line = '<![LOG[{0}]LOG]!><time="{1}" date="{2}" component="{3}" context="" type="{4}" thread="" file="">'
 		$LineFormat = $Message, $TimeGenerated, (Get-Date -Format MM-dd-yyyy), "$($MyInvocation.ScriptName | Split-Path -Leaf):$($MyInvocation.ScriptLineNumber)", $LogLevel
 		$Line = $Line -f $LineFormat
 		
-		## Record the line to the log file if it's declared.  If not, just write to Verbose stream
-		## This is helpful when using these functions interactively when you don't preface a function
-		## with a Write-Log entry with Start-Log to create the $ScriptLogFilePath variable
-		if (Test-Path variable:\ScriptLogFilePath) {
-			Add-Content -Value $Line -Path $ScriptLogFilePath
-		} else {
-			Write-Verbose $Line
+		if (-not (Test-Path Variable:\ScriptLogFilePath))
+		{
+			Write-Verbose $Message
 		}
-	} catch {
+		else
+		{
+			Add-Content -Value $Line -Path $ScriptLogFilePath
+		}
+	}
+	catch
+	{
 		Write-Error $_.Exception.Message
 	}
 }
 #endregion
 
 #region Processes
-function Check-Process {
+function Test-Process
+{
 	<#
 	.SYNOPSIS
 		This function is called after the execution of an external CMD process to log the status of how the process was exited.
@@ -1979,23 +2385,34 @@ function Check-Process {
 		[Parameter()]
 		[System.Diagnostics.Process]$Process
 	)
-	process {
-		try {
-			if (@(0, 3010) -notcontains $Process.ExitCode) {
+	process
+	{
+		try
+		{
+			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
+			if (@(0, 3010) -notcontains $Process.ExitCode)
+			{
 				Write-Log -Message "Process ID $($Process.Id) failed. Return value was $($Process.ExitCode)" -LogLevel '2'
 				$false
-			} else {
+			}
+			else
+			{
 				Write-Log -Message "Process ID $($Process.Id) exited with successfull exit code '$($Process.ExitCode)'."
 				$true
 			}
-		} catch {
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+		}
+		catch
+		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
 			$false
 		}
 	}
 }
 
-function Get-ChildProcess {
+function Get-ChildProcess
+{
 	<#
 	.SYNOPSIS
 		This function childs all child processes a parent process has spawned
@@ -2007,17 +2424,22 @@ function Get-ChildProcess {
 		[Parameter(Mandatory = $true)]
 		[string]$ProcessId
 	)
-	process {
-		try {
+	process
+	{
+		try
+		{
 			Get-WmiObject -Class Win32_Process -Filter "ParentProcessId = '$ProcessId'"
-		} catch {
+		}
+		catch
+		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
 			$false
 		}
 	}
 }
 
-function Stop-MyProcess {
+function Stop-MyProcess
+{
 	<#
 	.SYNOPSIS
 		This function stops a process while provided robust logging of the activity
@@ -2029,35 +2451,60 @@ function Stop-MyProcess {
 		[Parameter(Mandatory = $true)]
 		[string[]]$ProcessName
 	)
-	process {
-		try {
+	process
+	{
+		try
+		{
+			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
 			$ProcessesToStop = Get-Process -Name $ProcessName -ErrorAction 'SilentlyContinue'
-			if (!$ProcessesToStop) {
+			if (!$ProcessesToStop)
+			{
 				Write-Log -Message "-No processes to be killed found..."
-			} else {
-				foreach ($process in $ProcessesToStop) {
+			}
+			else
+			{
+				foreach ($process in $ProcessesToStop)
+				{
 					Write-Log -Message "-Process $($process.Name) is running. Attempting to stop..."
 					$WmiProcess = Get-WmiObject -Class Win32_Process -Filter "name='$($process.Name).exe'" -ea 'SilentlyContinue' -ev WMIError
-					if ($WmiError) {
+					if ($WmiError)
+					{
 						Write-Log -Message "Unable to stop process $($process.Name). WMI query errored with `"$($WmiError.Exception.Message)`"" -LogLevel '2'
-					} elseif ($WmiProcess) {
+						$false
+					}
+					elseif ($WmiProcess)
+					{
 						$WmiResult = $WmiProcess.Terminate()
-						if ($WmiResult.ReturnValue -ne 0) {
+						if ($WmiResult.ReturnValue -eq 1603)
+						{
+							Write-Log -Message "Process $($process.name) exited successfully but needs a reboot."
+						}
+						elseif ($WmiResult.ReturnValue -ne 0)
+						{
 							Write-Log -Message "-Unable to stop process $($process.name). Return value was $($WmiResult.ReturnValue)" -LogLevel '2'
-						} else {
+							$false
+						}
+						else
+						{
 							Write-Log -Message "-Successfully stopped process $($process.Name)..."
+							$true
 						}
 					}
 				}
 			}
-		} catch {
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+		}
+		catch
+		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
 			$false
 		}
 	}
 }
 
-function Wait-MyProcess {
+function Wait-MyProcess
+{
 	<#
 	.SYNOPSIS
 		This function waits for a process and waits for all that process's children before releasing control
@@ -2077,60 +2524,86 @@ function Wait-MyProcess {
 	param (
 		[Parameter(Mandatory = $true)]
 		[string]$ProcessId,
+		
 		[int]$ProcessTimeout = 600,
+		
 		[int]$ReportInterval = 15,
+		
 		[int]$SleepInterval = 1,
+		
 		[string[]]$KillProcessDuringWait
 	)
-	process {
-		try {
+	process
+	{
+		try
+		{
+			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
 			$Process = Get-Process -Id $ProcessId -ea 'SilentlyContinue'
-			if ($Process) {
+			if ($Process)
+			{
 				Write-Log -Message "Process '$($Process.Name)' ($($Process.Id)) found. Waiting to finish and capturing all child processes."
 				$ChildProcessIds = @()
 				## While waiting for the initial process to stop, collect all child IDs it spawns
 				$ChildProcessesToLive = @()
 				$Timer = [Diagnostics.Stopwatch]::StartNew()
 				$i = 0
-				while (!$Process.HasExited) {
+				while (!$Process.HasExited)
+				{
 					$ChildProcesses = Get-ChildProcess -ProcessId $ProcessId
-					if ($ChildProcesses) {
-						if ($KillProcessDuringWait) {
+					if ($ChildProcesses)
+					{
+						if ($KillProcessDuringWait)
+						{
 							$ToKill = $ChildProcesses | where { $KillProcessDuringWait -contains $_.Name }
 							Write-Log -Message "Found $($ToKill | Get-Count) child processes spawned that should be killed. Stopping processes now."
 							$ChildProcessesToLive += $ChildProcesses | where { $KillProcessDuringWait -contains $_.Name }
 							Stop-MyProcess -ProcessName $ToKill
-						} else {
+						}
+						else
+						{
 							$ChildProcessesToLive += $ChildProcesses
 						}
 					}
-					if ($Timer.Elapsed.TotalSeconds -ge $ProcessTimeout) {
+					if ($Timer.Elapsed.TotalSeconds -ge $ProcessTimeout)
+					{
 						Write-Log -Message "The process '$($Process.Name)' ($($Process.Id)) has exceeded the timeout of $ProcessTimeout seconds.  Killing process."
 						$Timer.Stop()
 						Stop-MyProcess -ProcessName $Process.Name
-					} elseif (($i % $ReportInterval) -eq 0) {
-						Write-Log "Still waiting for process '$($Process.Name)' ($($Process.Id)) after $([Math]::Round($Timer.Elapsed.TotalSeconds,0)) seconds"
+					}
+					elseif (($i % $ReportInterval) -eq 0)
+					{
+						Write-Log "Still waiting for process '$($Process.Name)' ($($Process.Id)) after $([Math]::Round($Timer.Elapsed.TotalSeconds, 0)) seconds"
 					}
 					Start-Sleep -Seconds $SleepInterval
 					$i++
 				}
-				Write-Log "Process '$($Process.Name)' ($($Process.Id)) has finished after $([Math]::Round($Timer.Elapsed.TotalSeconds,0)) seconds"
-				if ($ChildProcessesToLive) {
+				Write-Log "Process '$($Process.Name)' ($($Process.Id)) has finished after $([Math]::Round($Timer.Elapsed.TotalSeconds, 0)) seconds"
+				if ($ChildProcessesToLive)
+				{
 					$ChildProcessesToLive = $ChildProcessesToLive | Select-Object -Unique
 					Write-Log -Message "Parent process '$($Process.Name)' ($($Process.Id)) has finished but still has $($ChildProcessesToLive | Get-Count) child processes ($($ChildProcessesToLive.Name -join ',')) left.  Waiting on these to finish."
-					foreach ($Process in $ChildProcessesToLive) {
+					foreach ($Process in $ChildProcessesToLive)
+					{
 						Wait-MyProcess -ProcessId $Process.ProcessId
 					}
-				} else {
+				}
+				else
+				{
 					Write-Log -Message 'No child processes found spawned'
 				}
 				Write-Log -Message "Finished waiting for process '$($Process.Name)' ($($Process.Id)) and all child processes"
 				return $true
-			} else {
+			}
+			else
+			{
 				Write-Log -Message "Process ID '$ProcessId' not found.  No need to wait on it."
 			}
-		} catch {
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+		}
+		catch
+		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
 			$false
 		}
 	}
@@ -2138,7 +2611,8 @@ function Wait-MyProcess {
 #endregion
 
 #region Shortcuts
-function Get-Shortcut {
+function Get-Shortcut
+{
 	<#
 	.SYNOPSIS
 		This function searches for files matching a LNK and URL extension.
@@ -2177,14 +2651,22 @@ function Get-Shortcut {
 	[CmdletBinding()]
 	param (
 		[string]$MatchingTargetPath,
+		
 		[string]$MatchingName,
+		
 		[string]$MatchingFilePath,
+		
 		[string[]]$FolderPath,
+		
 		[switch]$NoRecurse
 	)
-	process {
-		try {
-			if (!$FolderPath) {
+	process
+	{
+		try
+		{
+			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
+			if (!$FolderPath)
+			{
 				$FolderPath = (Get-RootUserProfileFolderPath), (Get-AllUsersProfileFolderPath)
 			}
 			
@@ -2195,50 +2677,64 @@ function Get-Shortcut {
 				'Force' = $true
 			}
 			
-			if (!$NoRecurse) {
+			if (!$NoRecurse)
+			{
 				$Params['Recurse'] = $true
 			}
 			
 			$ShellObject = New-Object -ComObject Wscript.Shell
 			[System.Collections.ArrayList]$Shortcuts = @()
 			
-			foreach ($Path in $FolderPath) {
-				try {
+			foreach ($Path in $FolderPath)
+			{
+				try
+				{
 					Write-Log -Message "Searching for shortcuts in $Path..."
 					[System.Collections.ArrayList]$WhereConditions = @()
 					$Params['Path'] = $Path
-					if ($MatchingTargetPath) {
+					if ($MatchingTargetPath)
+					{
 						$WhereConditions.Add('(($ShellObject.CreateShortcut($_.FullName)).TargetPath -like "*$MatchingTargetPath*")') | Out-Null
 					}
-					if ($MatchingName) {
+					if ($MatchingName)
+					{
 						$WhereConditions.Add('($_.Name -like "*$MatchingName*")') | Out-Null
 					}
-					if ($MatchingFilePath) {
+					if ($MatchingFilePath)
+					{
 						$WhereConditions.Add('($_.FullName -like "*$MatchingFilePath*")') | Out-Null
 					}
-					if ($WhereConditions.Count -gt 0) {
+					if ($WhereConditions.Count -gt 0)
+					{
 						$WhereBlock = [scriptblock]::Create($WhereConditions -join ' -and ')
 						## TODO: Figure out a way to make this cleanly log access denied errors and continue
 						Get-ChildItem @Params | where $WhereBlock
-					} else {
+					}
+					else
+					{
 						Get-ChildItem @Params
 					}
-					if ($NewShortcuts) {
-						$Shortcuts.Add($NewShortcuts) | Out-Null
-					}
-				} catch {
+					Write-Log -Message "Finished searching for shortcuts in $Path..."
+				}
+				catch
+				{
 					Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
 					$false
 				}
 			}
-		} catch {
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+		}
+		catch
+		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
 			$false
 		}
 	}
 }
 
-function New-Shortcut {
+function New-Shortcut
+{
 	<#
 	.SYNOPSIS
 		This function creates a file shortcut   
@@ -2259,8 +2755,8 @@ function New-Shortcut {
 		quickly specify where the shortcut needs to be created in.
 	.PARAMETER Name
 		The name of the shortcut (file)
-	.PARAMETER TargetFilePath
-		The file path of the application you'd like the shortcut to point to
+	.PARAMETER TargetPath
+		The file path or URL of the application you'd like the shortcut to point to
 	.PARAMETER Arguments
 		File arguments you'd like to append to the target file path
 	#>
@@ -2270,43 +2766,83 @@ function New-Shortcut {
 				   Mandatory = $true)]
 		[ValidateScript({ Test-Path $_ -PathType 'Container' })]
 		[string]$FolderPath,
+		
 		[Parameter(ParameterSetName = 'CommonLocation',
 				   Mandatory = $true)]
 		[ValidateSet('AllUsersDesktop')]
 		[string]$CommonLocation,
+		
 		[Parameter(Mandatory = $true)]
 		[string]$Name,
+		
 		[Parameter(Mandatory = $true)]
-		[ValidateScript({ Test-Path $_ -PathType 'Leaf' })]
-		[string]$TargetFilePath,
+		[string]$TargetPath,
+		
 		[Parameter()]
 		[string]$Arguments
 	)
-	begin {
-		try {
+	begin
+	{
+		try
+		{
 			$ShellObject = New-Object -ComObject Wscript.Shell
-		} catch {
+		}
+		catch
+		{
 			Write-Log -Message $_.Exception.Message -LogLevel '3'
 		}
 	}
-	process {
-		try {
-			if ($CommonLocation -eq 'AllUsersDesktop') {
-				$FilePath = "$(Get-AllUsersDesktopFolderPath)\$Name.lnk"
-			} elseif ($FolderPath) {
-				$FilePath = "$FolderPath\$Name.lnk"
+	process
+	{
+		try
+		{
+			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
+			if ($TargetPath -notmatch '^\w{1}:\\')
+			{
+				$Extension = 'url'
 			}
-			if (Test-Path $FilePath) {
+			else
+			{
+				$Extension = 'lnk'
+			}
+			if ($CommonLocation -eq 'AllUsersDesktop')
+			{
+				$FilePath = "$(Get-AllUsersDesktopFolderPath)\$Name.$Extension"
+			}
+			elseif ($FolderPath)
+			{
+				$FilePath = "$FolderPath\$Name.$Extension"
+			}
+			if (Test-Path -Path $FilePath -PathType Leaf)
+			{
 				throw "$FilePath already exists. New shortcut cannot be made here."
 			}
 			$Object = $ShellObject.CreateShortcut($FilePath)
-			$Object.TargetPath = $TargetFilePath
-			$Object.Arguments = $Arguments
-			$Object.WorkingDirectory = ($TargetFilePath | Split-Path -Parent)
-			Write-Log -Message "Creating shortcut at $FilePath using targetpath $TargetFilePath"
+			$Object.TargetPath = $TargetPath
+			if ($TargetPath -notmatch '^\w{1}:\\')
+			{
+				$Extension = 'url'
+			}
+			else
+			{
+				$Extension = 'lnk'
+				$Object.Arguments = $Arguments
+				$Object.WorkingDirectory = ($TargetFilePath | Split-Path -Parent)
+			}
+			
+			Write-Log -Message "Creating shortcut at $FilePath using targetpath $TargetPath"
 			$Object.Save()
-		} catch {
+			if (Test-Path -Path $FilePath -PathType Leaf)
+			{
+				Write-Log -Message "Shortcut at $FilePath was successfully created"
+				$true
+			}
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+		}
+		catch
+		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
 			$false
 		}
 	}
@@ -2314,7 +2850,8 @@ function New-Shortcut {
 #endregion
 
 #region Services
-function Remove-MyService {
+function Remove-MyService
+{
 	<#
 	.SYNOPSIS
 		This function stops and removes a Windows service
@@ -2329,47 +2866,73 @@ function Remove-MyService {
 		[ValidateScript({ Get-Service -Name $_ -ea 'SilentlyContinue' })]
 		[string]$Name
 	)
-	process {
-		try {
+	process
+	{
+		try
+		{
+			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
 			$ServicesToRemove = Get-Service $Name -ea 'SilentlyContinue' -ev MyError
-			if (!(Check-Error $MyError "Found $($ServicesToRemove.Count) services to remove")) {
+			if (!(Test-Error $MyError "Found $($ServicesToRemove.Count) services to remove"))
+			{
 				throw $MyError
-			} elseif (!$ServicesToRemove) {
+			}
+			elseif (!$ServicesToRemove)
+			{
 				Write-Log -Message "-No services to be removed found..."
-			} else {
-				foreach ($Service in $ServicesToRemove) {
-					try {
+			}
+			else
+			{
+				foreach ($Service in $ServicesToRemove)
+				{
+					try
+					{
 						Write-Log -Message "-Found service $($Service.DisplayName)."
-						if ($Service.Status -ne 'Stopped') {
+						if ($Service.Status -ne 'Stopped')
+						{
 							Write-Log -Message "-Service $($Service.Displayname) is not stopped."
 							Stop-Service $Service -ErrorAction 'SilentlyContinue' -Force -ev ServiceError
-							if (!(Check-Error $ServiceError "-Successfully stopped $($Service.Displayname)")) {
+							if (!(Test-Error $ServiceError "-Successfully stopped $($Service.Displayname)"))
+							{
 								throw $MyError
 							}
-						} else {
+						}
+						else
+						{
 							Write-Log -Message "-Service $($Service.Displayname) is already stopped."
 						}
 						Write-Log -Message "-Attempting to remove service $($Service.DisplayName)..."
 						$WmiService = Get-WmiObject -Class Win32_Service -Filter "Name='$($Service.ServiceName)'" -ea 'SilentlyContinue' -ev WMIError
-						if ($WmiError) {
+						if ($WmiError)
+						{
 							Write-Log -Message "-Unable to remove service $($Service.DisplayName). WMI query errored with `"$($WmiError.Exception.Message)`"" -LogLevel '2'
-						} else {
+						}
+						else
+						{
 							$DeleteService = $WmiService.Delete()
-							if ($DeleteService.ReturnValue -ne 0) {
+							if ($DeleteService.ReturnValue -ne 0)
+							{
 								## Delete method error codes http://msdn.microsoft.com/en-us/library/aa389960(v=vs.85).aspx
 								Write-Log -Message "-Service $($Service.DisplayName) failed to remove. Delete error code was $($DeleteService.ReturnValue).." -LogLevel '2'
-							} else {
+							}
+							else
+							{
 								Write-Log -Message "-Service $($Service.DisplayName) successfully removed..."
 							}
 						}
-					} catch {
+					}
+					catch
+					{
 						Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
 						$false
 					}
 				}
 			}
-		} catch {
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+		}
+		catch
+		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
 			$false
 		}
 	}
@@ -2377,7 +2940,8 @@ function Remove-MyService {
 #endregion
 
 #region HelperFunctions
-function Check-Error {
+function Test-Error
+{
 	<#
 	.SYNOPSIS
 		This function is used after the execution of any script snippet.  It is used as a standardized output
@@ -2391,25 +2955,37 @@ function Check-Error {
 	param (
 		[Parameter()]
 		[string]$MyError,
+		
 		[Parameter()]
 		[string]$SuccessString
 	)
-	process {
-		try {
-			if (!$MyError) {
+	process
+	{
+		try
+		{
+			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
+			if (!$MyError)
+			{
 				Write-Log -Message $SuccessString
 				$true
-			} else {
+			}
+			else
+			{
 				throw $MyError
 			}
-		} catch {
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+		}
+		catch
+		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
 			$false
 		}
 	}
 }
 
-function Convert-CompressedGuidToGuid {
+function Convert-CompressedGuidToGuid
+{
 	<#
 	.SYNOPSIS
 		This converts a compressed GUID also known as a product code into a GUID.	
@@ -2431,8 +3007,11 @@ function Convert-CompressedGuidToGuid {
 		[ValidatePattern('^[0-9a-fA-F]{32}$')]
 		[string]$CompressedGuid
 	)
-	process {
-		try {
+	process
+	{
+		try
+		{
+			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
 			$Indexes = [ordered]@{
 				0 = 8;
 				8 = 4;
@@ -2447,21 +3026,27 @@ function Convert-CompressedGuidToGuid {
 				30 = 2
 			}
 			$Guid = '{'
-			foreach ($index in $Indexes.GetEnumerator()) {
+			foreach ($index in $Indexes.GetEnumerator())
+			{
 				$part = $CompressedGuid.Substring($index.Key, $index.Value).ToCharArray()
 				[array]::Reverse($part)
 				$Guid += $part -join ''
 			}
 			$Guid = $Guid.Insert(9, '-').Insert(14, '-').Insert(19, '-').Insert(24, '-')
 			$Guid + '}'
-		} catch {
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+		}
+		catch
+		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
 			$false
 		}
 	}
 }
 
-function Convert-GuidToCompressedGuid {
+function Convert-GuidToCompressedGuid
+{
 	<#
 	.SYNOPSIS
 		This converts a GUID to a compressed GUID also known as a product code.	
@@ -2482,11 +3067,15 @@ function Convert-GuidToCompressedGuid {
 		[Parameter(ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true, Mandatory = $true)]
 		[string]$Guid
 	)
-	begin {
+	begin
+	{
 		$Guid = $Guid.Replace('-', '').Replace('{', '').Replace('}', '')
 	}
-	process {
-		try {
+	process
+	{
+		try
+		{
+			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
 			$Groups = @(
 			$Guid.Substring(0, 8).ToCharArray(),
 			$Guid.Substring(8, 4).ToCharArray(),
@@ -2499,20 +3088,27 @@ function Convert-GuidToCompressedGuid {
 			$CompressedGuid = ($Groups[0..2] | foreach { $_ -join '' }) -join ''
 			
 			$chararr = $Groups[3]
-			for ($i = 0; $i -lt $chararr.count; $i++) {
-				if (($i % 2) -eq 0) {
+			for ($i = 0; $i -lt $chararr.count; $i++)
+			{
+				if (($i % 2) -eq 0)
+				{
 					$CompressedGuid += ($chararr[$i + 1] + $chararr[$i]) -join ''
 				}
 			}
 			$CompressedGuid
-		} catch {
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+		}
+		catch
+		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
 			$false
 		}
 	}
 }
 
-function Convert-ToUncPath {
+function Convert-ToUncPath
+{
 	<#
 	.SYNOPSIS
 		A simple function to convert a local file path and a computer name to a network UNC path.
@@ -2525,21 +3121,30 @@ function Convert-ToUncPath {
 	param (
 		[Parameter()]
 		[string]$LocalFilePath,
+		
 		[Parameter()]
 		[string]$Computername
 	)
-	process {
-		try {
+	process
+	{
+		try
+		{
+			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
 			$RemoteFilePathDrive = ($LocalFilePath | Split-Path -Qualifier).TrimEnd(':')
 			"\\$Computername\$RemoteFilePathDrive`$$($LocalFilePath | Split-Path -NoQualifier)"
-		} catch {
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+		}
+		catch
+		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
 			$false
 		}
 	}
 }
 
-function Get-32BitProgramFilesPath {
+function Get-32BitProgramFilesPath
+{
 	<#
 	.SYNOPSIS
 		On x64 machines the x86 program files path is Program Files (x86) while on x86 machines it's just Program Files.  This function
@@ -2547,21 +3152,32 @@ function Get-32BitProgramFilesPath {
 	#>
 	[CmdletBinding()]
 	param ()
-	process {
-		try {
-			if ((Get-Architecture) -eq 'x64') {
+	process
+	{
+		try
+		{
+			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
+			if ((Get-Architecture) -eq 'x64')
+			{
 				${env:ProgramFiles(x86)}
-			} else {
+			}
+			else
+			{
 				$env:ProgramFiles
 			}
-		} catch {
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+		}
+		catch
+		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
 			$false
 		}
 	}
 }
 
-function Get-32BitRegistrySoftwarePath {
+function Get-32BitRegistrySoftwarePath
+{
 	<#
 	.SYNOPSIS
 		On x64 machines the x86 Software registry key path is HKLM:\SOFTWARE\Wow6432Node while on x86 machines it's just 
@@ -2574,42 +3190,64 @@ function Get-32BitRegistrySoftwarePath {
 		[ValidateSet('HKLM', 'HKCU')]
 		[string]$Scope = 'HKLM'
 	)
-	process {
-		try {
-			if ((Get-Architecture) -eq 'x64') {
+	process
+	{
+		try
+		{
+			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
+			if ((Get-Architecture) -eq 'x64')
+			{
 				"$Scope`:\SOFTWARE\Wow6432Node"
-			} else {
+			}
+			else
+			{
 				"$Scope`:\SOFTWARE"
 			}
-		} catch {
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+		}
+		catch
+		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
 			$false
 		}
 	}
 }
 
-function Get-Architecture {
+function Get-Architecture
+{
 	<#
 	.SYNOPSIS
 		This simple function tells you whether the machine you're running on is either x64 or x86
 	#>
 	[CmdletBinding()]
 	param ()
-	process {
-		try {
-			if ([System.Environment]::Is64BitOperatingSystem -or ((Get-WmiObject -Class Win32_ComputerSystem | select -ExpandProperty SystemType) -eq 'x64-based PC')) {
+	process
+	{
+		try
+		{
+			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
+			if ([System.Environment]::Is64BitOperatingSystem -or ((Get-WmiObject -Class Win32_ComputerSystem | select -ExpandProperty SystemType) -eq 'x64-based PC'))
+			{
 				'x64'
-			} else {
+			}
+			else
+			{
 				'x86'
 			}
-		} catch {
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+		}
+		catch
+		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
 			$false
 		}
 	}
 }
 
-function Get-Count {
+function Get-Count
+{
 	<#
 	.SYNOPSIS
 		This function was created to account for collections where the output from a command
@@ -2619,15 +3257,24 @@ function Get-Count {
 		[Parameter(ValueFromPipeline = $true)]
 		$Value
 	)
-	if (!$Input) {
-		0
-	} else {
-		$count = $Input.Count
-		$count
+	process
+	{
+		Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
+		if (!$Input)
+		{
+			0
+		}
+		else
+		{
+			$count = $Input.Count
+			$count
+		}
+		Write-Log -Message "$($MyInvocation.MyCommand) - END"
 	}
 }
 
-function Get-DriveFreeSpace {
+function Get-DriveFreeSpace
+{
 	<#
 	.SYNOPSIS
 		This finds the total hard drive free space for one or multiple hard drive partitions
@@ -2649,23 +3296,30 @@ function Get-DriveFreeSpace {
 	param
 	(
 		[string[]]$Computername = 'localhost',
+		
 		[Parameter(ValueFromPipeline = $true,
 				   ValueFromPipelineByPropertyName = $true)]
 		[ValidatePattern('[A-Z]')]
 		[string]$DriveLetter,
+		
 		[ValidateSet('KB', 'MB', 'GB', 'TB')]
 		[string]$SizeOutputLabel = 'MB'
 		
 	)
 	
-	Begin {
-		try {
+	Begin
+	{
+		try
+		{
+			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
 			$WhereQuery = "SELECT FreeSpace,DeviceID FROM Win32_Logicaldisk"
 			
-			if ($PsBoundParameters.DriveLetter) {
+			if ($PsBoundParameters.DriveLetter)
+			{
 				$WhereQuery += ' WHERE'
 				$BuiltQueryParams = { @() }.Invoke()
-				foreach ($Letter in $DriveLetter) {
+				foreach ($Letter in $DriveLetter)
+				{
 					$BuiltQueryParams.Add("DeviceId = '$DriveLetter`:'")
 				}
 				$WhereQuery = "$WhereQuery $($BuiltQueryParams -join ' OR ')"
@@ -2676,23 +3330,34 @@ function Get-DriveFreeSpace {
 				'ErrorVariable' = 'MyError';
 				'ErrorAction' = 'SilentlyContinue'
 			}
-		} catch {
+		}
+		catch
+		{
 			Write-Log -Message $_.Exception.Message -LogLevel '3'
 		}
 	}
-	Process {
-		try {
-			foreach ($Computer in $Computername) {
-				try {
+	Process
+	{
+		try
+		{
+			foreach ($Computer in $Computername)
+			{
+				try
+				{
 					$WmiParams.Computername = $Computer
 					$WmiResult = Get-WmiObject @WmiParams
-					if (!(Check-Error $MyError "Sucessfull WMI query")) {
+					if (!(Test-Error $MyError "Sucessfull WMI query"))
+					{
 						throw $MyError
-					} elseif (!$WmiResult) {
+					}
+					elseif (!$WmiResult)
+					{
 						throw "Drive letter does not exist on target system"
 					}
-					foreach ($Result in $WmiResult) {
-						if ($Result.Freespace) {
+					foreach ($Result in $WmiResult)
+					{
+						if ($Result.Freespace)
+						{
 							[pscustomobject]@{
 								'Computername' = $Computer;
 								'DriveLetter' = $Result.DeviceID;
@@ -2700,19 +3365,26 @@ function Get-DriveFreeSpace {
 							}
 						}
 					}
-				} catch {
+				}
+				catch
+				{
 					Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
 					$false
 				}
 			}
-		} catch {
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+		}
+		catch
+		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
 			$false
 		}
 	}
 }
 
-function Get-InstallerType {
+function Get-InstallerType
+{
 	<#
 	.SYNOPSIS
 		Based on the uninstall string retrieved from the registry this function will tell you what kind of installer was
@@ -2727,107 +3399,62 @@ function Get-InstallerType {
 		[string]$UninstallString
 	)
 	
-	process {
-		try {
-			if ($UninstallString -imatch 'msiexec.exe') {
+	process
+	{
+		try
+		{
+			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
+			if ($UninstallString -imatch 'msiexec.exe')
+			{
 				'Windows Installer'
-			} elseif ($UninstallString -imatch 'InstallShield Installation') {
+			}
+			elseif ($UninstallString -imatch 'InstallShield Installation')
+			{
 				'InstallShield'
-			} else {
+			}
+			else
+			{
 				$false
 			}
-		} catch {
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+		}
+		catch
+		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
 			$false
 		}
 	}
 }
 
-function Get-InstallLocation {
-	<#
-	.SYNOPSIS
-		This function finds the main install location for a piece of software
-	.EXAMPLE
-		PS> Get-InstalledSoftware -Name 'MySoftware' | Get-InstallLocation
-
-		This example will find the install folder for the 'MySoftware' software installed on the local computer
-	.PARAMETER ProductName
-	 	The name of the software you'd like to query
-	.PARAMETER Guid
-		Optionally choose to search by GUID
-	#>
-	[CmdletBinding(DefaultParameterSetName = 'Guid')]
-	param (
-		[Parameter(ValueFromPipelineByPropertyName = $true, ParameterSetName = 'Name')]
-		[string]$ProductName,
-		[Parameter(ValueFromPipelineByPropertyName = $true, ParameterSetName = 'Guid')]
-		[string]$Guid
-	)
-	process {
-		try {
-			if ($PSBoundParameters.ProductName) {
-				Write-Log -Message "Checking WMI for install location for name '$ProductName'..."
-				## Prefer to use the GUID to find the software rather than the name.  It won't happen very often but there's been
-				## times when duplicate titles show up while the GUIDs are different
-				$Params = @{ 'Name' = $ProductName }
-			} elseif ($PSBoundParameters.Guid) {
-				Write-Log -Message "Checking WMI for install location for GUID '$Guid'..."
-				$Params = @{ 'Guid' = $Guid }
-			}
-			
-			$SoftwareInstance = Get-InstalledSoftware @Params
-			if ($SoftwareInstance.InstalledLocation) {
-				$SoftwareInstance.InstalledLocation.TrimEnd('\')
-			} else {
-				Write-Log -Message 'Install location not found in WMI.  Checking registry...'
-				Write-Log -Message "Checking for installer reg keys for '$ProductName'..."
-				$UninstallRegKey = 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall'
-				$InstallerRegKeys = Get-ChildItem $UninstallRegKey | where { $_.GetValue('DisplayName') -eq $ProductName }
-				if (!$InstallerRegKeys) {
-					Write-Log -Message "No matches for '$ProductName' in registry"
-				} else {
-					Write-Log -Message "Found '$($InstallerRegKeys.Count)' installer registry keys..."
-					$Processes = @()
-					Write-Log -Message "Checking for matches in uninstall strings.."
-					foreach ($Key in $InstallerRegKeys) {
-						$InstallFolderPath = $Key.GetValue('InstallLocation')
-						if ($InstallFolderPath) {
-							$InstallFolderPath.TrimEnd('\')
-						} elseif (!$InstallFolderPath -and (($Key.GetValue('UninstallString') -match '\w:\\([a-zA-Z0-9 _.(){}-]+\\)+')) -and (($Key.GetValue('UninstallString') -notmatch 'Installshield Installation Information'))) {
-							Write-Log -Message 'No install location found but did find a file path in the uninstall string...'
-							$Matches.Values | select -Unique | where { Test-Path $_ } | foreach  { $_.TrimEnd('\') }
-						} else {
-							Write-Log -Message "Could not find the install folder path" -LogLevel '2'
-						}
-					}
-				}
-			}
-		} catch {
-			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			$false
-		}
-	}
-}
-
-function Get-LoggedOnUserSID {
+function Get-LoggedOnUserSID
+{
 	<#
 	.SYNOPSIS
 		This function queries the registry to find the SID of the user that's currently logged onto the computer interactively.
 	#>
 	[CmdletBinding()]
 	param ()
-	process {
-		try {
+	process
+	{
+		try
+		{
+			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
 			New-PSDrive -Name HKU -PSProvider Registry -Root Registry::HKEY_USERS | Out-Null
 			(Get-ChildItem HKU: | where { $_.Name -match 'S-\d-\d+-(\d+-){1,14}\d+$' }).PSChildName
-		} catch {
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+		}
+		catch
+		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
 			$false
 		}
 	}
 }
 
-function Get-OperatingSystem {
+function Get-OperatingSystem
+{
 	<#
 	.SYNOPSIS
 		This function queries the operating system name from WMI.
@@ -2846,17 +3473,25 @@ function Get-OperatingSystem {
 		[Parameter()]
 		[string]$Computername = 'localhost'
 	)
-	process {
-		try {
+	process
+	{
+		try
+		{
+			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
 			(Get-WmiObject -ComputerName $Computername -Query "SELECT Caption FROM Win32_OperatingSystem").Caption
-		} catch {
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+		}
+		catch
+		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
 			$false
 		}
 	}
 }
 
-function Get-SystemTempFilePath {
+function Get-SystemTempFolderPath
+{
 	<#
 	.SYNOPSIS
 		This function uses the TEMP system environment variable to easily discover the folder path
@@ -2864,11 +3499,18 @@ function Get-SystemTempFilePath {
 	#>
 	[CmdletBinding()]
 	param ()
-	process {
-		try {
+	process
+	{
+		try
+		{
+			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
 			[environment]::GetEnvironmentVariable('TEMP', 'Machine')
-		} catch {
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+		}
+		catch
+		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
 			$false
 		}
 	}
@@ -2876,7 +3518,8 @@ function Get-SystemTempFilePath {
 #endregion
 
 #region Certificates
-function Import-Certificate {
+function Import-Certificate
+{
 	<#
 	.SYNOPSIS
 		This function imports a certificate into any certificate store on a local computer
@@ -2903,44 +3546,61 @@ function Import-Certificate {
 		[Parameter(Mandatory = $true)]
 		[ValidateSet('CurrentUser', 'LocalMachine')]
 		[string]$Location,
+		
 		[Parameter(Mandatory = $true)]
 		[ValidateScript({
-			if ($Location -eq 'CurrentUser') {
+			if ($Location -eq 'CurrentUser')
+			{
 				(Get-ChildItem Cert:\CurrentUser | select -ExpandProperty name) -contains $_
-			} else {
+			}
+			else
+			{
 				(Get-ChildItem Cert:\LocalMachine | select -ExpandProperty name) -contains $_
 			}
 		})]
 		[string]$StoreName,
+		
 		[Parameter(Mandatory = $true)]
 		[ValidateScript({ Test-Path $_ -PathType Leaf })]
 		[string]$FilePath
 	)
 	
-	begin {
+	begin
+	{
+		Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
 		$ErrorActionPreference = [System.Management.Automation.ActionPreference]::Stop
 		Set-StrictMode -Version Latest
-		try {
+		try
+		{
 			[void][System.Reflection.Assembly]::LoadWithPartialName("System.Security")
-		} catch {
+		}
+		catch
+		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
 			$false
 			exit
 		}
 	}
 	
-	process {
-		try {
+	process
+	{
+		try
+		{
 			$Cert = Get-Item $FilePath
 			$Cert = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2 $Cert
-			foreach ($Store in $StoreName) {
+			foreach ($Store in $StoreName)
+			{
 				$X509Store = New-Object System.Security.Cryptography.X509Certificates.X509Store $Store, $Location
 				$X509Store.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadWrite)
 				$X509Store.Add($Cert)
 				$X509Store.Close()
 			}
-		} catch {
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+		}
+		catch
+		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
 			$false
 		}
 	}
@@ -2948,7 +3608,8 @@ function Import-Certificate {
 #endregion
 
 #region FileSystem
-function Copy-FileWithHashCheck {
+function Copy-FileWithHashCheck
+{
 	<#
 	.SYNOPSIS
 		This function copies a file and then verifies the copy was successful by comparing the source and destination
@@ -2970,56 +3631,79 @@ function Copy-FileWithHashCheck {
 		[Parameter(Mandatory = $true, ValueFromPipelineByPropertyName = $true, ValueFromPipeline = $True)]
 		[Alias('Fullname')]
 		[string]$SourceFilePath,
+		
 		[Parameter(Mandatory = $true)]
 		[ValidateScript({ Test-Path -Path $_ -PathType Container })]
 		[string]$DestinationFolderPath,
+		
 		[Parameter()]
 		[switch]$Force
 	)
-	begin {
-		function Test-HashEqual ($FilePath1,$FilePath2) {
+	begin
+	{
+		Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
+		function Test-HashEqual ($FilePath1, $FilePath2)
+		{
 			$SourceHash = Get-MyFileHash -Path $FilePath1
 			$DestHash = Get-MyFileHash -Path $FilePath2
-			if ($SourceHash.SHA256 -ne $DestHash.SHA256) {
+			if ($SourceHash.SHA256 -ne $DestHash.SHA256)
+			{
 				$false
-			} else {
+			}
+			else
+			{
 				$true
 			}
 		}
-		
-		$CopyParams = @{ 'Path' = $SourceFilePath; 'Destination' = $DestinationFolderPath }
 	}
-	process {
-		try {
+	process
+	{
+		try
+		{
+			$CopyParams = @{ 'Path' = $SourceFilePath; 'Destination' = $DestinationFolderPath }
+			
 			## If the file is already there, check to see if it's the one we're copying in the first place
 			$DestFilePath = "$DestinationFolderPath\$($SourceFilePath | Split-Path -Leaf)"
-			if (Test-Path -Path $DestFilePath -PathType 'Leaf') {
-				if (Test-HashEqual -FilePath1 $SourceFilePath -FilePath2 $DestFilePath) {
+			if (Test-Path -Path $DestFilePath -PathType 'Leaf')
+			{
+				if (Test-HashEqual -FilePath1 $SourceFilePath -FilePath2 $DestFilePath)
+				{
 					Write-Log -Message "The file $SourceFilePath is already in $DestinationFolderPath and is the same. No need to copy"
 					return $true
-				} elseif (!$Force.IsPresent) {
+				}
+				elseif (!$Force.IsPresent)
+				{
 					throw "The file $SourceFilePath is already in $DestinationFolderPath but is not the same file being copied and -Force was not used."
-				} else {
+				}
+				else
+				{
 					$CopyParams.Force = $true
 				}
 			}
-			
+			Write-Log -Message "Copying [$($CopyParams.Path)] to [[$($CopyParams.Destination)]...."
 			Copy-Item @CopyParams
-			if (Test-HashEqual -FilePath1 $SourceFilePath -FilePath2 $DestFilePath) {
-				Write-Log -Message "The file $SourceFilePath was successfully copied to $DestinationFolderPath. Hash value is "
+			if (Test-HashEqual -FilePath1 $SourceFilePath -FilePath2 $DestFilePath)
+			{
+				Write-Log -Message "The file $SourceFilePath was successfully copied to $DestinationFolderPath."
 				return $true
-			} else {
+			}
+			else
+			{
 				throw "Attempted to copy the file $SourceFilePath to $DestinationFolderPath but failed the hash check"
 			}
-			
-		} catch {
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+		}
+		catch
+		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
 			$false
 		}
 	}
 }
 
-function Find-InTextFile {
+function Find-InTextFile
+{
 	<#
 	.SYNOPSIS
 		Performs a find (or replace) on a string in a text file or files.
@@ -3053,54 +3737,81 @@ function Find-InTextFile {
 		[Parameter(Mandatory = $true)]
 		[ValidateScript({ Test-Path -Path $_ -PathType 'Leaf' })]
 		[string[]]$FilePath,
+		
 		[Parameter(Mandatory = $true)]
 		[string]$Find,
+		
 		[Parameter()]
 		[string]$Replace,
+		
 		[Parameter()]
 		[switch]$UseRegex,
+		
 		[Parameter(ParameterSetName = 'NewFile')]
 		[ValidateScript({ Test-Path -Path ($_ | Split-Path -Parent) -PathType 'Container' })]
 		[string]$NewFilePath,
+		
 		[Parameter(ParameterSetName = 'NewFile')]
 		[switch]$Force
 	)
-	begin {
-		$SystemTempFolderPath = Get-SystemTempFilePath
-		if (!$UseRegex.IsPresent) {
+	begin
+	{
+		$SystemTempFolderPath = Get-SystemTempFolderPath
+		if (!$UseRegex.IsPresent)
+		{
 			$Find = [regex]::Escape($Find)
 		}
 	}
-	process {
-		try {
-			foreach ($File in $FilePath) {
-				if ($Replace) {
-					if ($NewFilePath) {
-						if ((Test-Path -Path $NewFilePath -PathType 'Leaf') -and $Force.IsPresent) {
+	process
+	{
+		try
+		{
+			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
+			foreach ($File in $FilePath)
+			{
+				if ($Replace)
+				{
+					if ($NewFilePath)
+					{
+						if ((Test-Path -Path $NewFilePath -PathType 'Leaf') -and $Force.IsPresent)
+						{
 							Remove-Item -Path $NewFilePath -Force
 							(Get-Content $File) -replace $Find, $Replace | Add-Content -Path $NewFilePath -Force
-						} elseif ((Test-Path -Path $NewFilePath -PathType 'Leaf') -and !$Force.IsPresent) {
+						}
+						elseif ((Test-Path -Path $NewFilePath -PathType 'Leaf') -and !$Force.IsPresent)
+						{
 							Write-Warning "The file at '$NewFilePath' already exists and the -Force param was not used"
-						} else {
+						}
+						else
+						{
 							(Get-Content $File) -replace $Find, $Replace | Add-Content -Path $NewFilePath -Force
 						}
-					} else {
+					}
+					else
+					{
 						(Get-Content $File) -replace $Find, $Replace | Add-Content -Path "$File.tmp" -Force
 						Remove-Item -Path $File
 						Rename-Item -Path "$File.tmp" -NewName $File
 					}
-				} else {
+				}
+				else
+				{
 					Select-String -Path $File -Pattern $Find
 				}
 			}
-		} catch {
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+		}
+		catch
+		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
 			$false
 		}
 	}
 }
 
-function Set-MyFileSystemAcl {
+function Set-MyFileSystemAcl
+{
 	<#
 	.SYNOPSIS
 		This function allows an easy method to set a file system access ACE
@@ -3125,26 +3836,38 @@ function Set-MyFileSystemAcl {
 		[Parameter(Mandatory = $true)]
 		[ValidateScript({ Test-Path -Path $_ })]
 		[string]$Path,
+		
 		[Parameter(Mandatory = $true)]
 		[string]$Identity,
+		
 		[Parameter(Mandatory = $true)]
 		[string]$Right,
+		
 		[Parameter(Mandatory = $true)]
 		[string]$InheritanceFlags,
+		
 		[Parameter(Mandatory = $true)]
 		[string]$PropagationFlags,
+		
 		[Parameter(Mandatory = $true)]
 		[string]$Type
 	)
 	
-	process {
-		try {
+	process
+	{
+		try
+		{
+			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
 			$Acl = (Get-Item $Path).GetAccessControl('Access')
 			$Ar = New-Object System.Security.AccessControl.FileSystemAccessRule($Identity, $Right, $InheritanceFlags, $PropagationFlags, $Type)
 			$Acl.SetAccessRule($Ar)
 			Set-Acl $Path $Acl
-		} catch {
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+		}
+		catch
+		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
 			$false
 		}
 	}
