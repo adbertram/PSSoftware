@@ -2093,27 +2093,33 @@ function Wait-WindowsInstaller
 		try
 		{
 			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
-			$MsiexecProcesses = Get-WmiObject -Class Win32_Process -Filter "Name = 'msiexec.exe'" | where { $_.CommandLine -ne 'C:\Windows\system32\msiexec.exe /V' }
+			Write-Log -Message 'Looking for any msiexec.exe processes...'
+			$MsiexecProcesses = Get-WmiObject -Class Win32_Process -Filter "Name = 'msiexec.exe'" | Where-Object { $_.CommandLine -ne 'C:\Windows\system32\msiexec.exe /V' }
 			if ($MsiExecProcesses)
 			{
 				Write-Log -Message "Found '$($MsiexecProcesses.Count)' Windows installer processes.  Waiting..."
+				## Wait for each msiexec.exe process to finish before proceeding
 				foreach ($Process in $MsiexecProcesses)
 				{
 					Wait-MyProcess -ProcessId $Process.ProcessId
 				}
+				## When all msiexec.exe processes finish, recursively call this function again to ensure no
+				## other installs have begun.
 				Wait-WindowsInstaller
 			}
 			else
 			{
-				Write-Log -Message "No Windows installer processes found"
+				Write-Log -Message 'No Windows installer processes found'
 			}
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
 		}
 		catch
 		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
 			$false
+		}
+		finally
+		{
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
 		}
 	}
 }
@@ -2504,27 +2510,34 @@ function Wait-MyProcess
 		The number of seconds between when it is logged that the process is still pending
 	.PARAMETER SleepInterval
 		The number of seconds the process should be checked to ensure it's still running
-	.PARAMETER KillProcessDuringWait
-		One or more chid process names that will be killed if found during the running of the parent process.
+
 	#>
 	[CmdletBinding()]
 	param (
 		[Parameter(Mandatory = $true)]
-		[string]$ProcessId,
+		[ValidateNotNullOrEmpty()]
+		[int]$ProcessId,
 		
+		[Parameter()]
+		[ValidateNotNullOrEmpty()]
 		[int]$ProcessTimeout = 600,
 		
+		[Parameter()]
+		[ValidateNotNullOrEmpty()]
 		[int]$ReportInterval = 15,
 		
-		[int]$SleepInterval = 1,
-		
-		[string[]]$KillProcessDuringWait
+		[Parameter()]
+		[ValidateNotNullOrEmpty()]
+		[int]$SleepInterval = 1
+	
 	)
 	process
 	{
 		try
 		{
 			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
+			
+			Write-Log -Message "Finding the process ID '$ProcessId'..."
 			$Process = Get-Process -Id $ProcessId -ea 'SilentlyContinue'
 			if ($Process)
 			{
@@ -2532,24 +2545,20 @@ function Wait-MyProcess
 				$ChildProcessIds = @()
 				## While waiting for the initial process to stop, collect all child IDs it spawns
 				$ChildProcessesToLive = @()
+				
+				## Start the timer to ensure we have a point to get total time from
 				$Timer = [Diagnostics.Stopwatch]::StartNew()
 				$i = 0
-				while (!$Process.HasExited)
+				
+				## Do this while the parent process is still running
+				while (-not $Process.HasExited)
 				{
+					## Find any and all child processes the parent process spawned
 					$ChildProcesses = Get-ChildProcess -ProcessId $ProcessId
 					if ($ChildProcesses)
 					{
-						if ($KillProcessDuringWait)
-						{
-							$ToKill = $ChildProcesses | where { $KillProcessDuringWait -contains $_.Name }
-							Write-Log -Message "Found $($ToKill | Get-Count) child processes spawned that should be killed. Stopping processes now."
-							$ChildProcessesToLive += $ChildProcesses | where { $KillProcessDuringWait -contains $_.Name }
-							Stop-MyProcess -ProcessName $ToKill
-						}
-						else
-						{
-							$ChildProcessesToLive += $ChildProcesses
-						}
+						## If any child processes are found, collect them all
+						$ChildProcessesToLive += $ChildProcesses
 					}
 					if ($Timer.Elapsed.TotalSeconds -ge $ProcessTimeout)
 					{
@@ -2557,7 +2566,7 @@ function Wait-MyProcess
 						$Timer.Stop()
 						Stop-MyProcess -ProcessName $Process.Name
 					}
-					elseif (($i % $ReportInterval) -eq 0)
+					elseif (($i % $ReportInterval) -eq 0) ## Use a modulus here to write to the log every X seconds
 					{
 						Write-Log "Still waiting for process '$($Process.Name)' ($($Process.Id)) after $([Math]::Round($Timer.Elapsed.TotalSeconds, 0)) seconds"
 					}
@@ -2565,9 +2574,9 @@ function Wait-MyProcess
 					$i++
 				}
 				Write-Log "Process '$($Process.Name)' ($($Process.Id)) has finished after $([Math]::Round($Timer.Elapsed.TotalSeconds, 0)) seconds"
-				if ($ChildProcessesToLive)
+				if ($ChildProcessesToLive) ## If any child processes were spawned while the parent process was running
 				{
-					$ChildProcessesToLive = $ChildProcessesToLive | Select-Object -Unique
+					$ChildProcessesToLive = $ChildProcessesToLive | Select-Object -Unique ## Ensure we didn't accidently capture duplicate PIDs
 					Write-Log -Message "Parent process '$($Process.Name)' ($($Process.Id)) has finished but still has $($ChildProcessesToLive | Get-Count) child processes ($($ChildProcessesToLive.Name -join ',')) left.  Waiting on these to finish."
 					foreach ($Process in $ChildProcessesToLive)
 					{
@@ -2579,19 +2588,23 @@ function Wait-MyProcess
 					Write-Log -Message 'No child processes found spawned'
 				}
 				Write-Log -Message "Finished waiting for process '$($Process.Name)' ($($Process.Id)) and all child processes"
-				return $true
+				
+				## If we got this far, the function was a success
+				$true
 			}
 			else
 			{
 				Write-Log -Message "Process ID '$ProcessId' not found.  No need to wait on it."
 			}
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
 		}
 		catch
 		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
 			$false
+		}
+		finally
+		{
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
 		}
 	}
 }
