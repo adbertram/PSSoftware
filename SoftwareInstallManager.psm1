@@ -365,12 +365,15 @@ function Test-InstalledSoftware
 	[CmdletBinding(DefaultParameterSetName = 'Name')]
 	param (
 		[Parameter(ParameterSetName = 'Name')]
+		[ValidateNotNullOrEmpty()]
 		[string]$Name,
 		
 		[Parameter(ParameterSetName = 'Name')]
+		[ValidateNotNullOrEmpty()]
 		[string]$Version,
 		
 		[Parameter(ParameterSetName = 'Guid')]
+		[ValidateNotNullOrEmpty()]
 		[Alias('ProductCode')]
 		[string]$Guid
 	)
@@ -379,9 +382,8 @@ function Test-InstalledSoftware
 		try
 		{
 			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
-			if ($Name)
-			{
-				if ($Version)
+			if ($PSBoundParameters.ContainsKey('Name')) {
+				if ($PSBoundParameters.ContainsKey('Version'))
 				{
 					$SoftwareInstances = Get-InstalledSoftware -Name $Name | Where-Object { $_.Version -eq $Version }
 				}
@@ -390,7 +392,7 @@ function Test-InstalledSoftware
 					$SoftwareInstances = Get-InstalledSoftware -Name $Name
 				}
 			}
-			elseif ($Guid)
+			elseif ($PSBoundParameters.ContainsKey('Guid'))
 			{
 				$SoftwareInstances = Get-InstalledSoftware -Guid $Guid
 			}
@@ -406,13 +408,15 @@ function Test-InstalledSoftware
 				Write-Log -Message 'The software IS installed.'
 				$true
 			}
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
 		}
 		catch
 		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
 			$false
+		}
+		finally
+		{
+			Write-Log -Message "$($MyInvocation.MyCommand) - END"
 		}
 	}
 }
