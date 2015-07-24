@@ -1,4 +1,4 @@
-# SoftwareInstallManager PowerShell Module
+# SoftwareInstallManager
 
 > A single way to install, uninstall, upgrade and configure software with a single framework.
 
@@ -29,7 +29,7 @@ This is what SoftwareInstallManager is all about. Removing the complexities of s
 You can [download](https://github.com/adbertram/SoftwareInstallManager/archive/master.zip)
 this repository.
 
-### Import
+### Import the Module
 
 Once you've downloaded the repo place the SoftwareInstallManager folder in any path in your ``$PSModulePath``. I recommend copying it to either ``C:\Program Files\WindowsPowerShell\Modules`` or ``C:\Users\<Username>\Documents\WindowsPowerShell\Modules``.
 
@@ -40,92 +40,84 @@ Once it's in one of those paths you can either import it manually by ``Import-Mo
 
 In the repo you'll find the following files.
 
-| File/Folder     | Provides                                       |
+| File     | Provides                                       |
 |-----------------|------------------------------------------------|
-| CONTRIBUTING.md | MDL contribution guidelines.                   |
-| docs            | Files for the documentation site.              |
-| gulpfile.js     | gulp configuration for MDL.                    |
-| LICENSE         | Project license information.                   |
-| package.json    | npm package information.                       |
+| SoftwareInstallManager.psm1 | The PowerShell module                   |
+| SofwareInstallManager.psd1            | The PowerShell module manifest.              |
 | README.md       | Details for quickly understanding the project. |
-| src             | Source code for MDL components.                |
-| templates       | Example templates.                             |
-| test            | Project test files.                            |
 
-### Build
+## Function Categories
 
-To get started modifying the components or the docs, first install the necessary
-dependencies, from the root of the project:
+The SoftwareInstallManager module is made up of four rough categories of functions with subcategories in each major category.
 
-```bash
-npm install && npm install -g gulp
-```
+### Install Functions
+1. Install-Software
 
-> MDL requires NodeJS 0.12.
+### Uninstall Functions
 
-Next, run the following one-liner to compile the components and the docs and
-spawn a local instance of the documentation site:
+1. Uninstall-Software
+2. Uninstall-ViaMsiZap
+3. Uninstall-InstallshieldPackage
+4. Uninstall-WindowsInstallerPackage
+5. Uninstall-WindowsInstallerPackageWithMsiModule
+6. Uninstall-WindowsInstallerPackageWithMsiExec
 
-```bash
-gulp serve
-```
+### Detection Functions
 
-Most changes made to files inside the `src` or the `docs` directory will cause
-the page to reload. This page can also be loaded up on physical devices thanks
-to BrowserSync.
+1. Get-InstalledSoftware
+2. Test-InstalledSoftware
+3. Compare-FilePath
+4. Compare-FolderPath
+5. Compare-RegistryFileToRegistry
+6. Get-FileVersion
+7. Get-MyFileHash
 
-To build a production version of the components, run:
+### Configuration Functions
 
-```bash
-gulp
-```
+#### Registry
 
-This will clean the `dist` folder and rebuild the assets for serving.
+1. Get-RegistryValue
+2. Get-RegistryValueForAllUsers
+3. Import-RegistryFile
+4. Set-RegistryValueForAllUsers
+5. Register-File
 
+#### FileSystem
 
-### Templates
+1. Copy-FileWithHashCheck
+2. Find-InTextFile
+3. Set-MyFileSystemAcl
 
-The `templates/` subdirectory contains a few exemplary usages of MDL. Templates
-have their own, quasi-separate gulp pipeline and can be compiled with
-`gulp templates`. The templates use the vanilla MDL JS and
-[themed](http://www.getmdl.io/customize/index.html) CSS files. Extraneous styles
-are kept in a separate CSS file. Use `gulp serve` to take a look at the
-templates:
+#### Shortcuts
 
-* [Blog Template](http://www.getmdl.io/templates/blog)
-* [Dashboard Template](http://www.getmdl.io/templates/dashboard)
-* [Text Heavy Webpage Template](http://www.getmdl.io/templates/text-only)
-* [Stand Alone Article Template](http://www.getmdl.io/templates/article)
-* [Android.com MDL Skin Template](http://www.getmdl.io/templates/android-dot-com)
+1. Get-Shortcut
+2. New-Shortcut
 
-> Templates are not officially supported in IE9 and legacy browsers that do not
-pass the minimum-requirements defined in our
-[cutting-the-mustard test](https://github.com/google/material-design-lite/blob/master/src/mdlComponentHandler.js#L262-L275).
+#### Processes
 
-## Versioning
+1. Test-Process
+2. Get-ChildProcess
+3. Stop-MyProcess
+4. Wait-MyProcess
+5. Wait-WindowsInstaller
 
-For transparency into our release cycle and in striving to maintain backward
-compatibility, Material Design Lite is maintained under
-[the Semantic Versioning guidelines](http://semver.org/). Sometimes we screw up,
-but we'll adhere to those rules whenever possible.
+#### Services
 
-## Feature requests
+1. Remove-MyService
 
-If you find MDL doesn't contain a particular component you think would be
-useful, please check the issue tracker in case work has already started on it.
-If not, you can request a [new component](https://github.com/Google/material-design-lite/issues/new?title=[Component%20Request]%20{Component}&body=Please%20include:%0A*%20Description%0A*%20Material%20Design%20Spec%20link%0A*%20Use%20Case%28s%29).
-Please keep in mind that one of the goals of MDL is to adhere to the Material
-Design specs and therefore some requests might not be within the scope of this
-project.
+#### Certificates
 
-## Do you include any features that a framework comes with?
+1. Import-Certificate
 
-Material Design Lite is focused on delivering a vanilla CSS/JS/HTML library of
-components. We are not a framework. If you are building a single-page app and
-require features like two-way data-binding, templating, CSS scoping and so
-forth, we recommend trying out the excellent [Polymer](http://polymer-project.org) project.
+#### User Profiles
+
+1. Get-AllUsersDesktopFolderPath
+2. Get-AllUsersProfileFolderPath
+3. Get-AllUsersStartMenuFolderPath
+4. Get-UserProfile
+5. Get-RootUserProfileFolderPath
+6. Get-UserProfilePath
+7. Remove-ProfileItem
+8. Set-AllUserStartupAction
 
 
-## License
-
-© Google, 2015. Licensed under an [Apache-2](https://github.com/google/material-design-lite/blob/master/LICENSE) license.
