@@ -772,8 +772,7 @@ function Set-RegistryValueForAllUsers
 							Write-Log -Message "The registry key HKU:\$sid\$($instance.Path) already exists. No need to create."
 						}
 						Write-Log -Message "Setting registry value $($instance.Name) at path HKU:\$sid\$($instance.Path) to $($instance.Value)"
-						
-						Set-ItemProperty -Path "HKU:\$sid\$($instance.Path)" -Name $instance.Name -Value $instance.Value -Type $instance.Type -Force
+						New-ItemProperty -Path "HKU:\$sid\$($instance.Path)" -Name $instance.Name -Value $instance.Value -PropertyType $instance.Type -Force
 					}
 				}
 			}
@@ -1089,7 +1088,7 @@ function Install-Software
 		
 		[Parameter()]
 		[ValidateNotNullOrEmpty()]
-		[string]$LogFilePath = "$(Get-SystemTempFolderPath)\$SystemTempFolder\$($InstallerFilePath | Split-Path -Leaf).log"
+		[string]$LogFilePath
 	
 	)
 
@@ -1131,6 +1130,9 @@ function Install-Software
 				## exit code of 3010, ALLUSERS=1 means that we'd like to make this software for all users
 				## on the machine and /Lvx* is the most verbose way to specify a log file path and to log as
 				## much information as possible.
+                if (-not $PSBoundParameters.ContainsKey('LogFilePath')) {
+                    $LogFilePath = "$(Get-SystemTempFolderPath)\$($InstallerFilePath | Split-Path -Leaf).log"
+                }
 				$InstallArgs += "REBOOT=ReallySuppress ALLUSERS=1 /Lvx* `"$LogFilePath`""
 				$InstallArgs = $InstallArgs -join ' '
 				
@@ -1146,7 +1148,10 @@ function Install-Software
 				## We're adding common InstallShield switches here. -s is silent, -f1 specifies where the 
 				## ISS file we createed previously lives, -f2 specifies a log file location and /SMS is a special
 				## switch that prevents the setup.exe was exiting prematurely.
-				if (-not $InstallShieldInstallArgs)
+				if (-not $PSBoundParameters.ContainsKey('LogFilePath')) {
+                    $LogFilePath = "$(Get-SystemTempFolderPath)\$($InstallerFilePath | Split-Path -Leaf).log"
+                }
+                if (-not $InstallShieldInstallArgs)
 				{
 					$InstallArgs = "-s -f1`"$IssFilePath`" -f2`"$LogFilePath`" /SMS"
 				}
