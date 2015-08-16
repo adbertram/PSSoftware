@@ -895,7 +895,7 @@ function Get-InstalledSoftware
 		[Parameter()]
 		[ValidateNotNullOrEmpty()]
 		[ValidateScript({ Test-Connection -ComputerName $_ -Quiet -Count 1})]
-		[string]$ComputerName,
+		[string[]]$ComputerName,
 		
 		[Parameter()]
 		[ValidateNotNullOrEmpty()]
@@ -995,11 +995,13 @@ function Get-InstalledSoftware
 			{
 				& $scriptBlock	
 			}
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
 		}
 		catch
 		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+		}
+		finally
+		{
 			Write-Log -Message "$($MyInvocation.MyCommand) - END"
 		}
 	}
