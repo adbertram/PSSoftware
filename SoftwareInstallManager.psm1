@@ -899,7 +899,7 @@ function Get-InstalledSoftware
 		
 		[Parameter()]
 		[ValidateNotNullOrEmpty()]
-		[pscredential]$Credential,
+		[System.Management.Automation.PSCredential]$Credential,
 		
 		[string]$Name,
 		
