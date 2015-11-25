@@ -2017,10 +2017,11 @@ function Uninstall-WindowsInstallerPackageWithMsiexec
 			}
 		}
 		
-		$switches = '/qn', "/x $Guid", 'REBOOT=ReallySuppress'
+		$switches = @("/x `"$Guid`"")
 		if ($PSBoundParameters.ContainsKey('MsiExecSwitches')) {
 			$switches += $MsiExecSwitches
 		}
+		$switches += @('REBOOT=ReallySuppress', '/qn')
 		$switchString = $switches -join ' '
 		
 		Write-Log -Message "Initiating msiexec.exe with arguments [$($switchString)]"
