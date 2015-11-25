@@ -1410,14 +1410,21 @@ function Remove-Software
 						if (!$InstallerType -or ($InstallerType -eq 'Windows Installer'))
 						{
 							Write-Log -Message "Installer type detected to be Windows Installer or unknown for $Name. Attempting Windows Installer removal" -LogLevel '2'
+							$params = @{ }
+							if ($PSBoundParameters.ContainsKey('MsiExecSwitches')) {
+								$params.MsiExecSwitches = $MsiExecSwitches
+							}
 							if ($swEntry.GUID)
 							{
-								Uninstall-WindowsInstallerPackage -Guid $swEntry.GUID
+								$params.Guid = $swEntry.GUID
 							}
 							else
 							{
-								Uninstall-WindowsInstallerPackage -Name $Name
+								$params.Name = $Name	
 							}
+							
+							Uninstall-WindowsInstallerPackage @params
+							
 						}
 						elseif ($InstallerType -eq 'InstallShield')
 						{
@@ -1908,6 +1915,9 @@ function Uninstall-WindowsInstallerPackage
 	.PARAMETER Name
 		The software title of the Windows installer package you'd like to uninstall.  Use either the Name
 		param or the Guid param to find the Windows installer package.
+	.PARAMETER MsiExecSwitches
+		Specify a string of switches you'd like msiexec.exe to run when it attempts to uninstall the software. By default,
+		it already uses "/x GUID /qn".  You can specify any additional parameters here.
 	.PARAMETER Guid
 		The GUID of the Windows Installer package
 	#>
@@ -1918,24 +1928,30 @@ function Uninstall-WindowsInstallerPackage
 		
 		[Parameter(ParameterSetName = 'Guid')]
 		[ValidatePattern('\b[A-F0-9]{8}(?:-[A-F0-9]{4}){3}-[A-F0-9]{12}\b')]
-		[string]$Guid
+		[string]$Guid,
+		
+		[string]$MsiExecSwitches
 	)
 	process
 	{
 		try
 		{
+			$Params = @{}
 			if ($Name)
 			{
 				Write-Log -Message "Attempting to uninstall Windows Installer using name '$Name'..."
-				$Params = @{ 'Name' = $Name }
+				$params.Name = $Name
 			}
 			elseif ($Guid)
 			{
 				Write-Log -Message "Attempting to uninstall Windows Installer using GUID '$Guid'..."
-				$Params = @{ 'Guid' = $Guid }
+				$params.Guid = $Guid
+			}
+			if ($PSBoundParameters.ContainsKey('MsiExecSwitches')) {
+				$params.MsiExecSwitches = $MsiExecSwitches
 			}
 			
-			Uninstall-WindowsInstallerPackageWithMsiexec @Params
+			Uninstall-WindowsInstallerPackageWithMsiexec @params
 			Write-Log -Message "$($MyInvocation.MyCommand) - END"
 		}
 		catch
@@ -1957,6 +1973,9 @@ function Uninstall-WindowsInstallerPackageWithMsiexec
 		param or the Guid param to find the Windows installer package.
 	.PARAMETER Guid
 		The GUID of the Windows Installer package
+	.PARAMETER MsiExecSwitches
+		Specify a string of switches you'd like msiexec.exe to run when it attempts to uninstall the software. By default,
+		it already uses "/x GUID /qn".  You can specify any additional parameters here.
 	#>
 	[CmdletBinding(DefaultParameterSetName = 'Guid')]
 	param (
@@ -1965,7 +1984,9 @@ function Uninstall-WindowsInstallerPackageWithMsiexec
 		
 		[Parameter(ParameterSetName = 'Guid')]
 		[ValidatePattern('\b[A-F0-9]{8}(?:-[A-F0-9]{4}){3}-[A-F0-9]{12}\b')]
-		[string]$Guid
+		[string]$Guid,
+		
+		[string]$MsiExecSwitches
 	)
 	process
 	{
@@ -1996,8 +2017,14 @@ function Uninstall-WindowsInstallerPackageWithMsiexec
 			}
 		}
 		
-		Write-Log -Message "Initiating msiexec.exe with arguments '/x $Guid /qn REBOOT=ReallySuppress'"
-		$Process = Start-Process 'msiexec.exe' -ArgumentList "/x $Guid /qn REBOOT=ReallySuppress" -PassThru -Wait -NoNewWindow
+		$switches = '/qn', "/x $Guid", 'REBOOT=ReallySuppress'
+		if ($PSBoundParameters.ContainsKey('MsiExecSwitches')) {
+			$switches += $MsiExecSwitches
+		}
+		$switchString = $switches -join ' '
+		
+		Write-Log -Message "Initiating msiexec.exe with arguments [$($switchString)]"
+		$Process = Start-Process 'msiexec.exe' -ArgumentList $switchString -PassThru -Wait -NoNewWindow
 		Wait-WindowsInstaller
 		Test-Process $Process
 		if (!(Test-InstalledSoftware -Guid $Guid))
