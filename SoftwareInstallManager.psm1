@@ -2039,7 +2039,6 @@ function Uninstall-WindowsInstallerPackageWithMsiexec
 			$false
 		}
 		Write-Log -Message "$($MyInvocation.MyCommand) - END"
-		Write-Log -Message "$($MyInvocation.MyCommand) - END"
 	}
 }
 
