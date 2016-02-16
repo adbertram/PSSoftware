@@ -3,7 +3,7 @@
 	 Created with: 	SAPIEN Technologies, Inc., PowerShell Studio 2014 v4.1.60
 	 Created on:   	6/23/2014 4:18 PM
 	 Created by:   	Adam Bertram
-	 Organization: 	
+	 Organization: 	Adam the Automator, LLC
 	 Filename:     	SoftwareInstallManager.psd1
 	 -------------------------------------------------------------------------
 	 Module Manifest
@@ -12,10 +12,8 @@
 	===========================================================================
 #>
 
-@{
-
-# Script module or binary module file associated with this manifest
-ModuleToProcess = 'SoftwareInstallManager.psm1'
+@{	
+RootModule = 'SoftwareInstallManager.psm1'
 
 # Version number of this module.
 ModuleVersion = '1.0.0.0'
@@ -72,7 +70,19 @@ FormatsToProcess = @()
 
 # Modules to import as nested modules of the module specified in
 # ModuleToProcess
-NestedModules = @()
+	NestedModules = @(
+	'Certificates.psm1',
+	'FileSystem.psm1',
+	'Helpers.psm1',
+	'InstallShield.psm1',
+	'Processes.psm1',
+	'Registry.psm1',
+	'Services.psm1',
+	'Shortcuts.psm1',
+	'UserProfiles.psm1',
+	'WindowsInstaller.psm1',
+	'WindowsServices.psm1'
+	)
 
 # Functions to export from this module
 FunctionsToExport = '*'
