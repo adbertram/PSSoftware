@@ -25,13 +25,14 @@ GUID = 'b7b17534-a60e-424a-8d13-949988b977bd'
 Author = 'Adam Bertram'
 
 # Company or vendor of this module
-CompanyName = ''
+CompanyName = 'Adam the Automator, LLC'
 
 # Copyright statement for this module
 Copyright = '(c) 2015. All rights reserved.'
 
 # Description of the functionality provided by this module
-Description = 'Module description'
+	Description = 'This module assists software deployment administrators in deploying disparate software. It is designed to
+provide a standard interface to treat software installers of all types exactly the same.'
 
 # Minimum version of the Windows PowerShell engine required by this module
 PowerShellVersion = '2.0'
