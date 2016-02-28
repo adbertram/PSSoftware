@@ -96,7 +96,14 @@ function Uninstall-WindowsInstallerPackage
 				$params.MsiExecSwitches = $MsiExecSwitches
 			}
 			
-			Uninstall-WindowsInstallerPackageWithMsiexec @params
+			if (Uninstall-WindowsInstallerPackageWithMsiexec @params)
+			{
+				$true
+			}
+			else
+			{
+				$false	
+			}
 			Write-Log -Message "$($MyInvocation.MyCommand) - END"
 		}
 		catch
