@@ -550,7 +550,10 @@ function Remove-Software
 			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
 			if ($KillProcess)
 			{
-				Stop-MyProcess $KillProcess
+				if (-not (Stop-MyProcess $KillProcess))
+				{
+					Write-Log -Message "Failed to stop process." -LogLevel 2	
+				}
 			}
 			
 			if ($RemoveService)

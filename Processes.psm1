@@ -92,28 +92,23 @@ function Stop-MyProcess
 				foreach ($process in $ProcessesToStop)
 				{
 					Write-Log -Message "-Process $($process.Name) is running. Attempting to stop..."
-					$WmiProcess = Get-WmiObject -Class Win32_Process -Filter "name='$($process.Name).exe'" -ea 'SilentlyContinue' -ev WMIError
-					if ($WmiError)
-					{
-						Write-Log -Message "Unable to stop process $($process.Name). WMI query errored with `"$($WmiError.Exception.Message)`"" -LogLevel '2'
-						$false
-					}
-					elseif ($WmiProcess)
-					{
-						$WmiResult = $WmiProcess.Terminate()
-						if ($WmiResult.ReturnValue -eq 1603)
-						{
-							Write-Log -Message "Process $($process.name) exited successfully but needs a reboot."
-						}
-						elseif ($WmiResult.ReturnValue -ne 0)
-						{
-							Write-Log -Message "-Unable to stop process $($process.name). Return value was $($WmiResult.ReturnValue)" -LogLevel '2'
-							$false
-						}
-						else
-						{
-							Write-Log -Message "-Successfully stopped process $($process.Name)..."
-							$true
+					while ($wmiProcess = Get-WmiObject -Class Win32_Process -Filter "name='$($process.Name).exe'" -ea 'SilentlyContinue') {
+						$wmiProcess | foreach {
+							$WmiResult = $_.Terminate()
+							if ($WmiResult.ReturnValue -eq 1603)
+							{
+								Write-Log -Message "Process $($_.name) exited successfully but needs a reboot."
+							}
+							elseif ($WmiResult.ReturnValue -ne 0)
+							{
+								Write-Log -Message "-Unable to stop process $($_.name). Return value was $($WmiResult.ReturnValue)" -LogLevel '2'
+								$false
+							}
+							else
+							{
+								Write-Log -Message "-Successfully stopped process $($_.Name)..."
+								$true
+							}
 						}
 					}
 				}
