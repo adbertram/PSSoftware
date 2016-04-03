@@ -20,7 +20,7 @@
 	[CmdletBinding()]
 	param (
 		[ValidateScript({ Split-Path $_ -Parent | Test-Path })]
-		[string]$FilePath = "$(Get-SystemTempFolderPath)\$((Get-Date -f 'MM-dd-yyyy (hhmm tt)') + 'Software.log')"
+		[string]$FilePath = "$(Get-SystemTempFolderPath)\SoftwareDeployer.log"
 	)
 	
 	try

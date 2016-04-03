@@ -398,7 +398,12 @@ function Install-Software
 				}
 				Wait-MyProcess @WaitParams
 			}
-			
+			if ($Result.ExitCode -notin @(0, 3010))
+			{
+				Write-Log "Failed to install software. Installer exited with exit code [$($Result.ExitCode)]"
+				$false
+			}
+			$true
 		}
 		catch
 		{
@@ -550,10 +555,7 @@ function Remove-Software
 			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
 			if ($KillProcess)
 			{
-				if (-not (Stop-MyProcess $KillProcess))
-				{
-					Write-Log -Message "Failed to stop process." -LogLevel 2	
-				}
+				Stop-MyProcess $KillProcess
 			}
 			
 			if ($RemoveService)
@@ -583,7 +585,7 @@ function Remove-Software
 								## Check to see if the process is still running.  It's possible the termination of other processes
 								## already killed this one.
 								$Processes = $Processes | where { Get-Process -Name $_ -ea 'SilentlyContinue' }
-								Stop-MyProcess $Processes
+								$null = Stop-MyProcess $Processes
 							}
 							else
 							{
@@ -620,7 +622,7 @@ function Remove-Software
 								$params.Name = $Name	
 							}
 							
-							Uninstall-WindowsInstallerPackage @params
+							$null = Uninstall-WindowsInstallerPackage @params
 							
 						}
 						elseif ($InstallerType -eq 'InstallShield')
@@ -635,19 +637,15 @@ function Remove-Software
 							{
 								$Params.InstallshieldLogFilePath = $InstallshieldLogFilePath
 							}
-							Uninstall-InstallShieldPackage @Params
+							$null = Uninstall-InstallShieldPackage @Params
 						}
-						if (!(Test-InstalledSoftware -Name $Name))
-						{
-							Write-Log -Message "Successfully removed $Name!"
-						}
-						else
+						if (Test-InstalledSoftware -Name $Name)
 						{
 							Write-Log -Message "$Name was not uninstalled via traditional uninstall" -LogLevel '2'
 							if ($RunMsizap.IsPresent)
 							{
 								Write-Log -Message "Attempting Msizap..."
-								Uninstall-ViaMsizap -Guid $swEntry.GUID -MsizapFilePath $MsizapFilePath -Params $MsiZapParams
+								$null = Uninstall-ViaMsizap -Guid $swEntry.GUID -MsizapFilePath $MsizapFilePath -Params $MsiZapParams
 							}
 							else
 							{
@@ -667,7 +665,7 @@ function Remove-Software
 								elseif (($Key | Split-Path -Qualifier) -eq 'HKCU:')
 								{
 									Write-Log -Message "Removing HKCU registry key '$Key' for all users"
-									Set-RegistryValueForAllUsers -RegistryInstance @{ 'Path' = $Key.Replace('HKCU:\', '') } -Remove
+									$null = Set-RegistryValueForAllUsers -RegistryInstance @{ 'Path' = $Key.Replace('HKCU:\', '') } -Remove
 								}
 								else
 								{
@@ -725,10 +723,22 @@ function Remove-Software
 								}
 							}
 						}
+						
+						if (!(Test-InstalledSoftware -Name $Name))
+						{
+							Write-Log -Message "Successfully removed $Name!"
+							$true
+						}
+						else
+						{
+							Write-Log -Message "Failed to remove $Name" -LogLevel 3
+							$false
+						}
 					}
 					catch
 					{
 						Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+						$false
 					}
 				}
 			}
