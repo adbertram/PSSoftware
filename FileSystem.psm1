@@ -340,6 +340,58 @@ function Register-File
 	}
 }
 
+function Remove-Folder
+{
+	[CmdletBinding()]
+	param
+	(
+		[Parameter(Mandatory)]
+		[ValidateNotNullOrEmpty()]
+		[string]$Path
+	)
+	begin {
+		$ErrorActionPreference = 'Stop'
+	}
+	process {
+		try
+		{
+			foreach ($folder in $Path)
+			{
+				try
+				{
+					Write-Log -Message "Checking for $folder existence..."
+					if (Test-Path $folder -PathType 'Container')
+					{
+						Write-Log -Message "Found folder $folder.  Attempting to remove..."
+						Remove-Item $folder -Force -Recurse -ea 'Continue'
+						if (!(Test-Path $folder -PathType 'Container'))
+						{
+							Write-Log -Message "Successfully removed $folder"
+						}
+						else
+						{
+							Write-Log -Message "Failed to remove $folder" -LogLevel '2'
+						}
+					}
+					else
+					{
+						Write-Log -Message "$folder was not found..."
+					}
+					Get-Shortcut -MatchingTargetPath $folder -ErrorAction 'SilentlyContinue' | Remove-Item -ea 'Continue' -Force
+				}
+				catch
+				{
+					Write-Log -Message "Error occurred: '$($_.Exception.Message)' attempting to remove folder" -LogLevel '3'
+				}
+			}
+		}
+		catch
+		{
+			Write-Error $_.Exception.Message
+		}
+	}
+}
+
 function Set-MyFileSystemAcl
 {
 	<#

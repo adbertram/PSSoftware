@@ -1,3 +1,55 @@
+function New-InstallshieldIntallString
+{
+	[CmdletBinding()]
+	param
+	(
+		[Parameter(Mandatory)]
+		[ValidateNotNullOrEmpty()]
+		[string]$InstallerFilePath,
+	
+		[Parameter(Mandatory)]
+		[ValidateNotNullOrEmpty()]
+		[string]$IssFilePath,
+	
+		[Parameter()]
+		[ValidateNotNullOrEmpty()]
+		[string]$LogFilePath,
+	
+		[Parameter()]
+		[ValidateNotNullOrEmpty()]
+		[string]$ExtraSwitches
+	)
+	begin {
+		$ErrorActionPreference = 'Stop'
+	}
+	process {
+		try
+		{
+			Write-Log -Message 'Creating the InstallShield setup install string'
+			
+			## We're adding common InstallShield switches here. -s is silent, -f1 specifies where the 
+			## ISS file we createed previously lives, -f2 specifies a log file location and /SMS is a special
+			## switch that prevents the setup.exe was exiting prematurely.
+			if (-not $PSBoundParameters.ContainsKey('LogFilePath'))
+			{
+				$LogFilePath = "$(Get-SystemTempFolderPath)\$($InstallerFilePath | Split-Path -Leaf).log"
+			}
+			if (-not $ExtraSwitches)
+			{
+				$InstallArgs = "-s -f1`"$IssFilePath`" -f2`"$LogFilePath`" /SMS"
+			}
+			else
+			{
+				$InstallArgs = "-s -f1`"$IssFilePath`" $ExtraSwitches -f2`"$LogFilePath`" /SMS"
+			}
+		}
+		catch
+		{
+			Write-Error $_.Exception.Message
+		}
+	}
+}
+
 function Uninstall-InstallShieldPackage
 {
 	<#

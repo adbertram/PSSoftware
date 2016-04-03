@@ -30,7 +30,8 @@
 		try
 		{
 			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
-			if ($PSBoundParameters.ContainsKey('Name')) {
+			if ($PSBoundParameters.ContainsKey('Name'))
+			{
 				if ($PSBoundParameters.ContainsKey('Version'))
 				{
 					$SoftwareInstances = Get-InstalledSoftware -Name $Name | Where-Object { $_.Version -eq $Version }
@@ -222,24 +223,24 @@ function Install-Software
 	#>
 	[CmdletBinding(DefaultParameterSetName = 'MSI')]
 	param (
-		[Parameter(ParameterSetName = 'InstallShield',Mandatory = $true)]
+		[Parameter(ParameterSetName = 'InstallShield', Mandatory = $true)]
 		[ValidateScript({ Test-Path -Path $_ -PathType 'Leaf' })]
 		[ValidatePattern('\.exe$')]
 		[ValidateNotNullOrEmpty()]
 		[string]$InstallShieldInstallerFilePath,
 		
-		[Parameter(ParameterSetName = 'Other',Mandatory = $true)]
+		[Parameter(ParameterSetName = 'Other', Mandatory = $true)]
 		[ValidateScript({ Test-Path -Path $_ -PathType 'Leaf' })]
 		[ValidatePattern('\.exe$')]
 		[ValidateNotNullOrEmpty()]
 		[string]$OtherInstallerFilePath,
 		
-		[Parameter(ParameterSetName = 'InstallShield',Mandatory = $true)]
+		[Parameter(ParameterSetName = 'InstallShield', Mandatory = $true)]
 		[ValidatePattern('\.iss$')]
 		[ValidateNotNullOrEmpty()]
 		[string]$IssFilePath,
 		
-		[Parameter(ParameterSetName = 'MSI',Mandatory = $true)]
+		[Parameter(ParameterSetName = 'MSI', Mandatory = $true)]
 		[ValidateScript({ Test-Path -Path $_ -PathType 'Leaf' })]
 		[ValidateNotNullOrEmpty()]
 		[string]$MsiInstallerFilePath,
@@ -275,14 +276,13 @@ function Install-Software
 		
 		[Parameter()]
 		[ValidateNotNullOrEmpty()]
-		[int]$ProcessTimeout = 600, 
+		[int]$ProcessTimeout = 600,
 		
 		[Parameter()]
 		[ValidateNotNullOrEmpty()]
 		[string]$LogFilePath
-	
 	)
-
+	
 	process
 	{
 		try
@@ -295,37 +295,13 @@ function Install-Software
 				'Passthru' = $true
 			}
 			
-			if ($PSBoundParameters.ContainsKey('MsiInstallerFilePath')) {
+			
+			if ($PSBoundParameters.ContainsKey('MsiInstallerFilePath'))
+			{
 				$InstallerFilePath = $MsiInstallerFilePath
 				Write-Log -Message 'Creating the msiexec install string'
 				
-				## We're creating common msiexec switches here.  /i specifies I want to run an install, /qn
-				## says I want that install to be quiet (no prompts) and n means no UI so no progress bars
-				$InstallArgs = @()
-				$InstallArgs += "/i `"$InstallerFilePath`" /qn"
-				if ($MstFilePath)
-				{
-					$InstallArgs += "TRANSFORMS=`"$MstFilePath`""
-				}
-				if ($MspFilePath)
-				{
-					$InstallArgs += "PATCH=`"$MspFilePath`""
-				}
-				if ($MsiExecSwitches)
-				{
-					$InstallArgs += $MsiExecSwitches
-				}
-				
-				## Once we've added all of the custom syntax elements we'll then add a few more default
-				## switches.  REBOOT=ReallySuppress prevents the computer from rebooting if it exists with an
-				## exit code of 3010, ALLUSERS=1 means that we'd like to make this software for all users
-				## on the machine and /Lvx* is the most verbose way to specify a log file path and to log as
-				## much information as possible.
-                if (-not $PSBoundParameters.ContainsKey('LogFilePath')) {
-                    $LogFilePath = "$(Get-SystemTempFolderPath)\$($InstallerFilePath | Split-Path -Leaf).log"
-                }
-				$InstallArgs += "REBOOT=ReallySuppress ALLUSERS=1 /Lvx* `"$LogFilePath`""
-				$InstallArgs = $InstallArgs -join ' '
+				$InstallArgs = New-MsiexecInstallString -InstallerFilePath $InstallerFilePath -MspFilePath $MspFilePath -MstFilePath $MstFilePath -LogFilePath $LogFilePath
 				
 				## Add Start-Process parameters
 				$ProcessParams['FilePath'] = 'msiexec.exe'
@@ -334,23 +310,9 @@ function Install-Software
 			elseif ($PSBoundParameters.ContainsKey('InstallShieldInstallerFilePath'))
 			{
 				$InstallerFilePath = $InstallShieldInstallerFilePath
-				Write-Log -Message 'Creating the InstallShield setup install string'
 				
-				## We're adding common InstallShield switches here. -s is silent, -f1 specifies where the 
-				## ISS file we createed previously lives, -f2 specifies a log file location and /SMS is a special
-				## switch that prevents the setup.exe was exiting prematurely.
-				if (-not $PSBoundParameters.ContainsKey('LogFilePath')) {
-                    $LogFilePath = "$(Get-SystemTempFolderPath)\$($InstallerFilePath | Split-Path -Leaf).log"
-                }
-                if (-not $InstallShieldInstallArgs)
-				{
-					$InstallArgs = "-s -f1`"$IssFilePath`" -f2`"$LogFilePath`" /SMS"
-				}
-				else
-				{
-					$InstallArgs = "-s -f1`"$IssFilePath`" $InstallShieldInstallArgs -f2`"$LogFilePath`" /SMS"
-				}
-				## Add Start-Process parameters
+				$InstallArgs = New-InstallshieldInstallString -InstallerFilePath $InstallerFilePath -LogFilePath $LogFilePath -ExtraSwitches $InstallShieldInstallArgs -IssFilePath $IssFilePath
+				
 				$ProcessParams['FilePath'] = $InstallerFilePath
 				$ProcessParams['ArgumentList'] = $InstallArgs
 			}
@@ -398,12 +360,19 @@ function Install-Software
 				}
 				Wait-MyProcess @WaitParams
 			}
+			
+			$outputProps = @{ }
 			if ($Result.ExitCode -notin @(0, 3010))
 			{
 				Write-Log "Failed to install software. Installer exited with exit code [$($Result.ExitCode)]"
-				$false
+				$outputProps.Success = $false
 			}
-			$true
+			else
+			{
+				$outputProps.Success = $true
+			}
+			$outputProps.ExitCode = $Result.ExitCode
+			New-Object –TypeName PSObject –Prop $outputProps
 		}
 		catch
 		{
@@ -452,12 +421,6 @@ function Remove-Software
 	.PARAMETER Name
 		This is the name of the application to search for. This can be multiple products.  Each product will be removed in the
 		order you specify.
-	.PARAMETER KillProcess
-		One or more process names to attempt to kill prior to software uninstall.  By default, all EXEs in the installation 
-		folder are found and all matching running processes are killed.  This would be for any additional processes you'd
-		like to kill.
-	.PARAMETER RemoveService
-		One or more services to attempt to stop and remove prior to software uninstall
 	.PARAMETER MsiExecSwitches
 		Specify a string of switches you'd like msiexec.exe to run when it attempts to uninstall the software. By default,
 		it already uses "/x GUID /qn".  You can specify any additional parameters here.
@@ -467,23 +430,6 @@ function Remove-Software
 	.PARAMETER InstallshieldLogFilePath
 		The file path where the Installshield log will be created.  This defaults to the name of the product being
 		uninstalled in the system temp directory
-	.PARAMETER Shortcut
-		By default, all LNK shortcuts in all user profile folders pointing to the install folder location of the software being removed and all
-		LNK shortcuts pointing to any folder you're removing with the RemoveFolder parameter.  Use this parameter to specify any
-		additional shortcuts you'd like to remove. Specify a hash table of search types and search values to match in all LNK and URL files in all 
-		folders in all user profiles and have them removed. If the RemoveFolder param is specified, this will inherently be
-		done matching the 'MatchingTargetPath' attribute on the folder specified there.
-	
-		The options for the keys in this hash table are MatchingTargetPath,MatchingName and MatchingFilePath.  Use each
-		key along with the value of what you'd like to search for and remove.
-	.PARAMETER RemoveFolder
-		One or more folders to recursively remove after software uninstall. This is beneficial for those
-		applications that do not clean up after themselves.  If this param is specified, all shortcuts related to this
-		folder path will be removed in all user profile folders also.
-	.PARAMETER RemoveRegistryKey
-		One or more registry key paths to recursively remove after software install.  Use a Powershell-friendly registry
-		key path like 'HKLM:\Software\SomeSoftware\DeleteThisKey' or 'HKCU:\Software\SomeSoftware\DeleteThisUserKey'.  The HKCU
-		references will be converted to the appropriate paths to remove that key from all user registry hives.
 	.PARAMETER RunMsizap
 		Use this parameter to run the msizap.exe utility to cleanup any lingering remnants of the software
 	.PARAMETER MsizapParams
@@ -500,15 +446,13 @@ function Remove-Software
 	#>
 	[CmdletBinding(DefaultParameterSetName = 'MSI')]
 	param (
+		[Parameter(ValueFromPipeline = $true, Mandatory = $true, ParameterSetName = 'FromPipeline')]
+		[ValidateNotNullOrEmpty()]
+		[object]$Software,
+	
 		[Parameter(Mandatory = $true,
 				   ValueFromPipelineByPropertyName = $true)]
 		[string]$Name,
-		
-		[Parameter()]
-		[string[]]$KillProcess,
-		
-		[Parameter()]
-		[string[]]$RemoveService,
 		
 		[Parameter(ParameterSetName = 'MSI')]
 		[string]$MsiExecSwitches,
@@ -518,15 +462,6 @@ function Remove-Software
 		
 		[Parameter(ParameterSetName = 'ISS')]
 		[string]$InstallshieldLogFilePath,
-		
-		[Parameter()]
-		[string[]]$RemoveFolder,
-		
-		[Parameter()]
-		[string[]]$RemoveRegistryKey,
-		
-		[Parameter()]
-		[hashtable]$Shortcut,
 		
 		[Parameter(ParameterSetName = 'Msizap')]
 		[switch]$RunMsizap,
@@ -553,193 +488,105 @@ function Remove-Software
 		try
 		{
 			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
-			if ($KillProcess)
+			
+			if ($PSCmdlet.ParameterSetName -ne 'FromPipeline')
 			{
-				Stop-MyProcess $KillProcess
+				$Software = Get-InstalledSoftware -Name $Name
 			}
 			
-			if ($RemoveService)
-			{
-				Remove-MyService $RemoveService
-			}
-			
-			Write-Log -Message "Finding all software titles registered under the name '$Name'"
-			$swInstance = Get-InstalledSoftware -Name $Name
-			if (-not $swInstance)
+			if (-not $Software)
 			{
 				Write-Log -Message "The software [$($Name)]	was not found"
 			}
 			else
 			{
-				foreach ($swEntry in $swInstance)
+				try
 				{
-					try
+					if ($Software.InstallLocation)
 					{
-						if ($swEntry.InstallLocation)
+						Write-Log -Message "Stopping all processes under the install folder $($Software.InstallLocation)..."
+						Stop-SoftwareProcess -Software $Software
+					}
+					
+					if ($Software.UninstallString)
+					{
+						$InstallerType = Get-InstallerType $Software.UninstallString
+					}
+					else
+					{
+						Write-Log -Message "Uninstall string for $Name not found" -LogLevel '2'
+					}
+					if (!$PsBoundParameters['LogFilePath'])
+					{
+						$script:LogFilePath = "$(Get-SystemTempFolderPath)\$Name.log"
+						Write-Log -Message "No log file path specified.  Defaulting to $script:LogFilePath..."
+					}
+					if (!$InstallerType -or ($InstallerType -eq 'Windows Installer'))
+					{
+						Write-Log -Message "Installer type detected to be Windows Installer or unknown for $Name. Attempting Windows Installer removal" -LogLevel '2'
+						$params = @{ }
+						if ($PSBoundParameters.ContainsKey('MsiExecSwitches'))
 						{
-							Write-Log -Message "Stopping all processes under the install folder $($swEntry.InstallLocation)..."
-							$Processes = (Get-Process | where { $_.Path -like "$($swEntry.InstallLocation)*" } | select -ExpandProperty Name)
-							if ($Processes)
-							{
-								Write-Log -Message "Sending processes: $Processes to Stop-MyProcess..."
-								## Check to see if the process is still running.  It's possible the termination of other processes
-								## already killed this one.
-								$Processes = $Processes | where { Get-Process -Name $_ -ea 'SilentlyContinue' }
-								$null = Stop-MyProcess $Processes
-							}
-							else
-							{
-								Write-Log -Message 'No processes running under the install folder path'
-							}
+							$params.MsiExecSwitches = $MsiExecSwitches
 						}
-						
-						if ($swEntry.UninstallString)
+						if ($Software.GUID)
 						{
-							$InstallerType = Get-InstallerType $swEntry.UninstallString
+							$params.Guid = $Software.GUID
 						}
 						else
 						{
-							Write-Log -Message "Uninstall string for $Name not found" -LogLevel '2'
-						}
-						if (!$PsBoundParameters['LogFilePath'])
-						{
-							$script:LogFilePath = "$(Get-SystemTempFolderPath)\$Name.log"
-							Write-Log -Message "No log file path specified.  Defaulting to $script:LogFilePath..."
-						}
-						if (!$InstallerType -or ($InstallerType -eq 'Windows Installer'))
-						{
-							Write-Log -Message "Installer type detected to be Windows Installer or unknown for $Name. Attempting Windows Installer removal" -LogLevel '2'
-							$params = @{ }
-							if ($PSBoundParameters.ContainsKey('MsiExecSwitches')) {
-								$params.MsiExecSwitches = $MsiExecSwitches
-							}
-							if ($swEntry.GUID)
-							{
-								$params.Guid = $swEntry.GUID
-							}
-							else
-							{
-								$params.Name = $Name	
-							}
-							
-							$null = Uninstall-WindowsInstallerPackage @params
-							
-						}
-						elseif ($InstallerType -eq 'InstallShield')
-						{
-							Write-Log -Message "Installer type detected as Installshield."
-							$Params = @{
-								'IssFilePath' = $IssFilePath;
-								'Name' = $Name;
-								'SetupFilePath' = $InstallShieldSetupFilePath
-							}
-							if ($InstallshieldLogFilePath)
-							{
-								$Params.InstallshieldLogFilePath = $InstallshieldLogFilePath
-							}
-							$null = Uninstall-InstallShieldPackage @Params
-						}
-						if (Test-InstalledSoftware -Name $Name)
-						{
-							Write-Log -Message "$Name was not uninstalled via traditional uninstall" -LogLevel '2'
-							if ($RunMsizap.IsPresent)
-							{
-								Write-Log -Message "Attempting Msizap..."
-								$null = Uninstall-ViaMsizap -Guid $swEntry.GUID -MsizapFilePath $MsizapFilePath -Params $MsiZapParams
-							}
-							else
-							{
-								Write-Log -Message "$Name failed to uninstall successfully" -LogLevel '3'
-							}
-						}
-						if ($RemoveRegistryKey)
-						{
-							Write-Log -Message 'Beginning registry key removal...'
-							foreach ($Key in $RemoveRegistryKey)
-							{
-								if (($Key | Split-Path -Qualifier) -eq 'HKLM:')
-								{
-									Write-Log -Message "Removing HKLM registry key '$Key' for system"
-									Remove-Item -Path $Key -Recurse -Force -ea 'SilentlyContinue'
-								}
-								elseif (($Key | Split-Path -Qualifier) -eq 'HKCU:')
-								{
-									Write-Log -Message "Removing HKCU registry key '$Key' for all users"
-									$null = Set-RegistryValueForAllUsers -RegistryInstance @{ 'Path' = $Key.Replace('HKCU:\', '') } -Remove
-								}
-								else
-								{
-									Write-Log -Message "Registry key '$Key' not in recognized format" -LogLevel '2'
-								}
-							}
+							$params.Name = $Name
 						}
 						
-						if ($InstallFolderPath)
-						{
-							Write-Log -Message "Removing any user profile shortcuts associated with the software if an install location was found"
-							Get-Shortcut -MatchingTargetPath $InstallFolderPath | Remove-Item -Force
-						}
+						$null = Uninstall-WindowsInstallerPackage @params
 						
-						if ($Shortcut)
-						{
-							Write-Log -Message "Removing all shortcuts in all user profile folders"
-							foreach ($key in $Shortcut.GetEnumerator())
-							{
-								$Params = @{ $key.Name = $key.value }
-								Get-Shortcut $Params | Remove-Item -Force -ea 'Continue'
-							}
+					}
+					elseif ($InstallerType -eq 'InstallShield')
+					{
+						Write-Log -Message "Installer type detected as Installshield."
+						$Params = @{
+							'IssFilePath' = $IssFilePath;
+							'Name' = $Name;
+							'SetupFilePath' = $InstallShieldSetupFilePath
 						}
-						
-						if ($RemoveFolder)
+						if ($InstallshieldLogFilePath)
 						{
-							Write-Log -Message "Starting folder removal..."
-							foreach ($Folder in $RemoveFolder)
-							{
-								try
-								{
-									Write-Log -Message "Checking for $Folder existence..."
-									if (Test-Path $Folder -PathType 'Container')
-									{
-										Write-Log -Message "Found folder $Folder.  Attempting to remove..."
-										Remove-Item $Folder -Force -Recurse -ea 'Continue'
-										if (!(Test-Path $Folder -PathType 'Container'))
-										{
-											Write-Log -Message "Successfully removed $Folder"
-										}
-										else
-										{
-											Write-Log -Message "Failed to remove $Folder" -LogLevel '2'
-										}
-									}
-									else
-									{
-										Write-Log -Message "$Folder was not found..."
-									}
-									Get-Shortcut -MatchingTargetPath $Folder -ErrorAction 'SilentlyContinue' | Remove-Item -ea 'Continue' -Force
-								}
-								catch
-								{
-									Write-Log -Message "Error occurred: '$($_.Exception.Message)' attempting to remove folder" -LogLevel '3'
-								}
-							}
+							$Params.InstallshieldLogFilePath = $InstallshieldLogFilePath
 						}
-						
-						if (!(Test-InstalledSoftware -Name $Name))
+						$null = Uninstall-InstallShieldPackage @Params
+					}
+					if (Test-InstalledSoftware -Name $Name)
+					{
+						Write-Log -Message "$Name was not uninstalled via traditional uninstall" -LogLevel '2'
+						if ($RunMsizap.IsPresent)
 						{
-							Write-Log -Message "Successfully removed $Name!"
-							$true
+							Write-Log -Message "Attempting Msizap..."
+							$null = Uninstall-ViaMsizap -Guid $Software.GUID -MsizapFilePath $MsizapFilePath -Params $MsiZapParams
 						}
 						else
 						{
-							Write-Log -Message "Failed to remove $Name" -LogLevel 3
-							$false
+							Write-Log -Message "$Name failed to uninstall successfully" -LogLevel '3'
 						}
 					}
-					catch
+
+					$outputProps = @{ }
+					if (-not (Test-InstalledSoftware -Name $Name))
 					{
-						Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-						$false
+						Write-Log -Message "Successfully removed $Name!"
+						$outputProps.Success = $true
 					}
+					else
+					{
+						Write-Log -Message "Failed to remove $Name" -LogLevel 3
+						$outputProps.Success = $false
+					}
+					$outputProps.ExitCode = $Result.ExitCode
+					New-Object –TypeName PSObject –Prop $outputProps
+				}
+				catch
+				{
+					Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+					$false
 				}
 			}
 		}

@@ -132,6 +132,42 @@ function Stop-MyProcess
 	}
 }
 
+function Stop-SoftwareProcess
+{
+	[CmdletBinding()]
+	param
+	(
+		[Parameter(Mandatory = $true,ValueFromPipeline = $true)]
+		[ValidateNotNullOrEmpty()]
+		[object]$Software
+	)
+	begin {
+		$ErrorActionPreference = 'Stop'
+	}
+	process {
+		try
+		{
+			$Processes = (Get-Process | where { $_.Path -like "$($Software.InstallLocation)*" } | select -ExpandProperty Name)
+			if ($Processes)
+			{
+				Write-Log -Message "Sending processes: $Processes to Stop-MyProcess..."
+				## Check to see if the process is still running.  It's possible the termination of other processes
+				## already killed this one.
+				$Processes = $Processes | where { Get-Process -Name $_ -ea 'SilentlyContinue' }
+				Stop-MyProcess $Processes
+			}
+			else
+			{
+				Write-Log -Message 'No processes running under the install folder path'
+			}
+		}
+		catch
+		{
+			Write-Error $_.Exception.Message
+		}
+	}
+}
+
 function Wait-MyProcess
 {
 	<#

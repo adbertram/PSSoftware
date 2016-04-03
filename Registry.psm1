@@ -356,6 +356,46 @@ function Import-RegistryFile
 	}
 }
 
+function Remove-RegistryKey
+{
+	[CmdletBinding()]
+	param
+	(
+		[Parameter(Mandatory)]
+		[ValidateNotNullOrEmpty()]
+		[string[]]$Path
+	)
+	begin {
+		$ErrorActionPreference = 'Stop'
+	}
+	process {
+		try
+		{
+			foreach ($key in $Path)
+			{
+				if (($key | Split-Path -Qualifier) -eq 'HKLM:')
+				{
+					Write-Log -Message "Removing HKLM registry key '$key' for system"
+					Remove-Item -Path $key -Recurse -Force -ea 'SilentlyContinue'
+				}
+				elseif (($key | Split-Path -Qualifier) -eq 'HKCU:')
+				{
+					Write-Log -Message "Removing HKCU registry key '$key' for all users"
+					$null = Set-RegistryValueForAllUsers -RegistryInstance @{ 'Path' = $key.Replace('HKCU:\', '') } -Remove
+				}
+				else
+				{
+					Write-Log -Message "Registry key '$key' not in recognized format" -LogLevel '2'
+				}
+			}
+		}
+		catch
+		{
+			Write-Error $_.Exception.Message
+		}
+	}
+}
+
 function Set-RegistryValueForAllUsers
 {
     <#

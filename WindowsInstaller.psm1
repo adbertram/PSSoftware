@@ -1,3 +1,71 @@
+function New-MsiexecInstallString
+{
+	[CmdletBinding()]
+	param
+	(
+		[Parameter(Mandatory)]
+		[ValidateNotNullOrEmpty()]
+		[string]$InstallerFilePath,
+	
+		[Parameter()]
+		[AllowNull()]
+		[string]$MstFilePath,
+	
+		[Parameter()]
+		[AllowNull()]
+		[string]$MspFilePath,
+	
+		[Parameter()]
+		[AllowNull()]
+		[string]$ExtraSwitches,
+	
+		[Parameter()]
+		[AllowNull()]
+		[string]$LogFilePath
+	)
+	begin {
+		$ErrorActionPreference = 'Stop'
+	}
+	process {
+		try
+		{
+			## We're creating common msiexec switches here.  /i specifies I want to run an install, /qn
+			## says I want that install to be quiet (no prompts) and n means no UI so no progress bars
+			$InstallArgs = @()
+			$InstallArgs += "/i `"$InstallerFilePath`" /qn"
+			if ($MstFilePath)
+			{
+				$InstallArgs += "TRANSFORMS=`"$MstFilePath`""
+			}
+			if ($MspFilePath)
+			{
+				$InstallArgs += "PATCH=`"$MspFilePath`""
+			}
+			if ($ExtraSwitches)
+			{
+				$InstallArgs += $ExtraSwitches
+			}
+			
+			## Once we've added all of the custom syntax elements we'll then add a few more default
+			## switches.  REBOOT=ReallySuppress prevents the computer from rebooting if it exists with an
+			## exit code of 3010, ALLUSERS=1 means that we'd like to make this software for all users
+			## on the machine and /Lvx* is the most verbose way to specify a log file path and to log as
+			## much information as possible.
+			if (-not $PSBoundParameters.ContainsKey('LogFilePath'))
+			{
+				$LogFilePath = "$(Get-SystemTempFolderPath)\$($InstallerFilePath | Split-Path -Leaf).log"
+			}
+			$InstallArgs += "REBOOT=ReallySuppress ALLUSERS=1 /Lvx* `"$LogFilePath`""
+			$InstallArgs = $InstallArgs -join ' '
+			$InstallArgs
+		}
+		catch
+		{
+			Write-Error $_.Exception.Message
+		}
+	}
+}
+
 function Uninstall-ViaMsizap
 {
 	<#
