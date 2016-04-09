@@ -254,7 +254,7 @@ function Uninstall-WindowsInstallerPackageWithMsiexec
 			$Process = Start-Process 'msiexec.exe' -ArgumentList $switchString -PassThru -Wait -NoNewWindow
 			Wait-WindowsInstaller
 			Test-Process $Process
-			if (!(Test-InstalledSoftware -Guid $Guid))
+			if (-not (Test-InstalledSoftware -Guid $Guid))
 			{
 				Write-Log -Message "Successfully uninstalled MSI package with msiexec.exe"
 				$true
@@ -300,7 +300,7 @@ function Uninstall-WindowsInstallerPackageWithMsiModule
 	{
 		try
 		{	
-			if (!(Test-Path 'C:\MyDeployment\MSI'))
+			if (-not (Test-Path 'C:\MyDeployment\MSI'))
 			{
 				Write-Log -Message "Required MSI module is not available" -LogLevel '2'
 				$false
@@ -328,7 +328,7 @@ function Uninstall-WindowsInstallerPackageWithMsiModule
 				}
 				
 				Get-MSIProductInfo @MsiProductParams | Uninstall-MsiProduct @UninstallParams
-				if (!(Test-InstalledSoftware @MsiProductParams))
+				if (-not (Test-InstalledSoftware @MsiProductParams))
 				{
 					Write-Log -Message "Successfully uninstalled MSI package '$Name' with MSI module"
 					$true

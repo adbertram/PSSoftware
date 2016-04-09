@@ -108,12 +108,12 @@ function Get-RegistryValue
 		{
 			
 			$Key = Get-Item -Path $Path -ErrorAction 'SilentlyContinue'
-			if (!$Key)
+			if (-not $Key)
 			{
 				throw "The registry key $Path does not exist"
 			}
 			$Value = $Key.GetValue($Name)
-			if (!$Value)
+			if (-not $Value)
 			{
 				throw "The registry value $Name in the key $Path does not exist"
 			}
@@ -161,7 +161,7 @@ function Get-RegistryValueForAllUsers
 			foreach ($instance in $RegistryInstance)
 			{
 				$Value = Get-ItemProperty -Path "HKU:\$sid\$($instance.Path)" -Name $instance.Name -ErrorAction SilentlyContinue
-				if (!$Value)
+				if (-not $Value)
 				{
 					Write-Log -Message "Registry value $($instance.name) does not exist in HKU:\$sid\$($instance.Path)" -LogLevel '2'
 				}
@@ -201,7 +201,7 @@ function Get-RegistryValueForAllUsers
 				{
 					Write-Log -Message "Finding property in the HKU\$($instance.Path) path"
 					$Value = Get-ItemProperty -Path "HKU:\TempUserLoad\$($instance.Path)" -Name $instance.Name -ErrorAction SilentlyContinue
-					if (!$Value)
+					if (-not $Value)
 					{
 						Write-Log -Message "Registry value $($instance.name) does not exist in HKU:\TempUserLoad\$($instance.Path)" -LogLevel '2'
 					}

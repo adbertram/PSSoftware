@@ -68,14 +68,10 @@ function Import-Certificate
 		{
 			$Cert = Get-Item $FilePath
 			$Cert = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2 $Cert
-			foreach ($Store in $StoreName)
-			{
-				$X509Store = New-Object System.Security.Cryptography.X509Certificates.X509Store $Store, $Context
-				$X509Store.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadWrite)
-				$X509Store.Add($Cert)
-				$X509Store.Close()
-			}
-			
+			$X509Store = New-Object System.Security.Cryptography.X509Certificates.X509Store $StoreName, $Context
+			$X509Store.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadWrite)
+			$X509Store.Add($Cert)
+			$X509Store.Close()
 		}
 		catch
 		{

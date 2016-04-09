@@ -100,14 +100,14 @@ function Uninstall-InstallShieldPackage
 				{
 					$UninstallString = $p.UninstallString
 					## Check to ensure anything is in the UninstallString property
-					if (!$p.UninstallString)
+					if (-not $p.UninstallString)
 					{
 						Write-Log -Message "No uninstall string found for product $Title" -LogLevel '2'
 					}
 					elseif ($p.UninstallString -match '(\w:\\[a-zA-Z0-9 _.() { }-]+\\.*.exe)+')
 					{
 						## Test to ensure the cached setup.exe exists
-						if (!(Test-Path $Matches[0]))
+						if (-not (Test-Path $Matches[0]))
 						{
 							Write-Log -Message "Installer file path not found in $($p.UninstallString) or cannot be found on the file system" -LogLevel '2'
 						}
@@ -117,9 +117,9 @@ function Uninstall-InstallShieldPackage
 							Write-Log -Message "Valid installer file path is $InstallerFilePath"
 						}
 					}
-					if (!$InstallerFilePath)
+					if (-not $InstallerFilePath)
 					{
-						if (!$SetupFilePath)
+						if (-not $SetupFilePath)
 						{
 							Write-Log -Message "No setup folder path specified. This software cannot be removed" -LogLevel '2'
 							continue
@@ -141,7 +141,7 @@ function Uninstall-InstallShieldPackage
 					$InstallArgs = "/s /f1`"$IssFilePath`" /f2`"$MyLogFilePath`" /SMS"
 					Write-Log -Message "Running the install syntax `"$InstallerFilePath`" $InstallArgs"
 					$Process = Start-Process "`"$InstallerFilePath`"" -ArgumentList $InstallArgs -Wait -NoNewWindow -PassThru
-					if (!(Test-InstalledSoftware $Title))
+					if (-not (Test-InstalledSoftware $Title))
 					{
 						Write-Log -Message "The product $Title was successfully removed!"
 						$true
@@ -158,7 +158,7 @@ function Uninstall-InstallShieldPackage
 							$InstallArgs = "$InstallArgs /s /f1`"$IssFilePath`" /f2`"$MyLogFilePath`" /SMS"
 							Write-Log -Message "Running the install syntax `"$InstallerFilePath`" $InstallArgs"
 							$Process = Start-Process "`"$InstallerFilePath`"" -ArgumentList $InstallArgs -Wait -NoNewWindow -PassThru
-							if (!(Test-InstalledSoftware $Title))
+							if (-not (Test-InstalledSoftware $Title))
 							{
 								Write-Log -Message "The product '$Title' was not removed!"
 								$false

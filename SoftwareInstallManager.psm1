@@ -109,7 +109,7 @@ function Get-InstalledSoftware
 						'DisplayName' = 'Name'
 						'DisplayVersion' = 'Version'
 					}
-					Write-Verbose -Message "Checking uninstall key [$($UninstallKey)]"
+					Write-Log -Message "Checking uninstall key [$($UninstallKey)]"
 					if ($PSBoundParameters.ContainsKey('Name'))
 					{
 						$WhereBlock = { $_.GetValue('DisplayName') -like "$Name*" }
@@ -125,7 +125,7 @@ function Get-InstalledSoftware
 					$SwKeys = Get-ChildItem -Path $UninstallKey -ErrorAction SilentlyContinue | Where-Object $WhereBlock
 					if (-not $SwKeys)
 					{
-						Write-Verbose -Message "No software keys in uninstall key $UninstallKey"
+						Write-Log -Message "No software keys in uninstall key $UninstallKey"
 					}
 					else
 					{
@@ -507,12 +507,12 @@ function Remove-Software
 					{
 						Write-Log -Message "Uninstall string for $Name not found" -LogLevel '2'
 					}
-					if (!$PsBoundParameters['LogFilePath'])
+					if (-not $PsBoundParameters['LogFilePath'])
 					{
 						$script:LogFilePath = "$(Get-SystemTempFolderPath)\$Name.log"
 						Write-Log -Message "No log file path specified.  Defaulting to $script:LogFilePath..."
 					}
-					if (!$InstallerType -or ($InstallerType -eq 'Windows Installer'))
+					if (-not $InstallerType -or ($InstallerType -eq 'Windows Installer'))
 					{
 						Write-Log -Message "Installer type detected to be Windows Installer or unknown for $Name. Attempting Windows Installer removal" -LogLevel '2'
 						$params = @{ }

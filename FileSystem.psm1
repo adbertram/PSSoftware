@@ -30,15 +30,7 @@ function Compare-FilePath
 		{
 			$ReferenceHash = Get-MyFileHash -Path $ReferenceFilePath
 			$DifferenceHash = Get-MyFileHash -Path $DifferenceFilePath
-			if ($ReferenceHash.SHA256 -ne $DifferenceHash.SHA256)
-			{
-				$false
-			}
-			else
-			{
-				$true
-			}
-			
+			$ReferenceHash.SHA256 -ne $DifferenceHash.SHA256
 		}
 		catch
 		{
@@ -76,8 +68,8 @@ function Compare-FolderPath
 	{
 		try
 		{
-			$ReferenceFiles = Get-ChildItem -Path $ReferenceFolderPath -Recurse | Where-Object { !$_.PsIsContainer }
-			$DifferenceFiles = Get-ChildItem -Path $DifferenceFolderPath -Recurse | Where-Object { !$_.PsIsContainer }
+			$ReferenceFiles = Get-ChildItem -Path $ReferenceFolderPath -Recurse | Where-Object { -not $_.PsIsContainer }
+			$DifferenceFiles = Get-ChildItem -Path $DifferenceFolderPath -Recurse | Where-Object { -not $_.PsIsContainer }
 			if ($ReferenceFiles.Count -ne $DifferenceFiles.Count)
 			{
 				Write-Log -Message "Folder path '$ReferenceFolderPath' and '$DifferenceFolderPath' file counts are different" -LogLevel '2'
@@ -134,23 +126,6 @@ function Copy-FileWithHashCheck
 		[Parameter()]
 		[switch]$Force
 	)
-	begin
-	{
-		
-		function Test-HashEqual ($FilePath1, $FilePath2)
-		{
-			$SourceHash = Get-MyFileHash -Path $FilePath1
-			$DestHash = Get-MyFileHash -Path $FilePath2
-			if ($SourceHash.SHA256 -ne $DestHash.SHA256)
-			{
-				$false
-			}
-			else
-			{
-				$true
-			}
-		}
-	}
 	process
 	{
 		try
@@ -161,12 +136,12 @@ function Copy-FileWithHashCheck
 			$DestFilePath = "$DestinationFolderPath\$($SourceFilePath | Split-Path -Leaf)"
 			if (Test-Path -Path $DestFilePath -PathType 'Leaf')
 			{
-				if (Test-HashEqual -FilePath1 $SourceFilePath -FilePath2 $DestFilePath)
+				if (Compare-FilePath -ReferenceFilePath $SourceFilePath -DifferenceFilePath $DestFilePath)
 				{
 					Write-Log -Message "The file $SourceFilePath is already in $DestinationFolderPath and is the same. No need to copy"
 					return $true
 				}
-				elseif (!$Force.IsPresent)
+				elseif (-not $Force.IsPresent)
 				{
 					throw "The file $SourceFilePath is already in $DestinationFolderPath but is not the same file being copied and -Force was not used."
 				}
@@ -177,16 +152,11 @@ function Copy-FileWithHashCheck
 			}
 			Write-Log -Message "Copying [$($CopyParams.Path)] to [[$($CopyParams.Destination)]...."
 			Copy-Item @CopyParams
-			if (Test-HashEqual -FilePath1 $SourceFilePath -FilePath2 $DestFilePath)
+			if (Compare-FilePath -ReferenceFilePath $SourceFilePath -DifferenceFilePath $DestFilePath)
 			{
 				Write-Log -Message "The file $SourceFilePath was successfully copied to $DestinationFolderPath."
-				return $true
 			}
-			else
-			{
-				throw "Attempted to copy the file $SourceFilePath to $DestinationFolderPath but failed the hash check"
-			}
-			
+			throw "Attempted to copy the file $SourceFilePath to $DestinationFolderPath but failed the hash check"
 		}
 		catch
 		{
@@ -251,7 +221,7 @@ function Find-InTextFile
 	begin
 	{
 		$SystemTempFolderPath = Get-SystemTempFolderPath
-		if (!$UseRegex.IsPresent)
+		if (-not $UseRegex.IsPresent)
 		{
 			$Find = [regex]::Escape($Find)
 		}
@@ -260,7 +230,6 @@ function Find-InTextFile
 	{
 		try
 		{
-			
 			foreach ($File in $FilePath)
 			{
 				if ($Replace)
@@ -272,9 +241,9 @@ function Find-InTextFile
 							Remove-Item -Path $NewFilePath -Force
 							(Get-Content $File) -replace $Find, $Replace | Add-Content -Path $NewFilePath -Force
 						}
-						elseif ((Test-Path -Path $NewFilePath -PathType 'Leaf') -and !$Force.IsPresent)
+						elseif ((Test-Path -Path $NewFilePath -PathType 'Leaf') -and (-not $Force.IsPresent))
 						{
-							Write-Warning "The file at '$NewFilePath' already exists and the -Force param was not used"
+							Write-Log -Message "The file at '$NewFilePath' already exists and the -Force param was not used" -LogLevel 2
 						}
 						else
 						{
@@ -324,60 +293,9 @@ function Register-File
 			
 			$Result = Start-Process -FilePath 'regsvr32.exe' -ArgumentList "/s `"$FilePath`"" -Wait -NoNewWindow -PassThru
 			Wait-MyProcess -ProcessId $Result.Id
-			Test-Error -SuccessString "Successfully registered file $FilePath"
-			
-		}
-		catch
-		{
-			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			$PSCmdlet.ThrowTerminatingError($_)
-		}
-	}
-}
-
-function Remove-Folder
-{
-	[CmdletBinding()]
-	param
-	(
-		[Parameter(Mandatory)]
-		[ValidateNotNullOrEmpty()]
-		[string]$Path
-	)
-	begin {
-		$ErrorActionPreference = 'Stop'
-	}
-	process {
-		try
-		{
-			foreach ($folder in $Path)
+			if ($Result.ExitCode -ne '0')
 			{
-				try
-				{
-					Write-Log -Message "Checking for $folder existence..."
-					if (Test-Path $folder -PathType 'Container')
-					{
-						Write-Log -Message "Found folder $folder.  Attempting to remove..."
-						Remove-Item $folder -Force -Recurse -ErrorAction 'Continue'
-						if (!(Test-Path $folder -PathType 'Container'))
-						{
-							Write-Log -Message "Successfully removed $folder"
-						}
-						else
-						{
-							Write-Log -Message "Failed to remove $folder" -LogLevel '2'
-						}
-					}
-					else
-					{
-						Write-Log -Message "$folder was not found..."
-					}
-					Get-Shortcut -MatchingTargetPath $folder -ErrorAction 'SilentlyContinue' | Remove-Item -ErrorAction 'Continue' -Force
-				}
-				catch
-				{
-					Write-Log -Message "Error occurred: '$($_.Exception.Message)' attempting to remove folder" -LogLevel '3'
-				}
+				throw "Process ID [$($Result.Id)] failed. Exit code was [$($Result.ExitCode)]"
 			}
 		}
 		catch
@@ -435,7 +353,6 @@ function Set-MyFileSystemAcl
 	{
 		try
 		{
-			
 			$Acl = (Get-Item $Path).GetAccessControl('Access')
 			$Ar = New-Object System.Security.AccessControl.FileSystemAccessRule($Identity, $Right, $InheritanceFlags, $PropagationFlags, $Type)
 			$Acl.SetAccessRule($Ar)
@@ -469,9 +386,7 @@ function Get-FileVersion
 	{
 		try
 		{
-			
-			(Get-ItemProperty -Path $FilePath).VersionInfo.FileVersion
-			
+			(Get-ItemProperty -Path $FilePath).VersionInfo.FileVersion	
 		}
 		catch
 		{
@@ -575,12 +490,12 @@ function Get-MyFileHash
 				$item = (Resolve-Path $item).ProviderPath
 				If (-Not ([uri]$item).IsAbsoluteUri)
 				{
-					Write-Verbose ("{0} is not a full path, using current directory: {1}" -f $item, $pwd)
+					Write-Log -Message ("{0} is not a full path, using current directory: {1}" -f $item, $pwd)
 					$item = (Join-Path $pwd ($item -replace "\.\\", ""))
 				}
 				If (Test-Path $item -PathType Container)
 				{
-					Write-Warning ("Cannot calculate hash for directory: {0}" -f $item)
+					Write-Log -Message ("Cannot calculate hash for directory: {0}" -f $item) -LogLevel 2
 					Return
 				}
 				$object = New-Object PSObject -Property @{

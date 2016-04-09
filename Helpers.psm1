@@ -27,7 +27,7 @@ function Start-Log
 	
 	try
 	{
-		if (!(Test-Path $FilePath))
+		if (-not (Test-Path $FilePath))
 		{
 			## Create the log file
 			New-Item $FilePath -ItemType File | Out-Null
@@ -72,8 +72,7 @@ function Write-Log
 	#>
 	[CmdletBinding()]
 	param (
-		[Parameter(
-				   Mandatory = $true)]
+		[Parameter(Mandatory = $true)]
 		[string]$Message,
 		
 		[Parameter()]
@@ -91,7 +90,7 @@ function Write-Log
 		
 		if (-not (Test-Path Variable:\ScriptLogFilePath))
 		{
-			Write-Verbose $Message
+			Write-Log -Message $Message
 		}
 		else
 		{
@@ -101,49 +100,6 @@ function Write-Log
 	catch
 	{
 		Write-Error $_.Exception.Message
-	}
-}
-
-function Test-Error
-{
-	<#
-	.SYNOPSIS
-		This function is used after the execution of any script snippet.  It is used as a standardized output
-		method to log either an error or a success.
-	.PARAMETER MyError
-		The System.Exception object type error typically thrown in a try/catch block
-	.PARAMETER SuccessString
-		If no error is found, this will be logged.
-	#>
-	[CmdletBinding()]
-	param (
-		[Parameter()]
-		[string]$MyError,
-		
-		[Parameter()]
-		[string]$SuccessString
-	)
-	process
-	{
-		try
-		{
-			
-			if (!$MyError)
-			{
-				Write-Log -Message $SuccessString
-				$true
-			}
-			else
-			{
-				throw $MyError
-			}
-			
-		}
-		catch
-		{
-			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			$PSCmdlet.ThrowTerminatingError($_)
-		}
 	}
 }
 
@@ -403,33 +359,6 @@ function Get-Architecture
 	}
 }
 
-function Get-Count
-{
-	<#
-	.SYNOPSIS
-		This function was created to account for collections where the output from a command
-		is 1 and simply using .Count doesn't work well.
-	#>
-	param (
-		[Parameter(ValueFromPipeline = $true)]
-		$Value
-	)
-	process
-	{
-		
-		if (!$Input)
-		{
-			0
-		}
-		else
-		{
-			$count = $Input.Count
-			$count
-		}
-		
-	}
-}
-
 function Get-DriveFreeSpace
 {
 	<#
@@ -484,8 +413,6 @@ function Get-DriveFreeSpace
 			Write-Debug "Using WQL query $WhereQuery"
 			$WmiParams = @{
 				'Query' = $WhereQuery
-				'ErrorVariable' = 'MyError';
-				'ErrorAction' = 'SilentlyContinue'
 			}
 		}
 		catch
@@ -504,11 +431,7 @@ function Get-DriveFreeSpace
 				{
 					$WmiParams.Computername = $Computer
 					$WmiResult = Get-WmiObject @WmiParams
-					if (!(Test-Error $MyError "Sucessfull WMI query"))
-					{
-						throw $MyError
-					}
-					elseif (!$WmiResult)
+					if (-not $WmiResult)
 					{
 						throw "Drive letter does not exist on target system"
 					}

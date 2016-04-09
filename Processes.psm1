@@ -84,7 +84,7 @@ function Stop-MyProcess
 		{
 			
 			$ProcessesToStop = Get-Process -Name $ProcessName -ErrorAction 'SilentlyContinue'
-			if (!$ProcessesToStop)
+			if (-not $ProcessesToStop)
 			{
 				Write-Log -Message "-No processes to be killed found..."
 			}
@@ -249,7 +249,7 @@ function Wait-MyProcess
 				if ($ChildProcessesToLive) ## If any child processes were spawned while the parent process was running
 				{
 					$ChildProcessesToLive = $ChildProcessesToLive | Select-Object -Unique ## Ensure we didn't accidently capture duplicate PIDs
-					Write-Log -Message "Parent process '$($Process.Name)' ($($Process.Id)) has finished but still has $($ChildProcessesToLive | Get-Count) child processes ($($ChildProcessesToLive.Name -join ',')) left.  Waiting on these to finish."
+					Write-Log -Message "Parent process '$($Process.Name)' ($($Process.Id)) has finished but still has $(@($ChildProcessesToLive).Count) child processes ($($ChildProcessesToLive.Name -join ',')) left.  Waiting on these to finish."
 					foreach ($Process in $ChildProcessesToLive)
 					{
 						Wait-MyProcess -ProcessId $Process.ProcessId

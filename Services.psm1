@@ -22,12 +22,8 @@ function Remove-MyService
 		try
 		{
 			
-			$ServicesToRemove = Get-Service $Name -ErrorAction 'SilentlyContinue' -ErrorVariable MyError
-			if (!(Test-Error $MyError "Found $($ServicesToRemove.Count) services to remove"))
-			{
-				throw $MyError
-			}
-			elseif (!$ServicesToRemove)
+			$ServicesToRemove = Get-Service $Name
+			if (-not $ServicesToRemove)
 			{
 				Write-Log -Message "-No services to be removed found..."
 			}
@@ -41,11 +37,7 @@ function Remove-MyService
 						if ($Service.Status -ne 'Stopped')
 						{
 							Write-Log -Message "-Service $($Service.Displayname) is not stopped."
-							Stop-Service $Service -ErrorAction 'SilentlyContinue' -Force -ErrorVariable ServiceError
-							if (!(Test-Error $ServiceError "-Successfully stopped $($Service.Displayname)"))
-							{
-								throw $MyError
-							}
+							Stop-Service $Service
 						}
 						else
 						{

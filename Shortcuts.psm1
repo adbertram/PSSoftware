@@ -54,7 +54,7 @@ function Get-Shortcut
 		try
 		{
 			
-			if (!$FolderPath)
+			if (-not $FolderPath)
 			{
 				$FolderPath = (Get-RootUserProfileFolderPath), (Get-AllUsersProfileFolderPath)
 			}
@@ -66,7 +66,7 @@ function Get-Shortcut
 				'Force' = $true
 			}
 			
-			if (!$NoRecurse)
+			if (-not $NoRecurse)
 			{
 				$Params['Recurse'] = $true
 			}

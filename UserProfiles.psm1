@@ -226,7 +226,7 @@ function Remove-ProfileItem
 			
 			foreach ($p in $Path)
 			{
-				if (!(Test-Path "$AllUserProfileFolderPath\$p"))
+				if (-not (Test-Path "$AllUserProfileFolderPath\$p"))
 				{
 					Write-Log -Message "The folder '$AllUserProfileFolderPath\$p' does not exist"
 				}
@@ -238,7 +238,7 @@ function Remove-ProfileItem
 				
 				foreach ($ProfilePath in $UserProfileFolderPaths)
 				{
-					if (!(Test-Path "$ProfilePath\$p"))
+					if (-not (Test-Path "$ProfilePath\$p"))
 					{
 						Write-Log -Message "The folder '$ProfilePath\$p' does not exist"
 					}
