@@ -31,11 +31,11 @@ function Import-Certificate
 		[ValidateScript({
 			if ($Location -eq 'CurrentUser')
 			{
-				(Get-ChildItem Cert:\CurrentUser | select -ExpandProperty name) -contains $_
+				(Get-ChildItem Cert:\CurrentUser | Select-Object -ExpandProperty name) -contains $_
 			}
 			else
 			{
-				(Get-ChildItem Cert:\LocalMachine | select -ExpandProperty name) -contains $_
+				(Get-ChildItem Cert:\LocalMachine | Select-Object -ExpandProperty name) -contains $_
 			}
 		})]
 		[string]$StoreName,

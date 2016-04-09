@@ -11,7 +11,7 @@ function Remove-MyService
 	[CmdletBinding()]
 	param (
 		[Parameter(Mandatory = $true)]
-		[ValidateScript({ Get-Service -Name $_ -ea 'SilentlyContinue' })]
+		[ValidateScript({ Get-Service -Name $_ -ErrorAction 'SilentlyContinue' })]
 		[string]$Name
 	)
 	process
@@ -19,7 +19,7 @@ function Remove-MyService
 		try
 		{
 			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
-			$ServicesToRemove = Get-Service $Name -ea 'SilentlyContinue' -ev MyError
+			$ServicesToRemove = Get-Service $Name -ErrorAction 'SilentlyContinue' -ErrorVariable MyError
 			if (!(Test-Error $MyError "Found $($ServicesToRemove.Count) services to remove"))
 			{
 				throw $MyError
@@ -38,7 +38,7 @@ function Remove-MyService
 						if ($Service.Status -ne 'Stopped')
 						{
 							Write-Log -Message "-Service $($Service.Displayname) is not stopped."
-							Stop-Service $Service -ErrorAction 'SilentlyContinue' -Force -ev ServiceError
+							Stop-Service $Service -ErrorAction 'SilentlyContinue' -Force -ErrorVariable ServiceError
 							if (!(Test-Error $ServiceError "-Successfully stopped $($Service.Displayname)"))
 							{
 								throw $MyError
@@ -49,7 +49,7 @@ function Remove-MyService
 							Write-Log -Message "-Service $($Service.Displayname) is already stopped."
 						}
 						Write-Log -Message "-Attempting to remove service $($Service.DisplayName)..."
-						$WmiService = Get-WmiObject -Class Win32_Service -Filter "Name='$($Service.ServiceName)'" -ea 'SilentlyContinue' -ev WMIError
+						$WmiService = Get-WmiObject -Class Win32_Service -Filter "Name='$($Service.ServiceName)'" -ErrorAction 'SilentlyContinue' -ErrorVariable WMIError
 						if ($WmiError)
 						{
 							Write-Log -Message "-Unable to remove service $($Service.DisplayName). WMI query errored with `"$($WmiError.Exception.Message)`"" -LogLevel '2'

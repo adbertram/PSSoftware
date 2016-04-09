@@ -28,7 +28,7 @@
 		if (!(Test-Path $FilePath))
 		{
 			## Create the log file
-			New-Item $FilePath -Type File | Out-Null
+			New-Item $FilePath -ItemType File | Out-Null
 		}
 		
 		## Set the global variable to be used as the FilePath for all subsequent Write-Log
@@ -244,10 +244,10 @@ function Convert-GuidToCompressedGuid
 			$Guid.Substring(12, 4).ToCharArray(),
 			$Guid.Substring(16, 16).ToCharArray()
 			)
-			$Groups[0..2] | foreach {
+			$Groups[0..2] | ForEach-Object {
 				[array]::Reverse($_)
 			}
-			$CompressedGuid = ($Groups[0..2] | foreach { $_ -join '' }) -join ''
+			$CompressedGuid = ($Groups[0..2] | ForEach-Object { $_ -join '' }) -join ''
 			
 			$chararr = $Groups[3]
 			for ($i = 0; $i -lt $chararr.count; $i++)
@@ -389,7 +389,7 @@ function Get-Architecture
 		try
 		{
 			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
-			if ([System.Environment]::Is64BitOperatingSystem -or ((Get-WmiObject -Class Win32_ComputerSystem | select -ExpandProperty SystemType) -eq 'x64-based PC'))
+			if ([System.Environment]::Is64BitOperatingSystem -or ((Get-WmiObject -Class Win32_ComputerSystem | Select-Object -ExpandProperty SystemType) -eq 'x64-based PC'))
 			{
 				'x64'
 			}
@@ -607,7 +607,7 @@ function Get-LoggedOnUserSID
 			{
 				New-PSDrive -Name HKU -PSProvider Registry -Root Registry::HKEY_USERS | Out-Null
 				## Every user that's logged on has a registry key in HKU with their SID
-				(Get-ChildItem HKU: | where { $_.Name -match 'S-\d-\d+-(\d+-){1,14}\d+$' }).PSChildName
+				(Get-ChildItem HKU: | Where-Object { $_.Name -match 'S-\d-\d+-(\d+-){1,14}\d+$' }).PSChildName
 			}
 		}
 		catch

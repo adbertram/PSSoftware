@@ -183,7 +183,7 @@ function Get-UserProfilePath
 			{
 				$WhereBlock = { $_.PSChildName -ne $null }
 			}
-			Get-ChildItem 'HKLM:\Software\Microsoft\Windows NT\CurrentVersion\ProfileList' | where $WhereBlock | % { $_.GetValue('ProfileImagePath') }
+			Get-ChildItem 'HKLM:\Software\Microsoft\Windows NT\CurrentVersion\ProfileList' | Where-Object $WhereBlock | ForEach-Object { $_.GetValue('ProfileImagePath') }
 			Write-Log -Message "$($MyInvocation.MyCommand) - END"
 		}
 		catch

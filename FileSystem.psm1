@@ -77,8 +77,8 @@ function Compare-FolderPath
 		try
 		{
 			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
-			$ReferenceFiles = Get-ChildItem -Path $ReferenceFolderPath -Recurse | where { !$_.PsIsContainer }
-			$DifferenceFiles = Get-ChildItem -Path $DifferenceFolderPath -Recurse | where { !$_.PsIsContainer }
+			$ReferenceFiles = Get-ChildItem -Path $ReferenceFolderPath -Recurse | Where-Object { !$_.PsIsContainer }
+			$DifferenceFiles = Get-ChildItem -Path $DifferenceFolderPath -Recurse | Where-Object { !$_.PsIsContainer }
 			if ($ReferenceFiles.Count -ne $DifferenceFiles.Count)
 			{
 				Write-Log -Message "Folder path '$ReferenceFolderPath' and '$DifferenceFolderPath' file counts are different" -LogLevel '2'
@@ -326,7 +326,7 @@ function Register-File
 		try
 		{
 			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
-			$Result = Start-Process -FilePath 'regsvr32.exe' -Args "/s `"$FilePath`"" -Wait -NoNewWindow -PassThru
+			$Result = Start-Process -FilePath 'regsvr32.exe' -ArgumentList "/s `"$FilePath`"" -Wait -NoNewWindow -PassThru
 			Wait-MyProcess -ProcessId $Result.Id
 			Test-Error -SuccessString "Successfully registered file $FilePath"
 			Write-Log -Message "$($MyInvocation.MyCommand) - END"
@@ -363,7 +363,7 @@ function Remove-Folder
 					if (Test-Path $folder -PathType 'Container')
 					{
 						Write-Log -Message "Found folder $folder.  Attempting to remove..."
-						Remove-Item $folder -Force -Recurse -ea 'Continue'
+						Remove-Item $folder -Force -Recurse -ErrorAction 'Continue'
 						if (!(Test-Path $folder -PathType 'Container'))
 						{
 							Write-Log -Message "Successfully removed $folder"
@@ -377,7 +377,7 @@ function Remove-Folder
 					{
 						Write-Log -Message "$folder was not found..."
 					}
-					Get-Shortcut -MatchingTargetPath $folder -ErrorAction 'SilentlyContinue' | Remove-Item -ea 'Continue' -Force
+					Get-Shortcut -MatchingTargetPath $folder -ErrorAction 'SilentlyContinue' | Remove-Item -ErrorAction 'Continue' -Force
 				}
 				catch
 				{
@@ -584,7 +584,7 @@ function Get-MyFileHash
 					Write-Verbose ("{0} is not a full path, using current directory: {1}" -f $item, $pwd)
 					$item = (Join-Path $pwd ($item -replace "\.\\", ""))
 				}
-				If (Test-Path $item -Type Container)
+				If (Test-Path $item -PathType Container)
 				{
 					Write-Warning ("Cannot calculate hash for directory: {0}" -f $item)
 					Return
@@ -597,7 +597,7 @@ function Get-MyFileHash
 				foreach ($Type in $Algorithm)
 				{
 					[string]$hash = -join ([Security.Cryptography.HashAlgorithm]::Create($Type).ComputeHash($stream) |
-					ForEach { "{0:x2}" -f $_ })
+					ForEach-Object { "{0:x2}" -f $_ })
 					$null = $stream.Seek(0, 0)
 					#If multiple algorithms are used, then they will be added to existing object
 					$object = Add-Member -InputObject $Object -MemberType NoteProperty -Name $Type -Value $Hash -PassThru

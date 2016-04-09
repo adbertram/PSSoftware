@@ -106,7 +106,7 @@ function Get-RegistryValue
 		try
 		{
 			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
-			$Key = Get-Item -Path $Path -ea 'SilentlyContinue'
+			$Key = Get-Item -Path $Path -ErrorAction 'SilentlyContinue'
 			if (!$Key)
 			{
 				throw "The registry key $Path does not exist"
@@ -160,7 +160,7 @@ function Get-RegistryValueForAllUsers
 			Write-Log -Message "Loading the user registry hive for the logged on SID $sid"
 			foreach ($instance in $RegistryInstance)
 			{
-				$Value = Get-ItemProperty -Path "HKU:\$sid\$($instance.Path)" -Name $instance.Name -ea SilentlyContinue
+				$Value = Get-ItemProperty -Path "HKU:\$sid\$($instance.Path)" -Name $instance.Name -ErrorAction SilentlyContinue
 				if (!$Value)
 				{
 					Write-Log -Message "Registry value $($instance.name) does not exist in HKU:\$sid\$($instance.Path)" -LogLevel '2'
@@ -176,9 +176,9 @@ function Get-RegistryValueForAllUsers
 		## Exclude all SIDs from the users that are currently logged on.  Those have already been processed.
 		$ProfileSids = (Get-UserProfile).SID
 		Write-Log -Message "Found $($ProfileSids.Count) SIDs for profiles"
-		$ProfileSids = $ProfileSids | where { $LoggedOnSids -notcontains $_ }
+		$ProfileSids = $ProfileSids | Where-Object { $LoggedOnSids -notcontains $_ }
 		
-		$ProfileFolderPaths = $ProfileSids | foreach { Get-UserProfilePath -Sid $_ }
+		$ProfileFolderPaths = $ProfileSids | ForEach-Object { Get-UserProfilePath -Sid $_ }
 		
 		if ((Get-Architecture) -eq 'x64')
 		{
@@ -200,7 +200,7 @@ function Get-RegistryValueForAllUsers
 				foreach ($instance in $RegistryInstance)
 				{
 					Write-Log -Message "Finding property in the HKU\$($instance.Path) path"
-					$Value = Get-ItemProperty -Path "HKU:\TempUserLoad\$($instance.Path)" -Name $instance.Name -ea SilentlyContinue
+					$Value = Get-ItemProperty -Path "HKU:\TempUserLoad\$($instance.Path)" -Name $instance.Name -ErrorAction SilentlyContinue
 					if (!$Value)
 					{
 						Write-Log -Message "Registry value $($instance.name) does not exist in HKU:\TempUserLoad\$($instance.Path)" -LogLevel '2'
@@ -256,7 +256,7 @@ function Import-RegistryFile
 			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
 			## Detect if this is a registry file for HKCU, HKLM, HKU, HKCR or HKCC keys
 			$Regex = 'HKEY_CURRENT_USER|HKEY_CLASSES_ROOT|HKEY_LOCAL_MACHINE|HKEY_USERS|HKEY_CURRENT_CONFIG'
-			$HiveNames = Select-String -Path $FilePath -Pattern $Regex | foreach { $_.Matches.Value }
+			$HiveNames = Select-String -Path $FilePath -Pattern $Regex | ForEach-Object { $_.Matches.Value }
 			$RegFileHive = $HiveNames | Select-Object -Unique
 			if ($RegFileHive -is [array])
 			{
@@ -289,7 +289,7 @@ function Import-RegistryFile
 			if ($RegFileHive -ne 'HKEY_CURRENT_USER')
 			{
 				Write-Log -Message "Starting registry import of reg file $FilePath..."
-				($Result = Start-Process "$($env:Systemdrive)\Windows\$RegPath\reg.exe" -Args "import `"$FilePath`"" -Wait -NoNewWindow -PassThru) | Out-Null
+				($Result = Start-Process "$($env:Systemdrive)\Windows\$RegPath\reg.exe" -ArgumentList "import `"$FilePath`"" -Wait -NoNewWindow -PassThru) | Out-Null
 				Test-Process -Process $Result
 				Write-Log -Message 'Registry file import done'
 			}
@@ -376,7 +376,7 @@ function Remove-RegistryKey
 				if (($key | Split-Path -Qualifier) -eq 'HKLM:')
 				{
 					Write-Log -Message "Removing HKLM registry key '$key' for system"
-					Remove-Item -Path $key -Recurse -Force -ea 'SilentlyContinue'
+					Remove-Item -Path $key -Recurse -Force -ErrorAction 'SilentlyContinue'
 				}
 				elseif (($key | Split-Path -Qualifier) -eq 'HKCU:')
 				{
@@ -451,11 +451,11 @@ function Set-RegistryValueForAllUsers
 					if ($Remove.IsPresent)
 					{
 						Write-Log -Message "Removing registry key '$($instance.path)'"
-						Remove-Item -Path "HKU:\$sid\$($instance.Path)" -Recurse -Force -ea 'SilentlyContinue'
+						Remove-Item -Path "HKU:\$sid\$($instance.Path)" -Recurse -Force -ErrorAction 'SilentlyContinue'
 					}
 					else
 					{
-						if (-not (Get-Item -Path "HKU:\$sid\$($instance.Path)" -ea 'SilentlyContinue'))
+						if (-not (Get-Item -Path "HKU:\$sid\$($instance.Path)" -ErrorAction 'SilentlyContinue'))
 						{
 							Write-Log -Message "The registry key HKU:\$sid\$($instance.Path) does not exist.  Creating..."
 							New-Item -Path "HKU:\$sid\$($instance.Path | Split-Path -Parent)" -Name ($instance.Path | Split-Path -Leaf) -Force | Out-Null
@@ -510,7 +510,7 @@ function Set-RegistryValueForAllUsers
 							throw "Registry type '$($instance.Type)' not recognized"
 						}
 					}
-					if (-not (Get-Item -Path "HKCU:\$($instance.Path)" -ea 'SilentlyContinue'))
+					if (-not (Get-Item -Path "HKCU:\$($instance.Path)" -ErrorAction 'SilentlyContinue'))
 					{
 						Write-Log -Message "The registry key 'HKCU:\$($instance.Path)'' does not exist.  Creating..."
 						New-Item -Path "HKCU:\$($instance.Path) | Split-Path -Parent)" -Name ("HKCU:\$($instance.Path)" | Split-Path -Leaf) -Force | Out-Null

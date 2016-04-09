@@ -92,7 +92,7 @@ function Stop-MyProcess
 				foreach ($process in $ProcessesToStop)
 				{
 					Write-Log -Message "-Process $($process.Name) is running. Attempting to stop..."
-					$WmiProcess = Get-WmiObject -Class Win32_Process -Filter "name='$($process.Name).exe'" -ea 'SilentlyContinue' -ev WMIError
+					$WmiProcess = Get-WmiObject -Class Win32_Process -Filter "name='$($process.Name).exe'" -ErrorAction 'SilentlyContinue' -ErrorVariable WMIError
 					if ($WmiError)
 					{
 						Write-Log -Message "Unable to stop process $($process.Name). WMI query errored with `"$($WmiError.Exception.Message)`"" -LogLevel '2'
@@ -147,13 +147,13 @@ function Stop-SoftwareProcess
 	process {
 		try
 		{
-			$Processes = (Get-Process | where { $_.Path -like "$($Software.InstallLocation)*" } | select -ExpandProperty Name)
+			$Processes = (Get-Process | Where-Object { $_.Path -like "$($Software.InstallLocation)*" } | Select-Object -ExpandProperty Name)
 			if ($Processes)
 			{
 				Write-Log -Message "Sending processes: $Processes to Stop-MyProcess..."
 				## Check to see if the process is still running.  It's possible the termination of other processes
 				## already killed this one.
-				$Processes = $Processes | where { Get-Process -Name $_ -ea 'SilentlyContinue' }
+				$Processes = $Processes | Where-Object { Get-Process -Name $_ -ErrorAction 'SilentlyContinue' }
 				Stop-MyProcess $Processes
 			}
 			else
@@ -210,7 +210,7 @@ function Wait-MyProcess
 			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
 			
 			Write-Log -Message "Finding the process ID '$ProcessId'..."
-			$Process = Get-Process -Id $ProcessId -ea 'SilentlyContinue'
+			$Process = Get-Process -Id $ProcessId -ErrorAction 'SilentlyContinue'
 			if ($Process)
 			{
 				Write-Log -Message "Process '$($Process.Name)' ($($Process.Id)) found. Waiting to finish and capturing all child processes."
