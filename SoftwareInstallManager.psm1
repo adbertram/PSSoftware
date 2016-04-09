@@ -98,7 +98,7 @@ function Get-InstalledSoftware
 			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
 			$UninstallKeys = "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall", "HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall"
 			New-PSDrive -Name HKU -PSProvider Registry -Root Registry::HKEY_USERS | Out-Null
-			$UninstallKeys += Get-ChildItem HKU: | where { $_.Name -match 'S-\d-\d+-(\d+-){1,14}\d+$' } | foreach { "HKU:\$($_.PSChildName)\Software\Microsoft\Windows\CurrentVersion\Uninstall" }
+			$UninstallKeys += Get-ChildItem HKU: | Where-Object { $_.Name -match 'S-\d-\d+-(\d+-){1,14}\d+$' } | ForEach-Object { "HKU:\$($_.PSChildName)\Software\Microsoft\Windows\CurrentVersion\Uninstall" }
 			if (-not $UninstallKeys)
 			{
 				Write-Log -Message 'No software registry keys found' -LogLevel '2'
@@ -159,7 +159,7 @@ function Get-InstalledSoftware
 							{
 								$output.GUID = $SwKey.PSChildName
 							}
-							New-Object –TypeName PSObject –Prop $output
+							New-Object –TypeName PSObject -Property $output
 						}
 					}
 				}
@@ -336,7 +336,7 @@ function Install-Software
 			if ($PSBoundParameters.ContainsKey('KillProcess'))
 			{
 				Write-Log -Message 'Killing existing processes'
-				$KillProcess | foreach { Stop-MyProcess -ProcessName $_ }
+				$KillProcess | ForEach-Object { Stop-MyProcess -ProcessName $_ }
 			}
 			
 			Write-Log -Message "Starting the command line process `"$($ProcessParams['FilePath'])`" $($ProcessParams['ArgumentList'])..."
@@ -372,7 +372,7 @@ function Install-Software
 				$outputProps.Success = $true
 			}
 			$outputProps.ExitCode = $Result.ExitCode
-			New-Object –TypeName PSObject –Prop $outputProps
+			New-Object –TypeName PSObject -Property $outputProps
 		}
 		catch
 		{
@@ -581,7 +581,7 @@ function Remove-Software
 						$outputProps.Success = $false
 					}
 					$outputProps.ExitCode = $Result.ExitCode
-					New-Object –TypeName PSObject –Prop $outputProps
+					New-Object –TypeName PSObject -Property $outputProps
 				}
 				catch
 				{
