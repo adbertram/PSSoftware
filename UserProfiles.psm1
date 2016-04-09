@@ -1,3 +1,5 @@
+Set-StrictMode -Version Latest
+
 function Get-AllUsersDesktopFolderPath
 {
 	<#
@@ -12,7 +14,6 @@ function Get-AllUsersDesktopFolderPath
 	{
 		try
 		{
-			
 			$Shell = New-Object -ComObject "WScript.Shell"
 			$Shell.SpecialFolders.Item('AllUsersDesktop')
 			
@@ -20,8 +21,7 @@ function Get-AllUsersDesktopFolderPath
 		catch
 		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			
-			$false
+			$PSCmdlet.ThrowTerminatingError($_)
 		}
 	}
 }
@@ -48,8 +48,7 @@ function Get-AllUsersProfileFolderPath
 		catch
 		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			
-			$false
+			$PSCmdlet.ThrowTerminatingError($_)
 		}
 	}
 }
@@ -82,8 +81,7 @@ function Get-AllUsersStartMenuFolderPath
 		catch
 		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			
-			$false
+			$PSCmdlet.ThrowTerminatingError($_)
 		}
 	}
 }
@@ -109,8 +107,7 @@ function Get-UserProfile
 		catch
 		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			
-			$false
+			$PSCmdlet.ThrowTerminatingError($_)
 		}
 	}
 }
@@ -137,8 +134,7 @@ function Get-RootUserProfileFolderPath
 		catch
 		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			
-			$false
+			$PSCmdlet.ThrowTerminatingError($_)
 		}
 	}
 }
@@ -195,8 +191,7 @@ function Get-UserProfilePath
 		catch
 		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			
-			$false
+			$PSCmdlet.ThrowTerminatingError($_)
 		}
 	}
 }
@@ -258,8 +253,7 @@ function Remove-ProfileItem
 		catch
 		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			
-			$false
+			$PSCmdlet.ThrowTerminatingError($_)
 		}
 	}
 }
@@ -302,8 +296,7 @@ function Set-AllUserStartupAction
 		catch
 		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			
-			$false
+			$PSCmdlet.ThrowTerminatingError($_)
 		}
 	}
 }

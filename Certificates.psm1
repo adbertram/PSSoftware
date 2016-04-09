@@ -1,3 +1,5 @@
+Set-StrictMode -Version Latest
+
 function Import-Certificate
 {
 	<#
@@ -49,7 +51,6 @@ function Import-Certificate
 	begin
 	{
 		$ErrorActionPreference = [System.Management.Automation.ActionPreference]::Stop
-		Set-StrictMode -Version Latest
 		try
 		{
 			[void][System.Reflection.Assembly]::LoadWithPartialName('System.Security')
@@ -57,8 +58,7 @@ function Import-Certificate
 		catch
 		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			$false
-			exit
+			$PSCmdlet.ThrowTerminatingError($_)
 		}
 	}
 	
@@ -80,8 +80,7 @@ function Import-Certificate
 		catch
 		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			
-			$false
+			$PSCmdlet.ThrowTerminatingError($_)
 		}
 	}
 }

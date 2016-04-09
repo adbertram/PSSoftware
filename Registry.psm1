@@ -1,3 +1,5 @@
+Set-StrictMode -Version Latest
+
 function Compare-RegistryFileToRegistry
 {
 	<#
@@ -71,8 +73,7 @@ function Compare-RegistryFileToRegistry
 		catch
 		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			
-			$false
+			$PSCmdlet.ThrowTerminatingError($_)
 		}
 	}
 }
@@ -122,8 +123,7 @@ function Get-RegistryValue
 		catch
 		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			
-			$false
+			$PSCmdlet.ThrowTerminatingError($_)
 		}
 	}
 }
@@ -223,8 +223,7 @@ function Get-RegistryValueForAllUsers
 	catch
 	{
 		Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-		
-		$false
+		$PSCmdlet.ThrowTerminatingError($_)
 	}
 }
 
@@ -278,7 +277,7 @@ function Import-RegistryFile
 		catch
 		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			return $false
+			$PSCmdlet.ThrowTerminatingError($_)
 		}
 		
 	}
@@ -350,8 +349,7 @@ function Import-RegistryFile
 		catch
 		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			
-			$false
+			$PSCmdlet.ThrowTerminatingError($_)
 		}
 	}
 }
@@ -391,7 +389,8 @@ function Remove-RegistryKey
 		}
 		catch
 		{
-			Write-Error $_.Exception.Message
+			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			$PSCmdlet.ThrowTerminatingError($_)
 		}
 	}
 }
@@ -524,11 +523,7 @@ function Set-RegistryValueForAllUsers
 		catch
 		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			$false
-		}
-		finally
-		{
-			
+			$PSCmdlet.ThrowTerminatingError($_)
 		}
 	}
 }

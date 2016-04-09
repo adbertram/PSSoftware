@@ -1,3 +1,5 @@
+Set-StrictMode -Version Latest
+
 function Compare-FilePath
 {
 	<#
@@ -41,8 +43,7 @@ function Compare-FilePath
 		catch
 		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			
-			$false
+			$PSCmdlet.ThrowTerminatingError($_)
 		}
 	}
 }
@@ -97,8 +98,7 @@ function Compare-FolderPath
 		catch
 		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			
-			$false
+			$PSCmdlet.ThrowTerminatingError($_)
 		}
 	}
 }
@@ -191,8 +191,7 @@ function Copy-FileWithHashCheck
 		catch
 		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			
-			$false
+			$PSCmdlet.ThrowTerminatingError($_)
 		}
 	}
 }
@@ -299,8 +298,7 @@ function Find-InTextFile
 		catch
 		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			
-			$false
+			$PSCmdlet.ThrowTerminatingError($_)
 		}
 	}
 }
@@ -332,8 +330,7 @@ function Register-File
 		catch
 		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			
-			$false
+			$PSCmdlet.ThrowTerminatingError($_)
 		}
 	}
 }
@@ -385,7 +382,8 @@ function Remove-Folder
 		}
 		catch
 		{
-			Write-Error $_.Exception.Message
+			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			$PSCmdlet.ThrowTerminatingError($_)
 		}
 	}
 }
@@ -447,8 +445,7 @@ function Set-MyFileSystemAcl
 		catch
 		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			
-			$false
+			$PSCmdlet.ThrowTerminatingError($_)
 		}
 	}
 }
@@ -479,8 +476,7 @@ function Get-FileVersion
 		catch
 		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			
-			$false
+			$PSCmdlet.ThrowTerminatingError($_)
 		}
 	}
 }
@@ -611,8 +607,7 @@ function Get-MyFileHash
 			catch
 			{
 				Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-				
-				$false
+				$PSCmdlet.ThrowTerminatingError($_)
 			}
 		}
 	}

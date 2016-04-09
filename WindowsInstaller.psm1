@@ -1,3 +1,5 @@
+Set-StrictMode -Version Latest
+
 function New-MsiexecInstallString
 {
 	[OutputType([string])]
@@ -62,7 +64,8 @@ function New-MsiexecInstallString
 		}
 		catch
 		{
-			Write-Error $_.Exception.Message
+			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			$PSCmdlet.ThrowTerminatingError($_)
 		}
 	}
 }
@@ -115,8 +118,7 @@ function Uninstall-ViaMsizap
 		catch
 		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			
-			$false
+			$PSCmdlet.ThrowTerminatingError($_)
 		}
 	}
 }
@@ -180,8 +182,7 @@ function Uninstall-WindowsInstallerPackage
 		catch
 		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			
-			$false
+			$PSCmdlet.ThrowTerminatingError($_)
 		}
 	}
 }
@@ -214,54 +215,60 @@ function Uninstall-WindowsInstallerPackageWithMsiexec
 	)
 	process
 	{
-		
-		if ($Name)
-		{
-			Write-Log -Message "Attempting to uninstall Windows Installer with msiexec.exe using name '$Name'..."
-			$Params = @{ 'Name' = $Name }
-			$software = Get-InstalledSoftware @Params
-			if (-not $software)
+		try {
+			if ($Name)
 			{
-				throw 'Name specified for uninstall but could not find GUID to remove'
-			}
-			else
-			{
-				## Sometimes multiple instances are returned. 1 having no GUID and 1 having a GUID.
-				## Cisco AnyConnect is an example where if the one with the GUID is removed both are removed.
-				$Guid = $software | Where-Object { $_.GUID }
-				if (-not $Guid)
+				Write-Log -Message "Attempting to uninstall Windows Installer with msiexec.exe using name '$Name'..."
+				$Params = @{ 'Name' = $Name }
+				$software = Get-InstalledSoftware @Params
+				if (-not $software)
 				{
-					throw 'Required GUID could not be found for software'
+					throw 'Name specified for uninstall but could not find GUID to remove'
 				}
 				else
 				{
-					$Guid = $Guid.GUID
-					Write-Log -Message "Using GUID [$Guid] for the uninstall"
+					## Sometimes multiple instances are returned. 1 having no GUID and 1 having a GUID.
+					## Cisco AnyConnect is an example where if the one with the GUID is removed both are removed.
+					$Guid = $software | Where-Object { $_.GUID }
+					if (-not $Guid)
+					{
+						throw 'Required GUID could not be found for software'
+					}
+					else
+					{
+						$Guid = $Guid.GUID
+						Write-Log -Message "Using GUID [$Guid] for the uninstall"
+					}
 				}
 			}
+			
+			$switches = @("/x `"$Guid`"")
+			if ($PSBoundParameters.ContainsKey('MsiExecSwitches'))
+			{
+				$switches += $MsiExecSwitches
+			}
+			$switches += @('REBOOT=ReallySuppress', '/qn')
+			$switchString = $switches -join ' '
+			
+			Write-Log -Message "Initiating msiexec.exe with arguments [$($switchString)]"
+			$Process = Start-Process 'msiexec.exe' -ArgumentList $switchString -PassThru -Wait -NoNewWindow
+			Wait-WindowsInstaller
+			Test-Process $Process
+			if (!(Test-InstalledSoftware -Guid $Guid))
+			{
+				Write-Log -Message "Successfully uninstalled MSI package with msiexec.exe"
+				$true
+			}
+			else
+			{
+				Write-Log -Message "Failed to uninstall MSI package with msiexec.exe" -LogLevel '3'
+				$false
+			}
 		}
-		
-		$switches = @("/x `"$Guid`"")
-		if ($PSBoundParameters.ContainsKey('MsiExecSwitches'))
+		catch 
 		{
-			$switches += $MsiExecSwitches
-		}
-		$switches += @('REBOOT=ReallySuppress', '/qn')
-		$switchString = $switches -join ' '
-		
-		Write-Log -Message "Initiating msiexec.exe with arguments [$($switchString)]"
-		$Process = Start-Process 'msiexec.exe' -ArgumentList $switchString -PassThru -Wait -NoNewWindow
-		Wait-WindowsInstaller
-		Test-Process $Process
-		if (!(Test-InstalledSoftware -Guid $Guid))
-		{
-			Write-Log -Message "Successfully uninstalled MSI package with msiexec.exe"
-			$true
-		}
-		else
-		{
-			Write-Log -Message "Failed to uninstall MSI package with msiexec.exe" -LogLevel '3'
-			$false
+			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			$PSCmdlet.ThrowTerminatingError($_)
 		}
 		
 	}
@@ -292,8 +299,7 @@ function Uninstall-WindowsInstallerPackageWithMsiModule
 	process
 	{
 		try
-		{
-			
+		{	
 			if (!(Test-Path 'C:\MyDeployment\MSI'))
 			{
 				Write-Log -Message "Required MSI module is not available" -LogLevel '2'
@@ -338,8 +344,7 @@ function Uninstall-WindowsInstallerPackageWithMsiModule
 		catch
 		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			
-			$false
+			$PSCmdlet.ThrowTerminatingError($_)
 		}
 	}
 }
@@ -384,11 +389,7 @@ function Wait-WindowsInstaller
 		catch
 		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			$false
-		}
-		finally
-		{
-			
+			$PSCmdlet.ThrowTerminatingError($_)
 		}
 	}
 }

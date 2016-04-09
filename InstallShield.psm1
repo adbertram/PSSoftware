@@ -1,3 +1,5 @@
+Set-StrictMode -Version Latest
+
 function New-InstallshieldIntallString
 {
 	[CmdletBinding()]
@@ -45,7 +47,8 @@ function New-InstallshieldIntallString
 		}
 		catch
 		{
-			Write-Error $_.Exception.Message
+			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			$PSCmdlet.ThrowTerminatingError($_)
 		}
 	}
 }
@@ -175,8 +178,7 @@ function Uninstall-InstallShieldPackage
 		catch
 		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			
-			$false
+			$PSCmdlet.ThrowTerminatingError($_)
 		}
 	}
 }

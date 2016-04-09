@@ -1,3 +1,5 @@
+Set-StrictMode -Version Latest
+
 function Test-Process
 {
 	<#
@@ -31,8 +33,7 @@ function Test-Process
 		catch
 		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			
-			$false
+			$PSCmdlet.ThrowTerminatingError($_)
 		}
 	}
 }
@@ -59,7 +60,7 @@ function Get-ChildProcess
 		catch
 		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			$false
+			$PSCmdlet.ThrowTerminatingError($_)
 		}
 	}
 }
@@ -126,8 +127,7 @@ function Stop-MyProcess
 		catch
 		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			
-			$false
+			$PSCmdlet.ThrowTerminatingError($_)
 		}
 	}
 }
@@ -163,7 +163,8 @@ function Stop-SoftwareProcess
 		}
 		catch
 		{
-			Write-Error $_.Exception.Message
+			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			$PSCmdlet.ThrowTerminatingError($_)
 		}
 	}
 }
@@ -208,8 +209,6 @@ function Wait-MyProcess
 	{
 		try
 		{
-			
-			
 			Write-Log -Message "Finding the process ID '$ProcessId'..."
 			$Process = Get-Process -Id $ProcessId -ErrorAction 'SilentlyContinue'
 			if ($Process)
@@ -270,11 +269,7 @@ function Wait-MyProcess
 		catch
 		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			$false
-		}
-		finally
-		{
-			
+			$PSCmdlet.ThrowTerminatingError($_)
 		}
 	}
 }

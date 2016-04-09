@@ -1,4 +1,6 @@
-﻿function Test-InstalledSoftware
+﻿Set-StrictMode -Version Latest
+
+function Test-InstalledSoftware
 {
 	<#
 	.SYNOPSIS
@@ -61,11 +63,7 @@
 		catch
 		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			$false
-		}
-		finally
-		{
-			
+			$PSCmdlet.ThrowTerminatingError($_)
 		}
 	}
 }
@@ -168,10 +166,7 @@ function Get-InstalledSoftware
 		catch
 		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-		}
-		finally
-		{
-			
+			$PSCmdlet.ThrowTerminatingError($_)
 		}
 	}
 }
@@ -377,11 +372,7 @@ function Install-Software
 		catch
 		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			$false
-		}
-		finally
-		{
-			
+			$PSCmdlet.ThrowTerminatingError($_)
 		}
 	}
 }
@@ -586,18 +577,14 @@ function Remove-Software
 				catch
 				{
 					Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-					$false
+					$PSCmdlet.ThrowTerminatingError($_)
 				}
 			}
 		}
 		catch
 		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			$false
-		}
-		finally
-		{
-			
+			$PSCmdlet.ThrowTerminatingError($_)
 		}
 	}
 }

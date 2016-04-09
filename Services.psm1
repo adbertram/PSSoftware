@@ -1,3 +1,5 @@
+Set-StrictMode -Version Latest
+
 function Remove-MyService
 {
 	<#
@@ -81,8 +83,7 @@ function Remove-MyService
 		catch
 		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			
-			$false
+			$PSCmdlet.ThrowTerminatingError($_)
 		}
 	}
 }

@@ -1,3 +1,5 @@
+Set-StrictMode -Version Latest
+
 function Get-Shortcut
 {
 	<#
@@ -114,8 +116,7 @@ function Get-Shortcut
 		catch
 		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			
-			$false
+			$PSCmdlet.ThrowTerminatingError($_)
 		}
 	}
 }
@@ -176,7 +177,8 @@ function New-Shortcut
 		}
 		catch
 		{
-			Write-Log -Message $_.Exception.Message -LogLevel '3'
+			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			$PSCmdlet.ThrowTerminatingError($_)
 		}
 	}
 	process
@@ -229,8 +231,7 @@ function New-Shortcut
 		catch
 		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			
-			$false
+			$PSCmdlet.ThrowTerminatingError($_)
 		}
 	}
 }
