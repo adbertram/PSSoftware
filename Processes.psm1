@@ -15,7 +15,7 @@ function Test-Process
 	{
 		try
 		{
-			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
+			
 			if (@(0, 3010) -notcontains $Process.ExitCode)
 			{
 				Write-Log -Message "Process ID $($Process.Id) failed. Return value was $($Process.ExitCode)" -LogLevel '2'
@@ -26,12 +26,12 @@ function Test-Process
 				Write-Log -Message "Process ID $($Process.Id) exited with successfull exit code '$($Process.ExitCode)'."
 				$true
 			}
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			
 		}
 		catch
 		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			
 			$false
 		}
 	}
@@ -81,7 +81,7 @@ function Stop-MyProcess
 	{
 		try
 		{
-			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
+			
 			$ProcessesToStop = Get-Process -Name $ProcessName -ErrorAction 'SilentlyContinue'
 			if (!$ProcessesToStop)
 			{
@@ -121,12 +121,12 @@ function Stop-MyProcess
 					}
 				}
 			}
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			
 		}
 		catch
 		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			
 			$false
 		}
 	}
@@ -184,6 +184,7 @@ function Wait-MyProcess
 		The number of seconds the process should be checked to ensure it's still running
 
 	#>
+	[OutputType('null')]
 	[CmdletBinding()]
 	param (
 		[Parameter(Mandatory = $true)]
@@ -207,7 +208,7 @@ function Wait-MyProcess
 	{
 		try
 		{
-			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
+			
 			
 			Write-Log -Message "Finding the process ID '$ProcessId'..."
 			$Process = Get-Process -Id $ProcessId -ErrorAction 'SilentlyContinue'
@@ -260,9 +261,6 @@ function Wait-MyProcess
 					Write-Log -Message 'No child processes found spawned'
 				}
 				Write-Log -Message "Finished waiting for process '$($Process.Name)' ($($Process.Id)) and all child processes"
-				
-				## If we got this far, the function was a success
-				$true
 			}
 			else
 			{
@@ -276,7 +274,7 @@ function Wait-MyProcess
 		}
 		finally
 		{
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			
 		}
 	}
 }

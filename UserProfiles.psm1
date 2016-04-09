@@ -5,21 +5,22 @@ function Get-AllUsersDesktopFolderPath
 		Because sometimes the all users desktop folder path can be different this function is a placeholder to find
 		the all users desktop folder path. It uses a shell object to find this path.
 	#>
+	[OutputType([bool])]
 	[CmdletBinding()]
 	param ()
 	process
 	{
 		try
 		{
-			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
+			
 			$Shell = New-Object -ComObject "WScript.Shell"
 			$Shell.SpecialFolders.Item('AllUsersDesktop')
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			
 		}
 		catch
 		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			
 			$false
 		}
 	}
@@ -33,20 +34,21 @@ function Get-AllUsersProfileFolderPath
 		the all users profile folder path ie. C:\ProgramData or C:\Users\All Users. It uses an environment variable
 		to find this path.
 	#>
+	[OutputType([string])]
 	[CmdletBinding()]
 	param ()
 	process
 	{
 		try
 		{
-			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
+			
 			$env:ALLUSERSPROFILE
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			
 		}
 		catch
 		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			
 			$false
 		}
 	}
@@ -59,13 +61,14 @@ function Get-AllUsersStartMenuFolderPath
 		Because sometimes the all users profile folder path can be different this function is a placeholder to find
 		the start menu in the all users profile folder path ie. C:\ProgramData or C:\Users\All Users.
 	#>
+	[OutputType([string])]
 	[CmdletBinding()]
 	param ()
 	process
 	{
 		try
 		{
-			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
+			
 			if (((Get-OperatingSystem) -match 'XP') -or ((Get-OperatingSystem) -match '2003'))
 			{
 				"$(Get-AllUsersProfileFolderPath)\Start Menu"
@@ -74,12 +77,12 @@ function Get-AllUsersStartMenuFolderPath
 			{
 				"$(Get-AllUsersProfileFolderPath)\Microsoft\Windows\Start Menu"
 			}
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			
 		}
 		catch
 		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			
 			$false
 		}
 	}
@@ -91,21 +94,22 @@ function Get-UserProfile
 	.SYNOPSIS
 		This function queries the registry to find all of the user profiles
 	#>
+	[OutputType([Selected.System.Management.Automation.PSCustomObject])]
 	[CmdletBinding()]
 	param ()
 	process
 	{
 		try
 		{
-			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
+			
 			Get-ItemProperty 'HKLM:\Software\Microsoft\Windows NT\CurrentVersion\ProfileList\*' |
 			Select-Object -ExcludeProperty SID *, @{ n = 'SID'; e = { $_.PSChildName } }, @{ n = 'Username'; e = { $_.ProfileImagePath | Split-Path -Leaf } }
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			
 		}
 		catch
 		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			
 			$false
 		}
 	}
@@ -119,20 +123,21 @@ function Get-RootUserProfileFolderPath
 		the root user profile folder path ie. C:\Users or C:\Documents and Settings for any OS.  It queries a registry value
 		to find this path.
 	#>
+	[OutputType([string])]
 	[CmdletBinding()]
 	param ()
 	process
 	{
 		try
 		{
-			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
+			
 			(Get-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList' -Name ProfilesDirectory).ProfilesDirectory
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			
 		}
 		catch
 		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			
 			$false
 		}
 	}
@@ -157,6 +162,7 @@ function Get-UserProfilePath
 	.PARAMETER Username
 		The username
 	#>
+	[OutputType([string])]
 	[CmdletBinding(DefaultParameterSetName = 'None')]
 	param (
 		[Parameter(ParameterSetName = 'SID')]
@@ -170,7 +176,7 @@ function Get-UserProfilePath
 	{
 		try
 		{
-			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
+			#
 			if ($Sid)
 			{
 				$WhereBlock = { $_.PSChildName -eq $Sid }
@@ -184,12 +190,12 @@ function Get-UserProfilePath
 				$WhereBlock = { $_.PSChildName -ne $null }
 			}
 			Get-ChildItem 'HKLM:\Software\Microsoft\Windows NT\CurrentVersion\ProfileList' | Where-Object $WhereBlock | ForEach-Object { $_.GetValue('ProfileImagePath') }
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			#
 		}
 		catch
 		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			
 			$false
 		}
 	}
@@ -208,6 +214,7 @@ function Remove-ProfileItem
 	.PARAMETER Path
 		The path(s) to the file or folder you'd like to remove.
 	#>
+	[OutputType()]
 	[CmdletBinding()]
 	param (
 		[Parameter(Mandatory = $true)]
@@ -218,7 +225,7 @@ function Remove-ProfileItem
 	{
 		try
 		{
-			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
+			
 			$AllUserProfileFolderPath = Get-AllUsersProfileFolderPath
 			$UserProfileFolderPaths = Get-UserProfilePath
 			
@@ -246,12 +253,12 @@ function Remove-ProfileItem
 					}
 				}
 			}
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			
 		}
 		catch
 		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			
 			$false
 		}
 	}
@@ -266,6 +273,7 @@ function Set-AllUserStartupAction
 	.PARAMETER CommandLine
 		The command line string that will be executed once at every user logon
 	#>
+	[OutputType()]
 	[CmdletBinding()]
 	param (
 		[Parameter(Mandatory = $true)]
@@ -275,7 +283,7 @@ function Set-AllUserStartupAction
 	{
 		try
 		{
-			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
+			
 			## Create the Active Setup registry key so that the reg add cmd will get ran for each user
 			## logging into the machine.
 			## http://www.itninja.com/blog/view/an-active-setup-primer
@@ -289,12 +297,12 @@ function Set-AllUserStartupAction
 			Set-ItemProperty -Path $ActiveSetupRegPath -Name '(Default)' -Value 'Active Setup Test' -Force
 			Set-ItemProperty -Path $ActiveSetupRegPath -Name 'Version' -Value '1' -Force
 			Set-ItemProperty -Path $ActiveSetupRegPath -Name 'StubPath' -Value $CommandLine -Force
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			
 		}
 		catch
 		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			
 			$false
 		}
 	}

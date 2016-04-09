@@ -26,7 +26,6 @@ function Compare-FilePath
 	{
 		try
 		{
-			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
 			$ReferenceHash = Get-MyFileHash -Path $ReferenceFilePath
 			$DifferenceHash = Get-MyFileHash -Path $DifferenceFilePath
 			if ($ReferenceHash.SHA256 -ne $DifferenceHash.SHA256)
@@ -37,12 +36,12 @@ function Compare-FilePath
 			{
 				$true
 			}
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			
 		}
 		catch
 		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			
 			$false
 		}
 	}
@@ -76,7 +75,6 @@ function Compare-FolderPath
 	{
 		try
 		{
-			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
 			$ReferenceFiles = Get-ChildItem -Path $ReferenceFolderPath -Recurse | Where-Object { !$_.PsIsContainer }
 			$DifferenceFiles = Get-ChildItem -Path $DifferenceFolderPath -Recurse | Where-Object { !$_.PsIsContainer }
 			if ($ReferenceFiles.Count -ne $DifferenceFiles.Count)
@@ -94,12 +92,12 @@ function Compare-FolderPath
 				Write-Log -Message "Folder path '$ReferenceFolderPath' and '$DifferenceFolderPath' have equal contents"
 				$true
 			}
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			
 		}
 		catch
 		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			
 			$false
 		}
 	}
@@ -138,7 +136,7 @@ function Copy-FileWithHashCheck
 	)
 	begin
 	{
-		Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
+		
 		function Test-HashEqual ($FilePath1, $FilePath2)
 		{
 			$SourceHash = Get-MyFileHash -Path $FilePath1
@@ -188,12 +186,12 @@ function Copy-FileWithHashCheck
 			{
 				throw "Attempted to copy the file $SourceFilePath to $DestinationFolderPath but failed the hash check"
 			}
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			
 		}
 		catch
 		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			
 			$false
 		}
 	}
@@ -263,7 +261,7 @@ function Find-InTextFile
 	{
 		try
 		{
-			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
+			
 			foreach ($File in $FilePath)
 			{
 				if ($Replace)
@@ -296,12 +294,12 @@ function Find-InTextFile
 					Select-String -Path $File -Pattern $Find
 				}
 			}
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			
 		}
 		catch
 		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			
 			$false
 		}
 	}
@@ -325,16 +323,16 @@ function Register-File
 	{
 		try
 		{
-			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
+			
 			$Result = Start-Process -FilePath 'regsvr32.exe' -ArgumentList "/s `"$FilePath`"" -Wait -NoNewWindow -PassThru
 			Wait-MyProcess -ProcessId $Result.Id
 			Test-Error -SuccessString "Successfully registered file $FilePath"
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			
 		}
 		catch
 		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			
 			$false
 		}
 	}
@@ -439,17 +437,17 @@ function Set-MyFileSystemAcl
 	{
 		try
 		{
-			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
+			
 			$Acl = (Get-Item $Path).GetAccessControl('Access')
 			$Ar = New-Object System.Security.AccessControl.FileSystemAccessRule($Identity, $Right, $InheritanceFlags, $PropagationFlags, $Type)
 			$Acl.SetAccessRule($Ar)
 			Set-Acl $Path $Acl
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			
 		}
 		catch
 		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			
 			$false
 		}
 	}
@@ -474,14 +472,14 @@ function Get-FileVersion
 	{
 		try
 		{
-			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
+			
 			(Get-ItemProperty -Path $FilePath).VersionInfo.FileVersion
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			
 		}
 		catch
 		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			
 			$false
 		}
 	}
@@ -573,7 +571,7 @@ function Get-MyFileHash
 	)
 	Process
 	{
-		Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
+		
 		ForEach ($item in $Path)
 		{
 			try
@@ -608,12 +606,12 @@ function Get-MyFileHash
 				
 				#Close the stream
 				$stream.Close()
-				Write-Log -Message "$($MyInvocation.MyCommand) - END"
+				
 			}
 			catch
 			{
 				Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-				Write-Log -Message "$($MyInvocation.MyCommand) - END"
+				
 				$false
 			}
 		}

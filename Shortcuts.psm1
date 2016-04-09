@@ -51,7 +51,7 @@ function Get-Shortcut
 	{
 		try
 		{
-			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
+			
 			if (!$FolderPath)
 			{
 				$FolderPath = (Get-RootUserProfileFolderPath), (Get-AllUsersProfileFolderPath)
@@ -109,12 +109,12 @@ function Get-Shortcut
 					$false
 				}
 			}
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			
 		}
 		catch
 		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			
 			$false
 		}
 	}
@@ -183,7 +183,7 @@ function New-Shortcut
 	{
 		try
 		{
-			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
+			
 			if ($TargetPath -notmatch '^\w{1}:\\')
 			{
 				$Extension = 'url'
@@ -224,12 +224,12 @@ function New-Shortcut
 				Write-Log -Message "Shortcut at $FilePath was successfully created"
 				$true
 			}
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			
 		}
 		catch
 		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			
 			$false
 		}
 	}

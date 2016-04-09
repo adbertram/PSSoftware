@@ -29,7 +29,7 @@
 	{
 		try
 		{
-			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
+			
 			if ($PSBoundParameters.ContainsKey('Name'))
 			{
 				if ($PSBoundParameters.ContainsKey('Version'))
@@ -65,7 +65,7 @@
 		}
 		finally
 		{
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			
 		}
 	}
 }
@@ -95,7 +95,7 @@ function Get-InstalledSoftware
 	{
 		try
 		{
-			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
+			
 			$UninstallKeys = "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall", "HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall"
 			New-PSDrive -Name HKU -PSProvider Registry -Root Registry::HKEY_USERS | Out-Null
 			$UninstallKeys += Get-ChildItem HKU: | Where-Object { $_.Name -match 'S-\d-\d+-(\d+-){1,14}\d+$' } | ForEach-Object { "HKU:\$($_.PSChildName)\Software\Microsoft\Windows\CurrentVersion\Uninstall" }
@@ -171,7 +171,7 @@ function Get-InstalledSoftware
 		}
 		finally
 		{
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			
 		}
 	}
 }
@@ -287,7 +287,7 @@ function Install-Software
 	{
 		try
 		{
-			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
+			
 			
 			## Common Start-Process parameters across all installers. We'll add to this hashtable as we go
 			$ProcessParams = @{
@@ -381,7 +381,7 @@ function Install-Software
 		}
 		finally
 		{
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			
 		}
 	}
 }
@@ -487,7 +487,7 @@ function Remove-Software
 	{
 		try
 		{
-			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
+			
 			
 			if ($PSCmdlet.ParameterSetName -ne 'FromPipeline')
 			{
@@ -597,7 +597,7 @@ function Remove-Software
 		}
 		finally
 		{
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			
 		}
 	}
 }

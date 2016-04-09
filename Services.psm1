@@ -8,6 +8,7 @@ function Remove-MyService
 	.PARAMETER ServiceName
 	 	The service name you'd like to stop and remove
 	#>
+	[OutputType()]
 	[CmdletBinding()]
 	param (
 		[Parameter(Mandatory = $true)]
@@ -18,7 +19,7 @@ function Remove-MyService
 	{
 		try
 		{
-			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
+			
 			$ServicesToRemove = Get-Service $Name -ErrorAction 'SilentlyContinue' -ErrorVariable MyError
 			if (!(Test-Error $MyError "Found $($ServicesToRemove.Count) services to remove"))
 			{
@@ -75,12 +76,12 @@ function Remove-MyService
 					}
 				}
 			}
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			
 		}
 		catch
 		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			
 			$false
 		}
 	}

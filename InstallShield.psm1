@@ -86,7 +86,7 @@ function Uninstall-InstallShieldPackage
 	{
 		try
 		{
-			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
+			
 			foreach ($Product in $Name)
 			{
 				Write-Log -Message "Beginning uninstall for Installshield product '$Name'"
@@ -170,12 +170,12 @@ function Uninstall-InstallShieldPackage
 					}
 				}
 			}
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			
 		}
 		catch
 		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			
 			$false
 		}
 	}

@@ -20,7 +20,7 @@ function Compare-RegistryFileToRegistry
 	)
 	begin
 	{
-		Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
+		
 		function Convert-Qualifier ($Path)
 		{
 			$Qualifier = $Path
@@ -66,12 +66,12 @@ function Compare-RegistryFileToRegistry
 				$KeyPath = [regex]::Match(($_ -split "`n")[0], '^\[(.*?)\\').Groups[1].Value
 				$Keys += $Key.Replace($KeyPath, (Convert-Qualifier -Path $_))
 			}
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			
 		}
 		catch
 		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			
 			$false
 		}
 	}
@@ -105,7 +105,7 @@ function Get-RegistryValue
 	{
 		try
 		{
-			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
+			
 			$Key = Get-Item -Path $Path -ErrorAction 'SilentlyContinue'
 			if (!$Key)
 			{
@@ -117,12 +117,12 @@ function Get-RegistryValue
 				throw "The registry value $Name in the key $Path does not exist"
 			}
 			[pscustomobject]@{ 'Path' = $Path; 'Value' = $Value; 'Type' = $key.GetValueKind($Name) }
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			
 		}
 		catch
 		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			
 			$false
 		}
 	}
@@ -149,7 +149,7 @@ function Get-RegistryValueForAllUsers
 	)
 	try
 	{
-		Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
+		
 		New-PSDrive -Name HKU -PSProvider Registry -Root Registry::HKEY_USERS | Out-Null
 		
 		## Find the registry values for the currently logged on user
@@ -218,12 +218,12 @@ function Get-RegistryValueForAllUsers
 				Write-Log -Message "Failed to load registry hive for the '$prof' profile" -LogLevel '3'
 			}
 		}
-		Write-Log -Message "$($MyInvocation.MyCommand) - END"
+		
 	}
 	catch
 	{
 		Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-		Write-Log -Message "$($MyInvocation.MyCommand) - END"
+		
 		$false
 	}
 }
@@ -253,7 +253,7 @@ function Import-RegistryFile
 	{
 		try
 		{
-			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
+			
 			## Detect if this is a registry file for HKCU, HKLM, HKU, HKCR or HKCC keys
 			$Regex = 'HKEY_CURRENT_USER|HKEY_CLASSES_ROOT|HKEY_LOCAL_MACHINE|HKEY_USERS|HKEY_CURRENT_CONFIG'
 			$HiveNames = Select-String -Path $FilePath -Pattern $Regex | ForEach-Object { $_.Matches.Value }
@@ -345,12 +345,12 @@ function Import-RegistryFile
 				
 			}
 			
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			
 		}
 		catch
 		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			
 			$false
 		}
 	}
@@ -432,7 +432,7 @@ function Set-RegistryValueForAllUsers
 	{
 		try
 		{
-			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
+			
 			
 			## By default, the HKU provider is not added
 			if (-not (Get-PSDrive -Name 'HKU' -ErrorAction SilentlyContinue))
@@ -528,7 +528,7 @@ function Set-RegistryValueForAllUsers
 		}
 		finally
 		{
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			
 		}
 	}
 }

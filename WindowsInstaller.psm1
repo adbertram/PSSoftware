@@ -1,5 +1,6 @@
 function New-MsiexecInstallString
 {
+	[OutputType([string])]
 	[CmdletBinding()]
 	param
 	(
@@ -86,6 +87,7 @@ function Uninstall-ViaMsizap
 	.PARAMETER LogFilePath
 		The file path to where msizap will generate output
 	#>
+	[OutputType([bool])]
 	[CmdletBinding()]
 	param (
 		[ValidatePattern('\b[A-F0-9]{8}(?:-[A-F0-9]{4}){3}-[A-F0-9]{12}\b')]
@@ -104,16 +106,16 @@ function Uninstall-ViaMsizap
 	{
 		try
 		{
-			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
+			
 			Write-Log -Message "-Starting the process `"$MsiZapFilePath $Params $Guid`"..."
 			$NewProcess = Start-Process $MsiZapFilePath -ArgumentList "$Params $Guid" -Wait -NoNewWindow -PassThru -RedirectStandardOutput $LogFilePath
 			Wait-MyProcess -ProcessId $NewProcess.Id
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			
 		}
 		catch
 		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			
 			$false
 		}
 	}
@@ -133,6 +135,7 @@ function Uninstall-WindowsInstallerPackage
 	.PARAMETER Guid
 		The GUID of the Windows Installer package
 	#>
+	[OutputType([bool])]
 	[CmdletBinding(DefaultParameterSetName = 'Guid')]
 	param (
 		[Parameter(ParameterSetName = 'Name')]
@@ -172,12 +175,12 @@ function Uninstall-WindowsInstallerPackage
 			{
 				$false	
 			}
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			
 		}
 		catch
 		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			
 			$false
 		}
 	}
@@ -197,6 +200,7 @@ function Uninstall-WindowsInstallerPackageWithMsiexec
 		Specify a string of switches you'd like msiexec.exe to run when it attempts to uninstall the software. By default,
 		it already uses "/x GUID /qn".  You can specify any additional parameters here.
 	#>
+	[OutputType([bool])]
 	[CmdletBinding(DefaultParameterSetName = 'Guid')]
 	param (
 		[Parameter(ParameterSetName = 'Name')]
@@ -210,7 +214,7 @@ function Uninstall-WindowsInstallerPackageWithMsiexec
 	)
 	process
 	{
-		Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
+		
 		if ($Name)
 		{
 			Write-Log -Message "Attempting to uninstall Windows Installer with msiexec.exe using name '$Name'..."
@@ -259,7 +263,7 @@ function Uninstall-WindowsInstallerPackageWithMsiexec
 			Write-Log -Message "Failed to uninstall MSI package with msiexec.exe" -LogLevel '3'
 			$false
 		}
-		Write-Log -Message "$($MyInvocation.MyCommand) - END"
+		
 	}
 }
 
@@ -275,6 +279,7 @@ function Uninstall-WindowsInstallerPackageWithMsiModule
 	.PARAMETER Guid
 		The GUID of the Windows Installer package
 	#>
+	[OutputType([bool])]
 	[CmdletBinding(DefaultParameterSetName = 'Guid')]
 	param (
 		[Parameter(ParameterSetName = 'Name')]
@@ -288,7 +293,7 @@ function Uninstall-WindowsInstallerPackageWithMsiModule
 	{
 		try
 		{
-			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
+			
 			if (!(Test-Path 'C:\MyDeployment\MSI'))
 			{
 				Write-Log -Message "Required MSI module is not available" -LogLevel '2'
@@ -328,12 +333,12 @@ function Uninstall-WindowsInstallerPackageWithMsiModule
 					$false
 				}
 			}
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			
 		}
 		catch
 		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			
 			$false
 		}
 	}
@@ -349,13 +354,14 @@ function Wait-WindowsInstaller
 		mean child processes.  Using this function will ensure your script always wait for the msiexec.exe process you
 		kicked off to complete before continuing.
 	#>
+	[OutputType()]
 	[CmdletBinding()]
 	param ()
 	process
 	{
 		try
 		{
-			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
+			
 			Write-Log -Message 'Looking for any msiexec.exe processes...'
 			$MsiexecProcesses = Get-WmiObject -Class Win32_Process -Filter "Name = 'msiexec.exe'" | Where-Object { $_.CommandLine -ne 'C:\Windows\system32\msiexec.exe /V' }
 			if ($MsiExecProcesses)
@@ -382,7 +388,7 @@ function Wait-WindowsInstaller
 		}
 		finally
 		{
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			
 		}
 	}
 }

@@ -125,7 +125,7 @@ function Test-Error
 	{
 		try
 		{
-			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
+			
 			if (!$MyError)
 			{
 				Write-Log -Message $SuccessString
@@ -135,12 +135,12 @@ function Test-Error
 			{
 				throw $MyError
 			}
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			
 		}
 		catch
 		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			
 			$false
 		}
 	}
@@ -173,7 +173,7 @@ function Convert-CompressedGuidToGuid
 	{
 		try
 		{
-			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
+			
 			$Indexes = [ordered]@{
 				0 = 8;
 				8 = 4;
@@ -196,12 +196,12 @@ function Convert-CompressedGuidToGuid
 			}
 			$Guid = $Guid.Insert(9, '-').Insert(14, '-').Insert(19, '-').Insert(24, '-')
 			$Guid + '}'
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			
 		}
 		catch
 		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			
 			$false
 		}
 	}
@@ -237,7 +237,7 @@ function Convert-GuidToCompressedGuid
 	{
 		try
 		{
-			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
+			
 			$Groups = @(
 			$Guid.Substring(0, 8).ToCharArray(),
 			$Guid.Substring(8, 4).ToCharArray(),
@@ -258,12 +258,12 @@ function Convert-GuidToCompressedGuid
 				}
 			}
 			$CompressedGuid
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			
 		}
 		catch
 		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			
 			$false
 		}
 	}
@@ -291,15 +291,15 @@ function Convert-ToUncPath
 	{
 		try
 		{
-			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
+			
 			$RemoteFilePathDrive = ($LocalFilePath | Split-Path -Qualifier).TrimEnd(':')
 			"\\$Computername\$RemoteFilePathDrive`$$($LocalFilePath | Split-Path -NoQualifier)"
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			
 		}
 		catch
 		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			
 			$false
 		}
 	}
@@ -318,7 +318,7 @@ function Get-32BitProgramFilesPath
 	{
 		try
 		{
-			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
+			
 			if ((Get-Architecture) -eq 'x64')
 			{
 				${env:ProgramFiles(x86)}
@@ -327,12 +327,12 @@ function Get-32BitProgramFilesPath
 			{
 				$env:ProgramFiles
 			}
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			
 		}
 		catch
 		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			
 			$false
 		}
 	}
@@ -356,7 +356,7 @@ function Get-32BitRegistrySoftwarePath
 	{
 		try
 		{
-			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
+			
 			if ((Get-Architecture) -eq 'x64')
 			{
 				"$Scope`:\SOFTWARE\Wow6432Node"
@@ -365,12 +365,12 @@ function Get-32BitRegistrySoftwarePath
 			{
 				"$Scope`:\SOFTWARE"
 			}
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			
 		}
 		catch
 		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			
 			$false
 		}
 	}
@@ -388,7 +388,7 @@ function Get-Architecture
 	{
 		try
 		{
-			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
+			
 			if ([System.Environment]::Is64BitOperatingSystem -or ((Get-WmiObject -Class Win32_ComputerSystem | Select-Object -ExpandProperty SystemType) -eq 'x64-based PC'))
 			{
 				'x64'
@@ -397,12 +397,12 @@ function Get-Architecture
 			{
 				'x86'
 			}
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			
 		}
 		catch
 		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			
 			$false
 		}
 	}
@@ -421,7 +421,7 @@ function Get-Count
 	)
 	process
 	{
-		Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
+		
 		if (!$Input)
 		{
 			0
@@ -431,7 +431,7 @@ function Get-Count
 			$count = $Input.Count
 			$count
 		}
-		Write-Log -Message "$($MyInvocation.MyCommand) - END"
+		
 	}
 }
 
@@ -473,7 +473,7 @@ function Get-DriveFreeSpace
 	{
 		try
 		{
-			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
+			
 			$WhereQuery = "SELECT FreeSpace,DeviceID FROM Win32_Logicaldisk"
 			
 			if ($PsBoundParameters.DriveLetter)
@@ -534,12 +534,12 @@ function Get-DriveFreeSpace
 					$false
 				}
 			}
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			
 		}
 		catch
 		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			
 			$false
 		}
 	}
@@ -565,7 +565,7 @@ function Get-InstallerType
 	{
 		try
 		{
-			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
+			
 			if ($UninstallString -imatch 'msiexec.exe')
 			{
 				'Windows Installer'
@@ -578,12 +578,12 @@ function Get-InstallerType
 			{
 				$false
 			}
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			
 		}
 		catch
 		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			
 			$false
 		}
 	}
@@ -601,7 +601,7 @@ function Get-LoggedOnUserSID
 	{
 		try
 		{
-			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
+			
 			
 			if (-not (Get-PSDrive -Name 'HKU' -ErrorAction SilentlyContinue))
 			{
@@ -617,7 +617,7 @@ function Get-LoggedOnUserSID
 		}
 		finally
 		{
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			
 		}
 	}
 }
@@ -647,7 +647,7 @@ function Get-OperatingSystem
 	{
 		try
 		{
-			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
+			
 			(Get-WmiObject -ComputerName $Computername -Query 'SELECT Caption FROM Win32_OperatingSystem').Caption
 		}
 		catch
@@ -657,7 +657,7 @@ function Get-OperatingSystem
 		}
 		finally
 		{
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			
 		}
 	}
 }
@@ -675,14 +675,14 @@ function Get-SystemTempFolderPath
 	{
 		try
 		{
-			Write-Log -Message "$($MyInvocation.MyCommand) - BEGIN"
+			
 			[environment]::GetEnvironmentVariable('TEMP', 'Machine')
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			
 		}
 		catch
 		{
 			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			Write-Log -Message "$($MyInvocation.MyCommand) - END"
+			
 			$false
 		}
 	}
