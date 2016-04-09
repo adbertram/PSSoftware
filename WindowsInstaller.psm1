@@ -1,6 +1,6 @@
 Set-StrictMode -Version Latest
 
-function New-MsiexecInstallString
+function Get-MsiexecInstallString
 {
 	[OutputType([string])]
 	[CmdletBinding()]

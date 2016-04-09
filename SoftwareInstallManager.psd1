@@ -85,16 +85,71 @@ FormatsToProcess = @()
 	)
 
 # Functions to export from this module
-FunctionsToExport = '*'
+	FunctionsToExport = @(
+	'Compare-FilePath',
+'Compare-FolderPath',
+'Convert-CompressedGuidToGuid',
+'Convert-GuidToCompressedGuid',
+'Convert-ToUncPath',
+'Copy-FileWithHashCheck',
+'Find-InTextFile',
+'Get-32BitProgramFilesPath',
+'Get-32BitRegistrySoftwarePath',
+'Get-AllUsersDesktopFolderPath',
+'Get-AllUsersProfileFolderPath',
+'Get-AllUsersRegistryValue',
+'Get-AllUsersStartMenuFolderPath',
+'Get-Architecture',
+'Get-ChildProcess',
+'Get-DriveFreeSpace',
+'Get-FileVersion',
+'Get-InstalledSoftware',
+'Get-InstallerType',
+'Get-InstallshieldInstallString',
+'Get-LoggedOnUserSID',
+'Get-MyFileHash',
+'Get-OperatingSystem',
+'Get-RegistryValue',
+'Get-RootUserProfileFolderPath',
+'Get-Shortcut',
+'Get-SystemTempFolderPath',
+'Get-UserProfile',
+'Get-UserProfilePath',
+'Import-Certificate',
+'Import-RegistryFile',
+'Install-Software',
+'New-MsiexecInstallString',
+'New-Shortcut',
+'Register-File',
+'Remove-MyService',
+'Remove-ProfileItem',
+'Remove-RegistryKey',
+'Remove-Software',
+'Set-AllUserStartupAction',
+'Set-MyFileSystemAcl',
+'Set-RegistryValueForAllUsers',
+'Start-Log',
+'Stop-MyProcess',
+'Stop-SoftwareProcess',
+'Test-InstalledSoftware',
+'Test-Process',
+'Uninstall-InstallShieldPackage',
+'Uninstall-ViaMsizap',
+'Uninstall-WindowsInstallerPackage',
+'Uninstall-WindowsInstallerPackageWithMsiexec',
+'Uninstall-WindowsInstallerPackageWithMsiModule',
+'Wait-MyProcess',
+'Wait-WindowsInstaller',
+'Write-Log')
 
 # Cmdlets to export from this module
-CmdletsToExport = '*'
+#CmdletsToExport = '*'
 
 # Variables to export from this module
-VariablesToExport = '*'
+#VariablesToExport = '*'
 
 # Aliases to export from this module
-AliasesToExport = '*'
+#AliasesToExport = '*'
 
 # List of all modules packaged with this module
 ModuleList = @()

@@ -304,7 +304,7 @@ function Remove-RegistryKey
 				elseif (($key | Split-Path -Qualifier) -eq 'HKCU:')
 				{
 					Write-Log -Message "Removing HKCU registry key '$key' for all users"
-					Set-RegistryValueForAllUsers -RegistryInstance @{ 'Path' = $key.Replace('HKCU:\', '') } -Remove
+					Set-AllUsersRegistryValue -RegistryInstance @{ 'Path' = $key.Replace('HKCU:\', '') } -Remove
 				}
 				else
 				{
@@ -320,13 +320,13 @@ function Remove-RegistryKey
 	}
 }
 
-function Set-RegistryValueForAllUsers
+function Set-AllUsersRegistryValue
 {
     <#
 	.SYNOPSIS
 		This function sets a registry value in every user profile hive.
 	.EXAMPLE
-		PS> Set-RegistryValueForAllUsers -RegistryInstance @{'Name' = 'Setting'; 'Type' = 'String'; 'Value' = 'someval'; 'Path' = 'SOFTWARE\Microsoft\Windows\Something'}
+		PS> Set-AllUsersRegistryValue -RegistryInstance @{'Name' = 'Setting'; 'Type' = 'String'; 'Value' = 'someval'; 'Path' = 'SOFTWARE\Microsoft\Windows\Something'}
 	
 		This example would modify the string registry value 'Type' in the path 'SOFTWARE\Microsoft\Windows\Something' to 'someval'
 		for every user registry hive.

@@ -149,7 +149,7 @@ function New-Shortcut
 		File arguments you'd like to append to the target file path
 	#>
 	[OutputType()]
-	[CmdletBinding(DefaultParameterSetName = 'CommonLocation')]
+	[CmdletBinding(SupportsShouldProcess,DefaultParameterSetName = 'CommonLocation')]
 	param (
 		[Parameter(ParameterSetName = 'CustomLocation',
 				   Mandatory = $true)]
@@ -220,13 +220,14 @@ function New-Shortcut
 				$Object.WorkingDirectory = ($TargetFilePath | Split-Path -Parent)
 			}
 			
-			Write-Log -Message "Creating shortcut at $FilePath using targetpath $TargetPath"
-			$Object.Save()
-			if (Test-Path -Path $FilePath -PathType Leaf)
-			{
-				Write-Log -Message "Shortcut at $FilePath was successfully created"
+			if ($PSCmdlet.ShouldProcess($FilePath,'New shortcut')) {
+				Write-Log -Message "Creating shortcut at $FilePath using targetpath $TargetPath"
+				$Object.Save()
+				if (Test-Path -Path $FilePath -PathType Leaf)
+				{
+					Write-Log -Message "Shortcut at $FilePath was successfully created"
+				}
 			}
-			
 		}
 		catch
 		{

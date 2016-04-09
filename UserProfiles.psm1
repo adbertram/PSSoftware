@@ -178,7 +178,7 @@ function Get-UserProfilePath
 			}
 			else
 			{
-				$WhereBlock = { $_.PSChildName -ne $null }
+				$WhereBlock = { $null -ne $_.PSChildName }
 			}
 			Get-ChildItem 'HKLM:\Software\Microsoft\Windows NT\CurrentVersion\ProfileList' | Where-Object $WhereBlock | ForEach-Object { $_.GetValue('ProfileImagePath') }
 		}
@@ -262,7 +262,7 @@ function Set-AllUserStartupAction
 		The command line string that will be executed once at every user logon
 	#>
 	[OutputType()]
-	[CmdletBinding()]
+	[CmdletBinding(SupportsShouldProcess)]
 	param (
 		[Parameter(Mandatory = $true)]
 		[string]$CommandLine
@@ -271,21 +271,21 @@ function Set-AllUserStartupAction
 	{
 		try
 		{
-			
-			## Create the Active Setup registry key so that the reg add cmd will get ran for each user
-			## logging into the machine.
-			## http://www.itninja.com/blog/view/an-active-setup-primer
-			$Guid = [guid]::NewGuid().Guid
-			Write-Log -Message "Created GUID '$Guid' to use for Active Setup"
-			$ActiveSetupRegParentPath = 'HKLM:\Software\Microsoft\Active Setup\Installed Components'
-			New-Item -Path $ActiveSetupRegParentPath -Name $Guid -Force | Out-Null
-			$ActiveSetupRegPath = "HKLM:\Software\Microsoft\Active Setup\Installed Components\$Guid"
-			Write-Log -Message "Using registry path '$ActiveSetupRegPath'"
-			Write-Log -Message "Setting command line registry value to '$CommandLine'"
-			Set-ItemProperty -Path $ActiveSetupRegPath -Name '(Default)' -Value 'Active Setup Test' -Force
-			Set-ItemProperty -Path $ActiveSetupRegPath -Name 'Version' -Value '1' -Force
-			Set-ItemProperty -Path $ActiveSetupRegPath -Name 'StubPath' -Value $CommandLine -Force
-			
+			if ($PSCmdlet.ShouldProcess($CommandLine,'set all startup action')) {
+				## Create the Active Setup registry key so that the reg add cmd will get ran for each user
+				## logging into the machine.
+				## http://www.itninja.com/blog/view/an-active-setup-primer
+				$Guid = [guid]::NewGuid().Guid
+				Write-Log -Message "Created GUID '$Guid' to use for Active Setup"
+				$ActiveSetupRegParentPath = 'HKLM:\Software\Microsoft\Active Setup\Installed Components'
+				New-Item -Path $ActiveSetupRegParentPath -Name $Guid -Force | Out-Null
+				$ActiveSetupRegPath = "HKLM:\Software\Microsoft\Active Setup\Installed Components\$Guid"
+				Write-Log -Message "Using registry path '$ActiveSetupRegPath'"
+				Write-Log -Message "Setting command line registry value to '$CommandLine'"
+				Set-ItemProperty -Path $ActiveSetupRegPath -Name '(Default)' -Value 'Active Setup Test' -Force
+				Set-ItemProperty -Path $ActiveSetupRegPath -Name 'Version' -Value '1' -Force
+				Set-ItemProperty -Path $ActiveSetupRegPath -Name 'StubPath' -Value $CommandLine -Force
+			}
 		}
 		catch
 		{
