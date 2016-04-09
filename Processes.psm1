@@ -76,7 +76,7 @@ function Stop-MyProcess
 		One more process names
 	#>
 	[OutputType()]
-	[CmdletBinding()]
+	[CmdletBinding(SupportsShouldProcess)]
 	param (
 		[Parameter(Mandatory = $true)]
 		[string[]]$ProcessName
@@ -105,18 +105,21 @@ function Stop-MyProcess
 					{
 						foreach ($p in $WmiProcess)
 						{
-							$WmiResult = $p.Terminate()
-							if ($WmiResult.ReturnValue -eq 1603)
+							if ($PSCmdlet.ShouldProcess("Process ID: $($p.Id)", 'Stop'))
 							{
-								Write-Log -Message "Process $($p.name) exited successfully but needs a reboot."
-							}
-							elseif ($WmiResult.ReturnValue -ne 0)
-							{
-								throw "-Unable to stop process $($p.name). Return value was $($WmiResult.ReturnValue)"
-							}
-							else
-							{
-								Write-Log -Message "-Successfully stopped process $($p.Name)..."
+								$WmiResult = $p.Terminate()
+								if ($WmiResult.ReturnValue -eq 1603)
+								{
+									Write-Log -Message "Process $($p.name) exited successfully but needs a reboot."
+								}
+								elseif ($WmiResult.ReturnValue -ne 0)
+								{
+									throw "-Unable to stop process $($p.name). Return value was $($WmiResult.ReturnValue)"
+								}
+								else
+								{
+									Write-Log -Message "-Successfully stopped process $($p.Name)..."
+								}
 							}
 						}
 					}
@@ -135,7 +138,7 @@ function Stop-MyProcess
 function Stop-SoftwareProcess
 {
 	[OutputType()]
-	[CmdletBinding()]
+	[CmdletBinding(SupportsShouldProcess)]
 	param
 	(
 		[Parameter(Mandatory = $true,ValueFromPipeline = $true)]
@@ -155,7 +158,10 @@ function Stop-SoftwareProcess
 				## Check to see if the process is still running.  It's possible the termination of other processes
 				## already killed this one.
 				$Processes = $Processes | Where-Object { Get-Process -Name $_ -ErrorAction 'SilentlyContinue' }
-				Stop-MyProcess $Processes
+				if ($PSCmdlet.ShouldProcess("Process ID $($Processes)", 'Stop'))
+				{
+					Stop-MyProcess $Processes
+				}
 			}
 			else
 			{
@@ -215,7 +221,7 @@ function Wait-MyProcess
 			if ($Process)
 			{
 				Write-Log -Message "Process '$($Process.Name)' ($($Process.Id)) found. Waiting to finish and capturing all child processes."
-				$ChildProcessIds = @()
+
 				## While waiting for the initial process to stop, collect all child IDs it spawns
 				$ChildProcessesToLive = @()
 				

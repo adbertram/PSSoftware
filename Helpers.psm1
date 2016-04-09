@@ -453,11 +453,9 @@ function Get-DriveFreeSpace
 				}
 				catch
 				{
-					Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-					$false
+					throw $_
 				}
 			}
-			
 		}
 		catch
 		{

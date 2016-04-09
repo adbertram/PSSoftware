@@ -97,7 +97,7 @@ function Get-Shortcut
 					{
 						$WhereBlock = [scriptblock]::Create($WhereConditions -join ' -and ')
 						## TODO: Figure out a way to make this cleanly log access denied errors and continue
-						Get-ChildItem @Params | where $WhereBlock
+						Get-ChildItem @Params | Where-Object $WhereBlock
 					}
 					else
 					{

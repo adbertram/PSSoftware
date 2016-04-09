@@ -81,8 +81,7 @@ FormatsToProcess = @()
 	'Services.psm1',
 	'Shortcuts.psm1',
 	'UserProfiles.psm1',
-	'WindowsInstaller.psm1',
-	'WindowsServices.psm1'
+	'WindowsInstaller.psm1'
 	)
 
 # Functions to export from this module

@@ -50,13 +50,13 @@ function Get-RegistryValue
 	}
 }
 
-function Get-RegistryValueForAllUsers
+function Get-AllUsersRegistryValue
 {
     <#
 	.SYNOPSIS
 		This function finds all of the user profile registry hives, mounts them and retrieves a registry value for each user.
 	.EXAMPLE
-		PS> Get-RegistryValueForAllUsers -RegistryInstance @{'Name' = 'Setting'; 'Path' = 'SOFTWARE\Microsoft\Windows\Something'}
+		PS> Get-AllUsersRegistryValue -RegistryInstance @{'Name' = 'Setting'; 'Path' = 'SOFTWARE\Microsoft\Windows\Something'}
 	
 		This example would get the string registry value 'Type' in the path 'SOFTWARE\Microsoft\Windows\Something'
 		for every user registry hive.
@@ -343,7 +343,7 @@ function Set-RegistryValueForAllUsers
 		registry value.  If this parameter is not used, if the key the value is supposed to be in does not exist the function will skip the value.
 	#>
 	[OutputType()]
-	[CmdletBinding()]
+	[CmdletBinding(SupportsShouldProcess)]
 	param (
 		[Parameter(Mandatory = $true)]
 		[ValidateNotNullOrEmpty()]
@@ -375,22 +375,31 @@ function Set-RegistryValueForAllUsers
 				{
 					if ($Remove.IsPresent)
 					{
-						Write-Log -Message "Removing registry key '$($instance.path)'"
-						Remove-Item -Path "HKU:\$sid\$($instance.Path)" -Recurse -Force -ErrorAction 'SilentlyContinue'
+						if ($PSCmdlet.ShouldProcess($instance.Path, 'Remove'))
+						{
+							Write-Log -Message "Removing registry key '$($instance.path)'"
+							Remove-Item -Path "HKU:\$sid\$($instance.Path)" -Recurse -Force -ErrorAction 'SilentlyContinue'
+						}
 					}
 					else
 					{
 						if (-not (Get-Item -Path "HKU:\$sid\$($instance.Path)" -ErrorAction 'SilentlyContinue'))
 						{
-							Write-Log -Message "The registry key HKU:\$sid\$($instance.Path) does not exist.  Creating..."
-							New-Item -Path "HKU:\$sid\$($instance.Path | Split-Path -Parent)" -Name ($instance.Path | Split-Path -Leaf) -Force | Out-Null
+							if ($PSCmdlet.ShouldProcess($instance.Path, 'New'))
+							{
+								Write-Log -Message "The registry key HKU:\$sid\$($instance.Path) does not exist.  Creating..."
+								New-Item -Path "HKU:\$sid\$($instance.Path | Split-Path -Parent)" -Name ($instance.Path | Split-Path -Leaf) -Force | Out-Null
+							}
 						}
 						else
 						{
 							Write-Log -Message "The registry key HKU:\$sid\$($instance.Path) already exists. No need to create."
 						}
-						Write-Log -Message "Setting registry value $($instance.Name) at path HKU:\$sid\$($instance.Path) to $($instance.Value)"
-						New-ItemProperty -Path "HKU:\$sid\$($instance.Path)" -Name $instance.Name -Value $instance.Value -PropertyType $instance.Type -Force
+						if ($PSCmdlet.ShouldProcess($instance.Path, 'New property'))
+						{
+							Write-Log -Message "Setting registry value $($instance.Name) at path HKU:\$sid\$($instance.Path) to $($instance.Value)"
+							New-ItemProperty -Path "HKU:\$sid\$($instance.Path)" -Name $instance.Name -Value $instance.Value -PropertyType $instance.Type -Force
+						}
 					}
 				}
 			}
@@ -437,12 +446,17 @@ function Set-RegistryValueForAllUsers
 					}
 					if (-not (Get-Item -Path "HKCU:\$($instance.Path)" -ErrorAction 'SilentlyContinue'))
 					{
-						Write-Log -Message "The registry key 'HKCU:\$($instance.Path)'' does not exist.  Creating..."
-						New-Item -Path "HKCU:\$($instance.Path) | Split-Path -Parent)" -Name ("HKCU:\$($instance.Path)" | Split-Path -Leaf) -Force | Out-Null
+						if ($PSCmdlet.ShouldProcess($instance.Path, 'New'))
+						{
+							Write-Log -Message "The registry key 'HKCU:\$($instance.Path)'' does not exist.  Creating..."
+							New-Item -Path "HKCU:\$($instance.Path) | Split-Path -Parent)" -Name ("HKCU:\$($instance.Path)" | Split-Path -Leaf) -Force | Out-Null
+						}
 					}
 					$CommandLine = "reg add `"{0}`" /v {1} /t {2} /d {3} /f" -f "HKCU\$($instance.Path)", $instance.Name, $RegValueType, $instance.Value
 				}
-				Set-AllUserStartupAction -CommandLine $CommandLine
+				if ($PSCmdlet.ShouldProcess($CommandLine,'set all user action')) {
+					Set-AllUserStartupAction -CommandLine $CommandLine
+				}	
 			}
 		}
 		catch

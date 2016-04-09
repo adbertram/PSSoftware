@@ -1,6 +1,6 @@
 Set-StrictMode -Version Latest
 
-function New-InstallshieldIntallString
+function Get-InstallshieldInstallString
 {
 	[OutputType([string])]
 	[CmdletBinding()]

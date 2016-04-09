@@ -90,7 +90,7 @@ function Get-UserProfile
 	.SYNOPSIS
 		This function queries the registry to find all of the user profiles
 	#>
-	[OutputType([Selected.System.Management.Automation.PSCustomObject])]
+	[OutputType([System.Management.Automation.PSCustomObject])]
 	[CmdletBinding()]
 	param ()
 	process

@@ -223,7 +223,6 @@ function Find-InTextFile
 	)
 	begin
 	{
-		$SystemTempFolderPath = Get-SystemTempFolderPath
 		if (-not $UseRegex.IsPresent)
 		{
 			$Find = [regex]::Escape($Find)
@@ -331,7 +330,7 @@ function Set-MyFileSystemAcl
 		The type (Allow or Deny) of permissions to add. http://msdn.microsoft.com/en-us/library/w4ds5h86(v=vs.110).aspx
 	#>
 	[OutputType()]
-	[CmdletBinding()]
+	[CmdletBinding(SupportsShouldProcess)]
 	param (
 		[Parameter(Mandatory = $true)]
 		[ValidateScript({ Test-Path -Path $_ })]
@@ -360,7 +359,10 @@ function Set-MyFileSystemAcl
 			$Acl = (Get-Item $Path).GetAccessControl('Access')
 			$Ar = New-Object System.Security.AccessControl.FileSystemAccessRule($Identity, $Right, $InheritanceFlags, $PropagationFlags, $Type)
 			$Acl.SetAccessRule($Ar)
-			Set-Acl $Path $Acl
+			if ($PSCmdlet.ShouldProcess($Path, 'ACL Change'))
+			{
+				Set-Acl $Path $Acl
+			}
 			
 		}
 		catch
