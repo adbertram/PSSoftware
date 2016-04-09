@@ -2,6 +2,7 @@ Set-StrictMode -Version Latest
 
 function New-InstallshieldIntallString
 {
+	[OutputType([string])]
 	[CmdletBinding()]
 	param
 	(
@@ -69,6 +70,7 @@ function Uninstall-InstallShieldPackage
 		The log file path where the InstallShield installer will log results.  If not log file path
 		is specified it will be created in the system temp folder.
 	#>
+	[OutputType()]
 	[CmdletBinding()]
 	param (
 		[Parameter(Mandatory = $true)]
@@ -144,7 +146,6 @@ function Uninstall-InstallShieldPackage
 					if (-not (Test-InstalledSoftware $Title))
 					{
 						Write-Log -Message "The product $Title was successfully removed!"
-						$true
 					}
 					else
 					{
@@ -160,16 +161,13 @@ function Uninstall-InstallShieldPackage
 							$Process = Start-Process "`"$InstallerFilePath`"" -ArgumentList $InstallArgs -Wait -NoNewWindow -PassThru
 							if (-not (Test-InstalledSoftware $Title))
 							{
-								Write-Log -Message "The product '$Title' was not removed!"
-								$false
+								throw "The product '$Title' was not removed!"
 							}
 						}
 						else
 						{
-							Write-Log -Message "Could not parse out the setup installer and arguments from uninstall string. The product '$Title' was not removed!"
-							$false
+							throw "Could not parse out the setup installer and arguments from uninstall string. The product '$Title' was not removed!"
 						}
-						
 					}
 				}
 			}

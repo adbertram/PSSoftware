@@ -37,6 +37,7 @@ function Get-Shortcut
 	.PARAMETER NoRecurse
 		This turns off recursion on the folder path specified searching subfolders of the FolderPath
 	#>
+	[OutputType([System.IO.FileInfo])]
 	[CmdletBinding()]
 	param (
 		[string]$MatchingTargetPath,
@@ -52,8 +53,7 @@ function Get-Shortcut
 	process
 	{
 		try
-		{
-			
+		{	
 			if (-not $FolderPath)
 			{
 				$FolderPath = (Get-RootUserProfileFolderPath), (Get-AllUsersProfileFolderPath)
@@ -108,7 +108,7 @@ function Get-Shortcut
 				catch
 				{
 					Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-					$false
+					$PSCmdlet.ThrowTerminatingError($_)
 				}
 			}
 			
@@ -148,6 +148,7 @@ function New-Shortcut
 	.PARAMETER Arguments
 		File arguments you'd like to append to the target file path
 	#>
+	[OutputType()]
 	[CmdletBinding(DefaultParameterSetName = 'CommonLocation')]
 	param (
 		[Parameter(ParameterSetName = 'CustomLocation',
@@ -224,7 +225,6 @@ function New-Shortcut
 			if (Test-Path -Path $FilePath -PathType Leaf)
 			{
 				Write-Log -Message "Shortcut at $FilePath was successfully created"
-				$true
 			}
 			
 		}

@@ -8,6 +8,7 @@ function Test-Process
 	.PARAMETER Process
 		A System.Diagnostics.Process object type that is output by using the -Passthru parameter on the Start-Process cmdlet
 	#>
+	[OutputType([bool])]
 	[CmdletBinding()]
 	param (
 		[Parameter()]
@@ -46,6 +47,7 @@ function Get-ChildProcess
 	.PARAMETER ProcessId
 		The potential parent process ID
 	#>
+	[OutputType([System.Management.ManagementObject])]
 	[CmdletBinding()]
 	param (
 		[Parameter(Mandatory = $true)]
@@ -73,6 +75,7 @@ function Stop-MyProcess
 	.PARAMETER ProcessName
 		One more process names
 	#>
+	[OutputType()]
 	[CmdletBinding()]
 	param (
 		[Parameter(Mandatory = $true)]
@@ -96,8 +99,7 @@ function Stop-MyProcess
 					$WmiProcess = Get-WmiObject -Class Win32_Process -Filter "name='$($process.Name).exe'" -ErrorAction 'SilentlyContinue' -ErrorVariable WMIError
 					if ($WmiError)
 					{
-						Write-Log -Message "Unable to stop process $($process.Name). WMI query errored with `"$($WmiError.Exception.Message)`"" -LogLevel '2'
-						$false
+						throw "process $($process.Name). WMI query errored with `"$($WmiError.Exception.Message)`""
 					}
 					elseif ($WmiProcess)
 					{
@@ -110,13 +112,11 @@ function Stop-MyProcess
 							}
 							elseif ($WmiResult.ReturnValue -ne 0)
 							{
-								Write-Log -Message "-Unable to stop process $($p.name). Return value was $($WmiResult.ReturnValue)" -LogLevel '2'
-								$false
+								throw "-Unable to stop process $($p.name). Return value was $($WmiResult.ReturnValue)"
 							}
 							else
 							{
 								Write-Log -Message "-Successfully stopped process $($p.Name)..."
-								$true
 							}
 						}
 					}
@@ -134,6 +134,7 @@ function Stop-MyProcess
 
 function Stop-SoftwareProcess
 {
+	[OutputType()]
 	[CmdletBinding()]
 	param
 	(
@@ -185,7 +186,7 @@ function Wait-MyProcess
 		The number of seconds the process should be checked to ensure it's still running
 
 	#>
-	[OutputType('null')]
+	[OutputType()]
 	[CmdletBinding()]
 	param (
 		[Parameter(Mandatory = $true)]

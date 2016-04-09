@@ -90,7 +90,7 @@ function Uninstall-ViaMsizap
 	.PARAMETER LogFilePath
 		The file path to where msizap will generate output
 	#>
-	[OutputType([bool])]
+	[OutputType()]
 	[CmdletBinding()]
 	param (
 		[ValidatePattern('\b[A-F0-9]{8}(?:-[A-F0-9]{4}){3}-[A-F0-9]{12}\b')]
@@ -109,11 +109,9 @@ function Uninstall-ViaMsizap
 	{
 		try
 		{
-			
 			Write-Log -Message "-Starting the process `"$MsiZapFilePath $Params $Guid`"..."
 			$NewProcess = Start-Process $MsiZapFilePath -ArgumentList "$Params $Guid" -Wait -NoNewWindow -PassThru -RedirectStandardOutput $LogFilePath
-			Wait-MyProcess -ProcessId $NewProcess.Id
-			
+			Wait-MyProcess -ProcessId $NewProcess.Id	
 		}
 		catch
 		{
@@ -137,7 +135,7 @@ function Uninstall-WindowsInstallerPackage
 	.PARAMETER Guid
 		The GUID of the Windows Installer package
 	#>
-	[OutputType([bool])]
+	[OutputType()]
 	[CmdletBinding(DefaultParameterSetName = 'Guid')]
 	param (
 		[Parameter(ParameterSetName = 'Name')]
@@ -171,11 +169,11 @@ function Uninstall-WindowsInstallerPackage
 			
 			if (Uninstall-WindowsInstallerPackageWithMsiexec @params)
 			{
-				$true
+				Write-Log -Message 'Successfull uninstall.'
 			}
 			else
 			{
-				$false	
+				throw "Failed to uninstall."
 			}
 			
 		}
@@ -201,7 +199,7 @@ function Uninstall-WindowsInstallerPackageWithMsiexec
 		Specify a string of switches you'd like msiexec.exe to run when it attempts to uninstall the software. By default,
 		it already uses "/x GUID /qn".  You can specify any additional parameters here.
 	#>
-	[OutputType([bool])]
+	[OutputType()]
 	[CmdletBinding(DefaultParameterSetName = 'Guid')]
 	param (
 		[Parameter(ParameterSetName = 'Name')]
@@ -256,13 +254,11 @@ function Uninstall-WindowsInstallerPackageWithMsiexec
 			Test-Process $Process
 			if (-not (Test-InstalledSoftware -Guid $Guid))
 			{
-				Write-Log -Message "Successfully uninstalled MSI package with msiexec.exe"
-				$true
+				Write-Log -Message 'Successfully uninstalled MSI package with msiexec.exe'
 			}
 			else
 			{
-				Write-Log -Message "Failed to uninstall MSI package with msiexec.exe" -LogLevel '3'
-				$false
+				throw 'Failed to uninstall MSI package with msiexec.exe'
 			}
 		}
 		catch 
@@ -286,7 +282,7 @@ function Uninstall-WindowsInstallerPackageWithMsiModule
 	.PARAMETER Guid
 		The GUID of the Windows Installer package
 	#>
-	[OutputType([bool])]
+	[OutputType()]
 	[CmdletBinding(DefaultParameterSetName = 'Guid')]
 	param (
 		[Parameter(ParameterSetName = 'Name')]
@@ -300,16 +296,13 @@ function Uninstall-WindowsInstallerPackageWithMsiModule
 	{
 		try
 		{	
-			if (-not (Test-Path 'C:\MyDeployment\MSI'))
+			if (-not (Get-Module -ListAvailable -Name 'MSI'))
 			{
-				Write-Log -Message "Required MSI module is not available" -LogLevel '2'
-				$false
+				throw 'Required MSI module is not available'
 			}
-			elseif (((Get-OperatingSystem) -notmatch 'XP') -and ((Get-OperatingSystem) -notmatch 'Server'))
+			
+			if (((Get-OperatingSystem) -notmatch 'XP') -and ((Get-OperatingSystem) -notmatch 'Server'))
 			{
-				Write-Log -Message "Importing MSI module..."
-				Import-Module 'C:\MyDeployment\MSI'
-				Write-Log -Message "MSI module imported."
 				$UninstallParams = @{
 					'Log' = $script:LogFilePath
 					'Chain' = $true
@@ -331,12 +324,10 @@ function Uninstall-WindowsInstallerPackageWithMsiModule
 				if (-not (Test-InstalledSoftware @MsiProductParams))
 				{
 					Write-Log -Message "Successfully uninstalled MSI package '$Name' with MSI module"
-					$true
 				}
 				else
 				{
-					Write-Log -Message "Failed to uninstall MSI package '$Name' with MSI module" -LogLevel '2'
-					$false
+					throw "Failed to uninstall MSI package '$Name' with MSI module"
 				}
 			}
 			

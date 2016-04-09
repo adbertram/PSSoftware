@@ -21,7 +21,6 @@ function Remove-MyService
 	{
 		try
 		{
-			
 			$ServicesToRemove = Get-Service $Name
 			if (-not $ServicesToRemove)
 			{

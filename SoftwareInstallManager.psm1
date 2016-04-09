@@ -12,6 +12,7 @@ function Test-InstalledSoftware
 	.PARAMETER Guid
 		The GUID of the installed software
 	#>
+	[OutputType([bool])]
 	[CmdletBinding(DefaultParameterSetName = 'Name')]
 	param (
 		[Parameter(ParameterSetName = 'Name')]
@@ -82,6 +83,7 @@ function Get-InstalledSoftware
 	.PARAMETER Guid
 		The software GUID you'e like to limit the query to
 	#>
+	[OutputType([PSObject])]
 	[CmdletBinding()]
 	param (
 		[string]$Name,
@@ -216,6 +218,7 @@ function Install-Software
 		to being named install.log in the system temp folder.
 
 	#>
+	[OutputType()]
 	[CmdletBinding(DefaultParameterSetName = 'MSI')]
 	param (
 		[Parameter(ParameterSetName = 'InstallShield', Mandatory = $true)]
@@ -359,15 +362,8 @@ function Install-Software
 			$outputProps = @{ }
 			if ($Result.ExitCode -notin @(0, 3010))
 			{
-				Write-Log "Failed to install software. Installer exited with exit code [$($Result.ExitCode)]"
-				$outputProps.Success = $false
+				throw "Failed to install software. Installer exited with exit code [$($Result.ExitCode)]"
 			}
-			else
-			{
-				$outputProps.Success = $true
-			}
-			$outputProps.ExitCode = $Result.ExitCode
-			New-Object –TypeName PSObject -Property $outputProps
 		}
 		catch
 		{
@@ -435,6 +431,7 @@ function Remove-Software
 		If removing an InstallShield application, use this optional paramter to specify where the EXE installer is for
 		the application you're removing.  This is only used if no cached installer is found.
 	#>
+	[OutputType()]
 	[CmdletBinding(DefaultParameterSetName = 'MSI')]
 	param (
 		[Parameter(ValueFromPipeline = $true, Mandatory = $true, ParameterSetName = 'FromPipeline')]
@@ -529,7 +526,7 @@ function Remove-Software
 							$params.Name = $Name
 						}
 						
-						$null = Uninstall-WindowsInstallerPackage @params
+						Uninstall-WindowsInstallerPackage @params
 						
 					}
 					elseif ($InstallerType -eq 'InstallShield')
@@ -544,7 +541,7 @@ function Remove-Software
 						{
 							$Params.InstallshieldLogFilePath = $InstallshieldLogFilePath
 						}
-						$null = Uninstall-InstallShieldPackage @Params
+						Uninstall-InstallShieldPackage @Params
 					}
 					if (Test-InstalledSoftware -Name $Name)
 					{
@@ -552,7 +549,7 @@ function Remove-Software
 						if ($RunMsizap.IsPresent)
 						{
 							Write-Log -Message "Attempting Msizap..."
-							$null = Uninstall-ViaMsizap -Guid $Software.GUID -MsizapFilePath $MsizapFilePath -Params $MsiZapParams
+							Uninstall-ViaMsizap -Guid $Software.GUID -MsizapFilePath $MsizapFilePath -Params $MsiZapParams
 						}
 						else
 						{
@@ -564,15 +561,11 @@ function Remove-Software
 					if (-not (Test-InstalledSoftware -Name $Name))
 					{
 						Write-Log -Message "Successfully removed $Name!"
-						$outputProps.Success = $true
 					}
 					else
 					{
-						Write-Log -Message "Failed to remove $Name" -LogLevel 3
-						$outputProps.Success = $false
+						throw "Failed to remove $Name"
 					}
-					$outputProps.ExitCode = $Result.ExitCode
-					New-Object –TypeName PSObject -Property $outputProps
 				}
 				catch
 				{

@@ -1,83 +1,5 @@
 Set-StrictMode -Version Latest
 
-function Compare-RegistryFileToRegistry
-{
-	<#
-	.SYNOPSIS
-		This function compares a .reg file against the local computer registry and returns
-		either True or False depending on if every registry value inside the file
-		is equal to what's in the registry.
-	.EXAMPLE
-		PS> Compare-RegistryFileToRegistry -FilePath myreg.reg
-	
-		This example would read all values inside the myreg.reg file and check the local registry for equality.
-	.PARAMETER FilePath
-	 	The file path to where the .reg file is located.
-	#>
-	[CmdletBinding()]
-	param (
-		[Parameter(Mandatory = $true)]
-		[ValidateScript({ Test-Path -Path $_ -PathType 'Leaf' })]
-		[string]$FilePath
-	)
-	begin
-	{
-		
-		function Convert-Qualifier ($Path)
-		{
-			$Qualifier = $Path
-			
-			switch ($Qualifier)
-			{
-				'HKEY_LOCAL_MACHINE' {
-					'HKLM'
-				}
-				'HKEY_CURRENT_USER' {
-					New-PSDrive -Name HKU -PSProvider Registry -Root Registry::HKEY_USERS | Out-Null
-					$LoggedOnSids = Get-LoggedOnUserSID
-					foreach ($sid in $LoggedOnSids)
-					{
-						"HKU:\$sid"
-					}
-				}
-				'HKEY_CLASSES_ROOT' {
-					New-PSDrive -Name HKCR -PSProvider Registry -Root Registry::HKEY_CLASSES_ROOT | Out-Null
-					'HKCR'
-				}
-				'HKEY_USERS' {
-					New-PSDrive -Name HKU -PSProvider Registry -Root Registry::HKEY_USERS | Out-Null
-					'HKU'
-				}
-				'HKEY_CURRENT_CONFIG' {
-					New-PSDrive -Name HKCC -PSProvider Registry -Root Registry::HKEY_current_config | Out-Null
-					'HKCC'
-				}
-			}
-		}
-	}
-	process
-	{
-		try
-		{
-			$FileContents = Get-Content -Path $FilePath -Raw
-			$Array = $FileContents -split "`n`r"
-			$KeyContents = ($Array[1..$Array.Length]).Trim()
-			$Keys = @()
-			foreach ($Key in $KeyContents)
-			{
-				$KeyPath = [regex]::Match(($_ -split "`n")[0], '^\[(.*?)\\').Groups[1].Value
-				$Keys += $Key.Replace($KeyPath, (Convert-Qualifier -Path $_))
-			}
-			
-		}
-		catch
-		{
-			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			$PSCmdlet.ThrowTerminatingError($_)
-		}
-	}
-}
-
 function Get-RegistryValue
 {
 	<#
@@ -93,6 +15,7 @@ function Get-RegistryValue
 	.PARAMETER Name
 		The name of the registry value
 	#>
+	[OutputType([PSObject])]
 	[CmdletBinding()]
 	param (
 		[Parameter(Mandatory = $true)]
@@ -106,7 +29,6 @@ function Get-RegistryValue
 	{
 		try
 		{
-			
 			$Key = Get-Item -Path $Path -ErrorAction 'SilentlyContinue'
 			if (-not $Key)
 			{
@@ -142,6 +64,7 @@ function Get-RegistryValueForAllUsers
 	 	A hash table containing key names of 'Name' designating the registry value name and 'Path' designating the parent 
 		registry key the registry value is in.
 	#>
+	[OutputType([System.Management.Automation.PSCustomObject])]
 	[CmdletBinding()]
 	param (
 		[Parameter(Mandatory = $true)]
@@ -242,6 +165,7 @@ function Import-RegistryFile
 	.PARAMETER FilePath
 		The file path to the .reg file
 	#>
+	[OutputType()]
 	[CmdletBinding()]
 	param (
 		[Parameter()]
@@ -356,6 +280,7 @@ function Import-RegistryFile
 
 function Remove-RegistryKey
 {
+	[OutputType()]
 	[CmdletBinding()]
 	param
 	(
@@ -379,7 +304,7 @@ function Remove-RegistryKey
 				elseif (($key | Split-Path -Qualifier) -eq 'HKCU:')
 				{
 					Write-Log -Message "Removing HKCU registry key '$key' for all users"
-					$null = Set-RegistryValueForAllUsers -RegistryInstance @{ 'Path' = $key.Replace('HKCU:\', '') } -Remove
+					Set-RegistryValueForAllUsers -RegistryInstance @{ 'Path' = $key.Replace('HKCU:\', '') } -Remove
 				}
 				else
 				{
@@ -417,6 +342,7 @@ function Set-RegistryValueForAllUsers
 		A switch parameter that is used if the registry value key path doesn't exist will create the entire parent/child key hierachy and creates the 
 		registry value.  If this parameter is not used, if the key the value is supposed to be in does not exist the function will skip the value.
 	#>
+	[OutputType()]
 	[CmdletBinding()]
 	param (
 		[Parameter(Mandatory = $true)]
@@ -517,7 +443,6 @@ function Set-RegistryValueForAllUsers
 					$CommandLine = "reg add `"{0}`" /v {1} /t {2} /d {3} /f" -f "HKCU\$($instance.Path)", $instance.Name, $RegValueType, $instance.Value
 				}
 				Set-AllUserStartupAction -CommandLine $CommandLine
-				
 			}
 		}
 		catch

@@ -19,10 +19,11 @@ function Start-Log
 	.NOTES
 
 	#>
+	[OutputType()]
 	[CmdletBinding()]
 	param (
 		[ValidateScript({ Split-Path $_ -Parent | Test-Path })]
-		[string]$FilePath = "$(Get-SystemTempFolderPath)\SoftwareDeployer.log"
+		[string]$FilePath = "$(Get-SystemTempFolderPath)\SoftwareInstallManager.log"
 	)
 	
 	try
@@ -70,6 +71,7 @@ function Write-Log
 	.NOTES
 
 	#>
+	[OutputType()]
 	[CmdletBinding()]
 	param (
 		[Parameter(Mandatory = $true)]
@@ -120,7 +122,7 @@ function Convert-CompressedGuidToGuid
 		The compressed GUID you'd like to convert.
 	#>
 	[CmdletBinding()]
-	[OutputType([System.String])]
+	[OutputType([string])]
 	param (
 		[Parameter(ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true, Mandatory = $true)]
 		[ValidatePattern('^[0-9a-fA-F]{32}$')]
@@ -130,7 +132,6 @@ function Convert-CompressedGuidToGuid
 	{
 		try
 		{
-			
 			$Indexes = [ordered]@{
 				0 = 8;
 				8 = 4;
@@ -153,7 +154,6 @@ function Convert-CompressedGuidToGuid
 			}
 			$Guid = $Guid.Insert(9, '-').Insert(14, '-').Insert(19, '-').Insert(24, '-')
 			$Guid + '}'
-			
 		}
 		catch
 		{
@@ -179,8 +179,8 @@ function Convert-GuidToCompressedGuid
 	.PARAMETER Guid
 		The GUID you'd like to convert.
 	#>
+	[OutputType([string])]
 	[CmdletBinding()]
-	[OutputType()]
 	param (
 		[Parameter(ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true, Mandatory = $true)]
 		[string]$Guid
@@ -234,6 +234,7 @@ function Convert-ToUncPath
 	.PARAMETER Computername
 		The computer in which the file path exists on
 	#>
+	[OutputType([string])]
 	[CmdletBinding()]
 	param (
 		[Parameter()]
@@ -266,6 +267,7 @@ function Get-32BitProgramFilesPath
 		On x64 machines the x86 program files path is Program Files (x86) while on x86 machines it's just Program Files.  This function
 		does that decision for you and just outputs the x86 program files path regardless of OS architecture
 	#>
+	[OutputType([string])]
 	[CmdletBinding()]
 	param ()
 	process
@@ -300,6 +302,7 @@ function Get-32BitRegistrySoftwarePath
 	.PARAMETER Scope
 		Specify either HKLM or HKCU.  Defaults to HKLM.
 	#>
+	[OutputType([string])]
 	[CmdletBinding()]
 	param (
 		[ValidateSet('HKLM', 'HKCU')]
@@ -334,6 +337,7 @@ function Get-Architecture
 	.SYNOPSIS
 		This simple function tells you whether the machine you're running on is either x64 or x86
 	#>
+	[OutputType([string])]
 	[CmdletBinding()]
 	param ()
 	process
@@ -474,6 +478,7 @@ function Get-InstallerType
 		The uninstall string that's stored in the HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\%GUID% UninstallString
 		registry value.
 	#>
+	[OutputType([string])]
 	[CmdletBinding()]
 	param (
 		[string]$UninstallString
@@ -494,7 +499,7 @@ function Get-InstallerType
 			}
 			else
 			{
-				$false
+				throw "Could not determine installer type for uninstall string [$($UninstallString)]"
 			}
 			
 		}
@@ -512,6 +517,7 @@ function Get-LoggedOnUserSID
 	.SYNOPSIS
 		This function queries the registry to find the SID of the user that's currently logged onto the computer interactively.
 	#>
+	[OutputType([string])]
 	[CmdletBinding()]
 	param ()
 	process
@@ -550,6 +556,7 @@ function Get-OperatingSystem
 		
 		This example finds the operating system on a computer named MYCOMPUTER
 	#>
+	[OutputType([string])]
 	[CmdletBinding()]
 	param (
 		[Parameter()]
@@ -559,8 +566,7 @@ function Get-OperatingSystem
 	process
 	{
 		try
-		{
-			
+		{	
 			(Get-WmiObject -ComputerName $Computername -Query 'SELECT Caption FROM Win32_OperatingSystem').Caption
 		}
 		catch
@@ -578,13 +584,13 @@ function Get-SystemTempFolderPath
 		This function uses the TEMP system environment variable to easily discover the folder path
 		to the system's temp folder
 	#>
+	[OutputType([string])]
 	[CmdletBinding()]
 	param ()
 	process
 	{
 		try
 		{
-			
 			[environment]::GetEnvironmentVariable('TEMP', 'Machine')
 			
 		}

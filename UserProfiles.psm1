@@ -41,9 +41,7 @@ function Get-AllUsersProfileFolderPath
 	{
 		try
 		{
-			
-			$env:ALLUSERSPROFILE
-			
+			$env:ALLUSERSPROFILE	
 		}
 		catch
 		{
@@ -127,9 +125,7 @@ function Get-RootUserProfileFolderPath
 	{
 		try
 		{
-			
-			(Get-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList' -Name ProfilesDirectory).ProfilesDirectory
-			
+			(Get-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList' -Name ProfilesDirectory).ProfilesDirectory	
 		}
 		catch
 		{
@@ -172,7 +168,6 @@ function Get-UserProfilePath
 	{
 		try
 		{
-			#
 			if ($Sid)
 			{
 				$WhereBlock = { $_.PSChildName -eq $Sid }
@@ -186,7 +181,6 @@ function Get-UserProfilePath
 				$WhereBlock = { $_.PSChildName -ne $null }
 			}
 			Get-ChildItem 'HKLM:\Software\Microsoft\Windows NT\CurrentVersion\ProfileList' | Where-Object $WhereBlock | ForEach-Object { $_.GetValue('ProfileImagePath') }
-			#
 		}
 		catch
 		{

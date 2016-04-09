@@ -14,6 +14,7 @@ function Compare-FilePath
 	.PARAMETER DifferencePath
 		The second file path to compare
 	#>
+	[OutputType([bool])]
 	[CmdletBinding()]
 	param (
 		[Parameter(Mandatory = $true)]
@@ -54,6 +55,7 @@ function Compare-FolderPath
 	.PARAMETER DifferencePath
 		The second folder path to compare
 	#>
+	[OutputType([bool])]
 	[CmdletBinding()]
 	param (
 		[Parameter(Mandatory = $true)]
@@ -113,6 +115,7 @@ function Copy-FileWithHashCheck
 	.PARAMETER Force
 		Overwrite the destination file if one exists
 	#>
+	[OutputType()]
 	[CmdletBinding()]
 	param (
 		[Parameter(Mandatory = $true, ValueFromPipelineByPropertyName = $true, ValueFromPipeline = $True)]
@@ -139,7 +142,6 @@ function Copy-FileWithHashCheck
 				if (Compare-FilePath -ReferenceFilePath $SourceFilePath -DifferenceFilePath $DestFilePath)
 				{
 					Write-Log -Message "The file $SourceFilePath is already in $DestinationFolderPath and is the same. No need to copy"
-					return $true
 				}
 				elseif (-not $Force.IsPresent)
 				{
@@ -196,6 +198,7 @@ function Find-InTextFile
 		If the NewFilePath param is used using this param will overwrite any file that
 		exists in NewFilePath.
 	#>
+	[OutputType([Microsoft.PowerShell.Commands.MatchInfo])]
 	[CmdletBinding(DefaultParameterSetName = 'NewFile')]
 	param (
 		[Parameter(Mandatory = $true)]
@@ -262,7 +265,6 @@ function Find-InTextFile
 					Select-String -Path $File -Pattern $Find
 				}
 			}
-			
 		}
 		catch
 		{
@@ -280,6 +282,7 @@ function Register-File
 	.PARAMETER FilePath
 		The file path
 	#>
+	[OutputType()]
 	[CmdletBinding()]
 	param (
 		[Parameter()]
@@ -327,6 +330,7 @@ function Set-MyFileSystemAcl
 	.PARAMETER Type
 		The type (Allow or Deny) of permissions to add. http://msdn.microsoft.com/en-us/library/w4ds5h86(v=vs.110).aspx
 	#>
+	[OutputType()]
 	[CmdletBinding()]
 	param (
 		[Parameter(Mandatory = $true)]
@@ -376,6 +380,7 @@ function Get-FileVersion
 	.PARAMETER FilePath
 	 	A valid file path
 	#>
+	[OutputType([string])]
 	[CmdletBinding()]
 	param (
 		[Parameter(Mandatory = $true)]
@@ -470,6 +475,7 @@ function Get-MyFileHash
             Uses pipeline input from Get-ChildItem to get MD5 hashes of executables.
 
     #>
+	[OutputType([PSObject])]
 	[CmdletBinding()]
 	Param (
 		[Parameter(Position = 0, Mandatory = $true, ValueFromPipelineByPropertyName = $true, ValueFromPipeline = $True)]
