@@ -115,7 +115,7 @@ function Copy-FileWithHashCheck
 	.PARAMETER Force
 		Overwrite the destination file if one exists
 	#>
-	[OutputType()]
+	[OutputType([void])]
 	[CmdletBinding()]
 	param (
 		[Parameter(Mandatory = $true, ValueFromPipelineByPropertyName = $true, ValueFromPipeline = $True)]
@@ -281,7 +281,7 @@ function Register-File
 	.PARAMETER FilePath
 		The file path
 	#>
-	[OutputType()]
+	[OutputType([void])]
 	[CmdletBinding()]
 	param (
 		[Parameter()]
@@ -329,7 +329,7 @@ function Set-MyFileSystemAcl
 	.PARAMETER Type
 		The type (Allow or Deny) of permissions to add. http://msdn.microsoft.com/en-us/library/w4ds5h86(v=vs.110).aspx
 	#>
-	[OutputType()]
+	[OutputType([void])]
 	[CmdletBinding(SupportsShouldProcess = $true)]
 	param (
 		[Parameter(Mandatory = $true)]

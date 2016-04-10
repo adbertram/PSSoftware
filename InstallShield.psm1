@@ -70,7 +70,7 @@ function Uninstall-InstallShieldPackage
 		The log file path where the InstallShield installer will log results.  If not log file path
 		is specified it will be created in the system temp folder.
 	#>
-	[OutputType()]
+	[OutputType([void])]
 	[CmdletBinding()]
 	param (
 		[Parameter(Mandatory = $true)]

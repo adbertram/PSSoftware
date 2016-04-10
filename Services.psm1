@@ -10,7 +10,7 @@ function Remove-MyService
 	.PARAMETER ServiceName
 	 	The service name you'd like to stop and remove
 	#>
-	[OutputType()]
+	[OutputType([void])]
 	[CmdletBinding()]
 	param (
 		[Parameter(Mandatory = $true)]

@@ -165,7 +165,7 @@ function Import-RegistryFile
 	.PARAMETER FilePath
 		The file path to the .reg file
 	#>
-	[OutputType()]
+	[OutputType([void])]
 	[CmdletBinding()]
 	param (
 		[Parameter()]
@@ -280,7 +280,7 @@ function Import-RegistryFile
 
 function Remove-RegistryKey
 {
-	[OutputType()]
+	[OutputType([void])]
 	[CmdletBinding()]
 	param
 	(
@@ -342,7 +342,7 @@ function Set-AllUsersRegistryValue
 		A switch parameter that is used if the registry value key path doesn't exist will create the entire parent/child key hierachy and creates the 
 		registry value.  If this parameter is not used, if the key the value is supposed to be in does not exist the function will skip the value.
 	#>
-	[OutputType()]
+	[OutputType([void])]
 	[CmdletBinding(SupportsShouldProcess = $true)]
 	param (
 		[Parameter(Mandatory = $true)]

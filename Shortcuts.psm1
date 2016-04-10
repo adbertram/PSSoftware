@@ -148,7 +148,7 @@ function New-Shortcut
 	.PARAMETER Arguments
 		File arguments you'd like to append to the target file path
 	#>
-	[OutputType()]
+	[OutputType([void])]
 	[CmdletBinding(SupportsShouldProcess = $true,DefaultParameterSetName = 'CommonLocation')]
 	param (
 		[Parameter(ParameterSetName = 'CustomLocation',

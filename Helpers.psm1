@@ -19,7 +19,7 @@ function Start-Log
 	.NOTES
 
 	#>
-	[OutputType()]
+	[OutputType([void])]
 	[CmdletBinding()]
 	param (
 		[ValidateScript({ Split-Path $_ -Parent | Test-Path })]
@@ -71,7 +71,7 @@ function Write-Log
 	.NOTES
 
 	#>
-	[OutputType()]
+	[OutputType([void])]
 	[CmdletBinding()]
 	param (
 		[Parameter(Mandatory = $true)]

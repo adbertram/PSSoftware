@@ -203,7 +203,7 @@ function Remove-ProfileItem
 	.PARAMETER Path
 		The path(s) to the file or folder you'd like to remove.
 	#>
-	[OutputType()]
+	[OutputType([void])]
 	[CmdletBinding()]
 	param (
 		[Parameter(Mandatory = $true)]
@@ -261,7 +261,7 @@ function Set-AllUserStartupAction
 	.PARAMETER CommandLine
 		The command line string that will be executed once at every user logon
 	#>
-	[OutputType()]
+	[OutputType([void])]
 	[CmdletBinding(SupportsShouldProcess = $true)]
 	param (
 		[Parameter(Mandatory = $true)]

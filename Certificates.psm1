@@ -23,7 +23,7 @@ function Import-Certificate
 	.PARAMETER FilePath
 		This is the path to the certificate file that you'd like to import
 	#>
-	[OutputType()]
+	[OutputType([void])]
 	[CmdletBinding()]
 	param (
 		[Parameter(Mandatory = $true)]

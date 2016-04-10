@@ -75,7 +75,7 @@ function Stop-MyProcess
 	.PARAMETER ProcessName
 		One more process names
 	#>
-	[OutputType()]
+	[OutputType([void])]
 	[CmdletBinding(SupportsShouldProcess = $true)]
 	param (
 		[Parameter(Mandatory = $true)]
@@ -137,7 +137,7 @@ function Stop-MyProcess
 
 function Stop-SoftwareProcess
 {
-	[OutputType()]
+	[OutputType([void])]
 	[CmdletBinding(SupportsShouldProcess = $true)]
 	param
 	(
@@ -192,7 +192,7 @@ function Wait-MyProcess
 		The number of seconds the process should be checked to ensure it's still running
 
 	#>
-	[OutputType()]
+	[OutputType([void])]
 	[CmdletBinding()]
 	param (
 		[Parameter(Mandatory = $true)]

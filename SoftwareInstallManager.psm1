@@ -83,7 +83,7 @@ function Get-InstalledSoftware
 	.PARAMETER Guid
 		The software GUID you'e like to limit the query to
 	#>
-	[OutputType([PSObject])]
+	[OutputType([System.Management.Automation.PSObject])]
 	[CmdletBinding()]
 	param (
 		[string]$Name,
@@ -218,7 +218,7 @@ function Install-Software
 		to being named install.log in the system temp folder.
 
 	#>
-	[OutputType()]
+	[OutputType([void])]
 	[CmdletBinding(DefaultParameterSetName = 'MSI')]
 	param (
 		[Parameter(ParameterSetName = 'InstallShield', Mandatory = $true)]
@@ -431,7 +431,7 @@ function Remove-Software
 		If removing an InstallShield application, use this optional paramter to specify where the EXE installer is for
 		the application you're removing.  This is only used if no cached installer is found.
 	#>
-	[OutputType()]
+	[OutputType([void])]
 	[CmdletBinding(DefaultParameterSetName = 'MSI')]
 	param (
 		[Parameter(ValueFromPipeline = $true, Mandatory = $true, ParameterSetName = 'FromPipeline')]

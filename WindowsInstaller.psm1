@@ -90,7 +90,7 @@ function Uninstall-ViaMsizap
 	.PARAMETER LogFilePath
 		The file path to where msizap will generate output
 	#>
-	[OutputType()]
+	[OutputType([void])]
 	[CmdletBinding()]
 	param (
 		[ValidatePattern('\b[A-F0-9]{8}(?:-[A-F0-9]{4}){3}-[A-F0-9]{12}\b')]
@@ -135,7 +135,7 @@ function Uninstall-WindowsInstallerPackage
 	.PARAMETER Guid
 		The GUID of the Windows Installer package
 	#>
-	[OutputType()]
+	[OutputType([void])]
 	[CmdletBinding(DefaultParameterSetName = 'Guid')]
 	param (
 		[Parameter(ParameterSetName = 'Name')]
@@ -199,7 +199,7 @@ function Uninstall-WindowsInstallerPackageWithMsiexec
 		Specify a string of switches you'd like msiexec.exe to run when it attempts to uninstall the software. By default,
 		it already uses "/x GUID /qn".  You can specify any additional parameters here.
 	#>
-	[OutputType()]
+	[OutputType([void])]
 	[CmdletBinding(DefaultParameterSetName = 'Guid')]
 	param (
 		[Parameter(ParameterSetName = 'Name')]
@@ -282,7 +282,7 @@ function Uninstall-WindowsInstallerPackageWithMsiModule
 	.PARAMETER Guid
 		The GUID of the Windows Installer package
 	#>
-	[OutputType()]
+	[OutputType([void])]
 	[CmdletBinding(DefaultParameterSetName = 'Guid')]
 	param (
 		[Parameter(ParameterSetName = 'Name')]
@@ -350,7 +350,7 @@ function Wait-WindowsInstaller
 		mean child processes.  Using this function will ensure your script always wait for the msiexec.exe process you
 		kicked off to complete before continuing.
 	#>
-	[OutputType()]
+	[OutputType([void])]
 	[CmdletBinding()]
 	param ()
 	process
