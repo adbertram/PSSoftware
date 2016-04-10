@@ -134,10 +134,11 @@ function Get-InstalledSoftware
 						foreach ($SwKey in $SwKeys)
 						{
 							$output = @{ }
-							foreach ($ValName in $SwKey.GetValueNames())
+							foreach ($ValName in $SwKey.GetValueNames() | Where-Object { $_ })
 							{
 								if ($ValName -ne 'Version')
 								{
+									Write-Verbose -Message $ValName
 									$output.InstallLocation = ''
 									if ($ValName -eq 'InstallLocation' -and ($SwKey.GetValue($ValName)) -and (@('C:', 'C:\Windows', 'C:\Windows\System32', 'C:\Windows\SysWOW64') -notcontains $SwKey.GetValue($ValName).TrimEnd('\')))
 									{
