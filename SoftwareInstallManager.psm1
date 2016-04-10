@@ -359,12 +359,6 @@ function Install-Software
 				}
 				Wait-MyProcess @WaitParams
 			}
-			
-			$outputProps = @{ }
-			if (@(0, 3010) -notcontains $Result.ExitCode)
-			{
-				throw "Failed to install software. Installer exited with exit code [$($Result.ExitCode)]"
-			}
 		}
 		catch
 		{
