@@ -76,7 +76,7 @@ function Stop-MyProcess
 		One more process names
 	#>
 	[OutputType()]
-	[CmdletBinding(SupportsShouldProcess)]
+	[CmdletBinding(SupportsShouldProcess = $true)]
 	param (
 		[Parameter(Mandatory = $true)]
 		[string[]]$ProcessName
@@ -138,7 +138,7 @@ function Stop-MyProcess
 function Stop-SoftwareProcess
 {
 	[OutputType()]
-	[CmdletBinding(SupportsShouldProcess)]
+	[CmdletBinding(SupportsShouldProcess = $true)]
 	param
 	(
 		[Parameter(Mandatory = $true,ValueFromPipeline = $true)]

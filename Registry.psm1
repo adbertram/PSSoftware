@@ -343,7 +343,7 @@ function Set-AllUsersRegistryValue
 		registry value.  If this parameter is not used, if the key the value is supposed to be in does not exist the function will skip the value.
 	#>
 	[OutputType()]
-	[CmdletBinding(SupportsShouldProcess)]
+	[CmdletBinding(SupportsShouldProcess = $true)]
 	param (
 		[Parameter(Mandatory = $true)]
 		[ValidateNotNullOrEmpty()]

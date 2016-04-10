@@ -262,7 +262,7 @@ function Set-AllUserStartupAction
 		The command line string that will be executed once at every user logon
 	#>
 	[OutputType()]
-	[CmdletBinding(SupportsShouldProcess)]
+	[CmdletBinding(SupportsShouldProcess = $true)]
 	param (
 		[Parameter(Mandatory = $true)]
 		[string]$CommandLine

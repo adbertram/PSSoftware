@@ -330,7 +330,7 @@ function Set-MyFileSystemAcl
 		The type (Allow or Deny) of permissions to add. http://msdn.microsoft.com/en-us/library/w4ds5h86(v=vs.110).aspx
 	#>
 	[OutputType()]
-	[CmdletBinding(SupportsShouldProcess)]
+	[CmdletBinding(SupportsShouldProcess = $true)]
 	param (
 		[Parameter(Mandatory = $true)]
 		[ValidateScript({ Test-Path -Path $_ })]
