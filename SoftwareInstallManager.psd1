@@ -2,7 +2,7 @@
 	ModuleToProcess = 'SoftwareInstallManager.psm1'
 	
 	# Version number of this module.
-	ModuleVersion = '1.0.0.0'
+	ModuleVersion = '1.0.0.1'
 	
 	# ID used to uniquely identify this module
 	GUID = 'b7b17534-a60e-424a-8d13-949988b977bd'
@@ -104,7 +104,7 @@ provide a standard interface to treat software installers of all types exactly t
 	'Import-Certificate',
 	'Import-RegistryFile',
 	'Install-Software',
-	'New-MsiexecInstallString',
+	'Get-MsiexecInstallString',
 	'New-Shortcut',
 	'Register-File',
 	'Remove-MyService',
