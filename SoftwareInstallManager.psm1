@@ -360,7 +360,7 @@ function Install-Software
 			}
 			
 			$outputProps = @{ }
-			if ($Result.ExitCode -notin @(0, 3010))
+			if (@(0, 3010) -notcontains $Result.ExitCode)
 			{
 				throw "Failed to install software. Installer exited with exit code [$($Result.ExitCode)]"
 			}
