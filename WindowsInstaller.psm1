@@ -6,7 +6,7 @@ function Get-MsiexecInstallString
 	[CmdletBinding()]
 	param
 	(
-		[Parameter(Mandatory)]
+		[Parameter(Mandatory = $true)]
 		[ValidateNotNullOrEmpty()]
 		[string]$InstallerFilePath,
 	

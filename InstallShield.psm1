@@ -6,11 +6,11 @@ function Get-InstallshieldInstallString
 	[CmdletBinding()]
 	param
 	(
-		[Parameter(Mandatory)]
+		[Parameter(Mandatory = $true)]
 		[ValidateNotNullOrEmpty()]
 		[string]$InstallerFilePath,
 	
-		[Parameter(Mandatory)]
+		[Parameter(Mandatory = $true)]
 		[ValidateNotNullOrEmpty()]
 		[string]$IssFilePath,
 	

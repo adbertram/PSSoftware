@@ -284,7 +284,7 @@ function Remove-RegistryKey
 	[CmdletBinding()]
 	param
 	(
-		[Parameter(Mandatory)]
+		[Parameter(Mandatory = $true)]
 		[ValidateNotNullOrEmpty()]
 		[string[]]$Path
 	)
