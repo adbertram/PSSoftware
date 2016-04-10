@@ -92,7 +92,7 @@ function Write-Log
 		
 		if (-not (Test-Path Variable:\ScriptLogFilePath))
 		{
-			Write-Log -Message $Message
+			Write-Verbose -Message $Message
 		}
 		else
 		{
