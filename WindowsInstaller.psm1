@@ -54,7 +54,7 @@ function Get-MsiexecInstallString
 			## exit code of 3010, ALLUSERS=1 means that we'd like to make this software for all users
 			## on the machine and /Lvx* is the most verbose way to specify a log file path and to log as
 			## much information as possible.
-			if (-not $PSBoundParameters.ContainsKey('LogFilePath'))
+			if (-not $LogFilePath)
 			{
 				$LogFilePath = "$(Get-SystemTempFolderPath)\$($InstallerFilePath | Split-Path -Leaf).log"
 			}
@@ -362,7 +362,7 @@ function Wait-WindowsInstaller
 			$MsiexecProcesses = Get-WmiObject -Class Win32_Process -Filter "Name = 'msiexec.exe'" | Where-Object { $_.CommandLine -ne 'C:\Windows\system32\msiexec.exe /V' }
 			if ($MsiExecProcesses)
 			{
-				Write-Log -Message "Found '$($MsiexecProcesses.Count)' Windows installer processes.  Waiting..."
+				Write-Log -Message "Found '$(@($MsiexecProcesses).Count)' Windows installer processes.  Waiting..."
 				## Wait for each msiexec.exe process to finish before proceeding
 				foreach ($Process in $MsiexecProcesses)
 				{
