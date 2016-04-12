@@ -152,12 +152,12 @@ function Uninstall-WindowsInstallerPackage
 		try
 		{
 			$Params = @{ }
-			if ($Name)
+			if ($PSBoundParameters.ContainsKey('Name'))
 			{
 				Write-Log -Message "Attempting to uninstall Windows Installer using name '$Name'..."
 				$params.Name = $Name
 			}
-			elseif ($Guid)
+			if ($PSBoundParameters.ContainsKey('Guid'))
 			{
 				Write-Log -Message "Attempting to uninstall Windows Installer using GUID '$Guid'..."
 				$params.Guid = $Guid
@@ -167,15 +167,7 @@ function Uninstall-WindowsInstallerPackage
 				$params.MsiExecSwitches = $MsiExecSwitches
 			}
 			
-			if (Uninstall-WindowsInstallerPackageWithMsiexec @params)
-			{
-				Write-Log -Message 'Successfull uninstall.'
-			}
-			else
-			{
-				throw "Failed to uninstall."
-			}
-			
+			Uninstall-WindowsInstallerPackageWithMsiexec @params
 		}
 		catch
 		{
@@ -214,7 +206,7 @@ function Uninstall-WindowsInstallerPackageWithMsiexec
 	process
 	{
 		try {
-			if ($Name)
+			if ($PSBoundParameters.ContainsKey('Name'))
 			{
 				Write-Log -Message "Attempting to uninstall Windows Installer with msiexec.exe using name '$Name'..."
 				$Params = @{ 'Name' = $Name }
@@ -251,7 +243,6 @@ function Uninstall-WindowsInstallerPackageWithMsiexec
 			Write-Log -Message "Initiating msiexec.exe with arguments [$($switchString)]"
 			$Process = Start-Process 'msiexec.exe' -ArgumentList $switchString -PassThru -Wait -NoNewWindow
 			Wait-WindowsInstaller
-			Test-Process $Process
 			if (-not (Test-InstalledSoftware -Guid $Guid))
 			{
 				Write-Log -Message 'Successfully uninstalled MSI package with msiexec.exe'

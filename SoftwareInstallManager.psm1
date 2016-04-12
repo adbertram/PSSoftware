@@ -434,7 +434,8 @@ function Remove-Software
 		[object]$Software,
 	
 		[Parameter(Mandatory = $true,
-				   ValueFromPipelineByPropertyName = $true)]
+			 ValueFromPipelineByPropertyName = $true,
+			ParameterSetName = 'FromValue')]
 		[string]$Name,
 		
 		[Parameter(ParameterSetName = 'MSI')]
@@ -470,103 +471,86 @@ function Remove-Software
 	{
 		try
 		{
-			
-			
-			if ($PSCmdlet.ParameterSetName -ne 'FromPipeline')
+			if ($PSCmdlet.ParameterSetName -eq 'FromValue')
 			{
-				$Software = Get-InstalledSoftware -Name $Name
+				Write-Debug -Message "Getting installed software matching [$($Name)]"
+				$Software = Get-InstalledSoftware -Name $Name	
+			}
+			if ($Software.InstallLocation)
+			{
+				Write-Log -Message "Stopping all processes under the install folder $($Software.InstallLocation)..."
+				Stop-SoftwareProcess -Software $Software
 			}
 			
-			if (-not $Software)
+			if ($Software.UninstallString)
 			{
-				Write-Log -Message "The software [$($Name)]	was not found"
+				$InstallerType = Get-InstallerType $Software.UninstallString
 			}
 			else
 			{
-				try
+				Write-Log -Message "Uninstall string for $($Software.Name) not found" -LogLevel '2'
+			}
+			if (-not $PsBoundParameters['LogFilePath'])
+			{
+				$script:LogFilePath = "$(Get-SystemTempFolderPath)\$($Software.Name).log"
+				Write-Log -Message "No log file path specified.  Defaulting to $script:LogFilePath..."
+			}
+			if (-not $InstallerType -or ($InstallerType -eq 'Windows Installer'))
+			{
+				Write-Log -Message "Installer type detected to be Windows Installer or unknown for $($Software.Name). Attempting Windows Installer removal" -LogLevel '2'
+				$params = @{ }
+				if ($PSBoundParameters.ContainsKey('MsiExecSwitches'))
 				{
-					if ($Software.InstallLocation)
-					{
-						Write-Log -Message "Stopping all processes under the install folder $($Software.InstallLocation)..."
-						Stop-SoftwareProcess -Software $Software
-					}
-					
-					if ($Software.UninstallString)
-					{
-						$InstallerType = Get-InstallerType $Software.UninstallString
-					}
-					else
-					{
-						Write-Log -Message "Uninstall string for $Name not found" -LogLevel '2'
-					}
-					if (-not $PsBoundParameters['LogFilePath'])
-					{
-						$script:LogFilePath = "$(Get-SystemTempFolderPath)\$Name.log"
-						Write-Log -Message "No log file path specified.  Defaulting to $script:LogFilePath..."
-					}
-					if (-not $InstallerType -or ($InstallerType -eq 'Windows Installer'))
-					{
-						Write-Log -Message "Installer type detected to be Windows Installer or unknown for $Name. Attempting Windows Installer removal" -LogLevel '2'
-						$params = @{ }
-						if ($PSBoundParameters.ContainsKey('MsiExecSwitches'))
-						{
-							$params.MsiExecSwitches = $MsiExecSwitches
-						}
-						if ($Software.GUID)
-						{
-							$params.Guid = $Software.GUID
-						}
-						else
-						{
-							$params.Name = $Name
-						}
-						
-						Uninstall-WindowsInstallerPackage @params
-						
-					}
-					elseif ($InstallerType -eq 'InstallShield')
-					{
-						Write-Log -Message "Installer type detected as Installshield."
-						$Params = @{
-							'IssFilePath' = $IssFilePath;
-							'Name' = $Name;
-							'SetupFilePath' = $InstallShieldSetupFilePath
-						}
-						if ($InstallshieldLogFilePath)
-						{
-							$Params.InstallshieldLogFilePath = $InstallshieldLogFilePath
-						}
-						Uninstall-InstallShieldPackage @Params
-					}
-					if (Test-InstalledSoftware -Name $Name)
-					{
-						Write-Log -Message "$Name was not uninstalled via traditional uninstall" -LogLevel '2'
-						if ($RunMsizap.IsPresent)
-						{
-							Write-Log -Message "Attempting Msizap..."
-							Uninstall-ViaMsizap -Guid $Software.GUID -MsizapFilePath $MsizapFilePath -Params $MsiZapParams
-						}
-						else
-						{
-							Write-Log -Message "$Name failed to uninstall successfully" -LogLevel '3'
-						}
-					}
+					$params.MsiExecSwitches = $MsiExecSwitches
+				}
+				if ($Software.GUID)
+				{
+					$params.Guid = $Software.GUID
+				}
+				else
+				{
+					$params.Name = $Software.Name
+				}
+				
+				Uninstall-WindowsInstallerPackage @params
+				
+			}
+			elseif ($InstallerType -eq 'InstallShield')
+			{
+				Write-Log -Message "Installer type detected as Installshield."
+				$Params = @{
+					'IssFilePath' = $IssFilePath;
+					'Name' = $Software.Name
+					'SetupFilePath' = $InstallShieldSetupFilePath
+				}
+				if ($InstallshieldLogFilePath)
+				{
+					$Params.InstallshieldLogFilePath = $InstallshieldLogFilePath
+				}
+				Uninstall-InstallShieldPackage @Params
+			}
+			if (Test-InstalledSoftware -Name $Software.Name)
+			{
+				Write-Log -Message "$($Software.Name) was not uninstalled via traditional uninstall" -LogLevel '2'
+				if ($RunMsizap.IsPresent)
+				{
+					Write-Log -Message "Attempting Msizap..."
+					Uninstall-ViaMsizap -Guid $Software.GUID -MsizapFilePath $MsizapFilePath -Params $MsiZapParams
+				}
+				else
+				{
+					Write-Log -Message "$($Software.Name) failed to uninstall successfully" -LogLevel '3'
+				}
+			}
 
-					$outputProps = @{ }
-					if (-not (Test-InstalledSoftware -Name $Name))
-					{
-						Write-Log -Message "Successfully removed $Name!"
-					}
-					else
-					{
-						throw "Failed to remove $Name"
-					}
-				}
-				catch
-				{
-					Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-					$PSCmdlet.ThrowTerminatingError($_)
-				}
+			$outputProps = @{ }
+			if (-not (Test-InstalledSoftware -Name $Software.Name))
+			{
+				Write-Log -Message "Successfully removed $($Software.Name)"
+			}
+			else
+			{
+				throw "Failed to remove $($Software.Name)"
 			}
 		}
 		catch
