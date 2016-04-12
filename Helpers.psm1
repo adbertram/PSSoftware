@@ -345,7 +345,7 @@ function Get-Architecture
 		try
 		{
 			
-			if ([System.Environment]::Is64BitOperatingSystem -or ((Get-WmiObject -Class Win32_ComputerSystem | Select-Object -ExpandProperty SystemType) -eq 'x64-based PC'))
+			if (Get-WmiObject -Class Win32_ComputerSystem | Select-Object -ExpandProperty SystemType) -eq 'x64-based PC')
 			{
 				'x64'
 			}
