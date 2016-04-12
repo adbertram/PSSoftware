@@ -113,7 +113,7 @@ provide a standard interface to treat software installers of all types exactly t
 	'Remove-Software',
 	'Set-AllUserStartupAction',
 	'Set-MyFileSystemAcl',
-	'Set-RegistryValueForAllUsers',
+	'Set-AllUsersRegistryValue',
 	'Start-Log',
 	'Stop-MyProcess',
 	'Stop-SoftwareProcess',

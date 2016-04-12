@@ -266,7 +266,7 @@ function Wait-MyProcess
 				{
 					Write-Log -Message 'No child processes found spawned'
 				}
-				Write-Log -Message "Finished waiting for process '$($Process.Name)' ($($Process.Id)) and all child processes"
+				Write-Log -Message "Finished waiting for process '$($Process.Name)' and all child processes"
 			}
 			else
 			{

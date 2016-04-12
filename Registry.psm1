@@ -77,7 +77,7 @@ function Get-AllUsersRegistryValue
 		
 		## Find the registry values for the currently logged on user
 		$LoggedOnSids = Get-LoggedOnUserSID
-		Write-Log -Message "Found $($LoggedOnSids.Count) logged on user SIDs"
+		Write-Log -Message "Found $(@($LoggedOnSids).Count) logged on user SIDs"
 		foreach ($sid in $LoggedOnSids)
 		{
 			Write-Log -Message "Loading the user registry hive for the logged on SID $sid"
@@ -367,7 +367,7 @@ function Set-AllUsersRegistryValue
 			
 			## Change the registry values for the currently logged on user
 			$LoggedOnSids = Get-LoggedOnUserSID
-			Write-Log -Message "Found $($LoggedOnSids.Count) logged on user SIDs"
+			Write-Log -Message "Found $(@($LoggedOnSids).Count) logged on user SIDs"
 			foreach ($sid in $LoggedOnSids)
 			{
 				Write-Log -Message "Loading the user registry hive for the logged on SID $sid"
