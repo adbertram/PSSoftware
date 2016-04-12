@@ -427,7 +427,7 @@ function Remove-Software
 		the application you're removing.  This is only used if no cached installer is found.
 	#>
 	[OutputType([void])]
-	[CmdletBinding(DefaultParameterSetName = 'MSI')]
+	[CmdletBinding(DefaultParameterSetName = 'None')]
 	param (
 		[Parameter(ValueFromPipeline = $true, Mandatory = $true, ParameterSetName = 'FromPipeline')]
 		[ValidateNotNullOrEmpty()]
@@ -439,31 +439,47 @@ function Remove-Software
 		[string]$Name,
 		
 		[Parameter(ParameterSetName = 'MSI')]
+		[Parameter(ParameterSetName = 'FromPipeline')]
+		[Parameter(ParameterSetName = 'FromValue')]
 		[string]$MsiExecSwitches,
 		
 		[Parameter()]
+		[Parameter(ParameterSetName = 'FromPipeline')]
+		[Parameter(ParameterSetName = 'FromValue')]
 		[string]$LogFilePath,
 		
 		[Parameter(ParameterSetName = 'ISS')]
+		[Parameter(ParameterSetName = 'FromPipeline')]
+		[Parameter(ParameterSetName = 'FromValue')]
 		[string]$InstallshieldLogFilePath,
 		
 		[Parameter(ParameterSetName = 'Msizap')]
+		[Parameter(ParameterSetName = 'FromPipeline')]
+		[Parameter(ParameterSetName = 'FromValue')]
 		[switch]$RunMsizap,
 		
 		[Parameter(ParameterSetName = 'Msizap')]
+		[Parameter(ParameterSetName = 'FromPipeline')]
+		[Parameter(ParameterSetName = 'FromValue')]
 		[string]$MsizapParams = 'TWG!',
 		
 		[Parameter(ParameterSetName = 'Msizap')]
+		[Parameter(ParameterSetName = 'FromPipeline')]
+		[Parameter(ParameterSetName = 'FromValue')]
 		[ValidateScript({ Test-Path $_ -PathType 'Leaf' })]
 		[string]$MsizapFilePath = 'C:\MyDeployment\msizap.exe',
 		
 		[Parameter(ParameterSetName = 'ISS',
-				   Mandatory = $true)]
+			 Mandatory = $true)]
+		[Parameter(ParameterSetName = 'FromPipeline')]
+		[Parameter(ParameterSetName = 'FromValue')]
 		[ValidateScript({ Test-Path $_ -PathType 'Leaf' })]
 		[ValidatePattern('\.iss$')]
 		[string]$IssFilePath,
 		
 		[Parameter(ParameterSetName = 'ISS')]
+		[Parameter(ParameterSetName = 'FromPipeline')]
+		[Parameter(ParameterSetName = 'FromValue')]
 		[ValidateScript({ Test-Path $_ -PathType 'Leaf' })]
 		[string]$InstallShieldSetupFilePath
 	)
