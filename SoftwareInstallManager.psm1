@@ -300,7 +300,7 @@ function Install-Software
 				$InstallerFilePath = $MsiInstallerFilePath
 				Write-Log -Message 'Creating the msiexec install string'
 				
-				$InstallArgs = Get-MsiexecInstallString -InstallerFilePath $InstallerFilePath -MspFilePath $MspFilePath -MstFilePath $MstFilePath -LogFilePath $LogFilePath
+				$InstallArgs = Get-MsiexecInstallString -InstallerFilePath $InstallerFilePath -MspFilePath $MspFilePath -MstFilePath $MstFilePath -LogFilePath $LogFilePath -ExtraSwitches $MsiExecSwitches
 				
 				## Add Start-Process parameters
 				$ProcessParams['FilePath'] = 'msiexec.exe'
