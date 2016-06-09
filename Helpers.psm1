@@ -527,7 +527,7 @@ function Get-LoggedOnUserSID
 			{
 				New-PSDrive -Name HKU -PSProvider Registry -Root Registry::HKEY_USERS | Out-Null
 				## Every user that's logged on has a registry key in HKU with their SID
-				(Get-ChildItem HKU: | Where-Object { $_.Name -match 'S-\d-\d+-(\d+-){1,14}\d+$' }).PSChildName
+				Get-ChildItem HKU: | Where-Object { $_.Name -match 'S-\d-\d+-(\d+-){1,14}\d+$' } | Select -ExpandProperty PSChildName
 			}
 		}
 		catch
