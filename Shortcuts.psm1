@@ -1,5 +1,29 @@
 Set-StrictMode -Version Latest
 
+function Get-RootUserProfileFolderPath
+{
+	<#
+	.SYNOPSIS
+		Because sometimes the root user profile folder path can be different this function is a placeholder to find
+		the root user profile folder path ie. C:\Users or C:\Documents and Settings for any OS.  It queries a registry value
+		to find this path.
+	#>
+	[OutputType([string])]
+	[CmdletBinding()]
+	param ()
+	process
+	{
+		try
+		{
+			(Get-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList' -Name ProfilesDirectory).ProfilesDirectory	
+		}
+		catch
+		{
+			$PSCmdlet.ThrowTerminatingError($_)
+		}
+	}
+}
+
 function Get-Shortcut
 {
 	<#
@@ -46,7 +70,7 @@ function Get-Shortcut
 		
 		[string]$MatchingFilePath,
 		
-		[string[]]$FolderPath,
+		[string[]]$FolderPath = ((Get-RootUserProfileFolderPath), $env:ALLUSERSPROFILE),
 		
 		[switch]$NoRecurse
 	)
@@ -54,16 +78,10 @@ function Get-Shortcut
 	{
 		try
 		{	
-			if (-not $FolderPath)
-			{
-				$FolderPath = (Get-RootUserProfileFolderPath), (Get-AllUsersProfileFolderPath)
-			}
-			
 			$Params = @{
-				'Include' = @('*.url', '*.lnk');
-				'ErrorAction' = 'SilentlyContinue';
-				'ErrorVariable' = 'MyError';
-				'Force' = $true
+				Include = @('*.url', '*.lnk')
+				ErrorAction = 'SilentlyContinue'
+				Force = $true
 			}
 			
 			if (-not $NoRecurse)
@@ -72,28 +90,27 @@ function Get-Shortcut
 			}
 			
 			$ShellObject = New-Object -ComObject Wscript.Shell
-			[System.Collections.ArrayList]$Shortcuts = @()
 			
 			foreach ($Path in $FolderPath)
 			{
 				try
 				{
-					Write-Log -Message "Searching for shortcuts in $Path..."
-					[System.Collections.ArrayList]$WhereConditions = @()
+					Write-Verbose -Message "Searching for shortcuts in $Path..."
+					$WhereConditions = @()
 					$Params['Path'] = $Path
 					if ($MatchingTargetPath)
 					{
-						$WhereConditions.Add('(($ShellObject.CreateShortcut($_.FullName)).TargetPath -like "*$MatchingTargetPath*")') | Out-Null
+						$WhereConditions += '(($ShellObject.CreateShortcut($_.FullName)).TargetPath -like "*$MatchingTargetPath*")'
 					}
 					if ($MatchingName)
 					{
-						$WhereConditions.Add('($_.Name -like "*$MatchingName*")') | Out-Null
+						$WhereConditions += '($_.Name -like "*$MatchingName*")'
 					}
 					if ($MatchingFilePath)
 					{
-						$WhereConditions.Add('($_.FullName -like "*$MatchingFilePath*")') | Out-Null
+						$WhereConditions += '($_.FullName -like "*$MatchingFilePath*")'
 					}
-					if ($WhereConditions.Count -gt 0)
+					if (@($WhereConditions).Count -gt 0)
 					{
 						$WhereBlock = [scriptblock]::Create($WhereConditions -join ' -and ')
 						## TODO: Figure out a way to make this cleanly log access denied errors and continue
@@ -103,11 +120,10 @@ function Get-Shortcut
 					{
 						Get-ChildItem @Params
 					}
-					Write-Log -Message "Finished searching for shortcuts in $Path..."
+					Write-Verbose -Message "Finished searching for shortcuts in $Path..."
 				}
 				catch
 				{
-					Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
 					$PSCmdlet.ThrowTerminatingError($_)
 				}
 			}
@@ -115,7 +131,6 @@ function Get-Shortcut
 		}
 		catch
 		{
-			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
 			$PSCmdlet.ThrowTerminatingError($_)
 		}
 	}
@@ -149,22 +164,20 @@ function New-Shortcut
 		File arguments you'd like to append to the target file path
 	#>
 	[OutputType([void])]
-	[CmdletBinding(SupportsShouldProcess = $true,DefaultParameterSetName = 'CommonLocation')]
+	[CmdletBinding(SupportsShouldProcess,DefaultParameterSetName = 'CommonLocation')]
 	param (
-		[Parameter(ParameterSetName = 'CustomLocation',
-				   Mandatory = $true)]
+		[Parameter(ParameterSetName = 'CustomLocation',Mandatory)]
 		[ValidateScript({ Test-Path $_ -PathType 'Container' })]
 		[string]$FolderPath,
 		
-		[Parameter(ParameterSetName = 'CommonLocation',
-				   Mandatory = $true)]
+		[Parameter(ParameterSetName = 'CommonLocation',Mandatory)]
 		[ValidateSet('AllUsersDesktop')]
 		[string]$CommonLocation,
 		
-		[Parameter(Mandatory = $true)]
+		[Parameter(Mandatory)]
 		[string]$Name,
 		
-		[Parameter(Mandatory = $true)]
+		[Parameter(Mandatory)]
 		[string]$TargetPath,
 		
 		[Parameter()]
@@ -178,7 +191,6 @@ function New-Shortcut
 		}
 		catch
 		{
-			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
 			$PSCmdlet.ThrowTerminatingError($_)
 		}
 	}
@@ -221,17 +233,16 @@ function New-Shortcut
 			}
 			
 			if ($PSCmdlet.ShouldProcess($FilePath,'New shortcut')) {
-				Write-Log -Message "Creating shortcut at $FilePath using targetpath $TargetPath"
+				Write-Verbose -Message "Creating shortcut at $FilePath using targetpath $TargetPath"
 				$Object.Save()
 				if (Test-Path -Path $FilePath -PathType Leaf)
 				{
-					Write-Log -Message "Shortcut at $FilePath was successfully created"
+					Write-Verbose -Message "Shortcut at $FilePath was successfully created"
 				}
 			}
 		}
 		catch
 		{
-			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
 			$PSCmdlet.ThrowTerminatingError($_)
 		}
 	}
