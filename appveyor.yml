@@ -7,7 +7,6 @@ build: off
 
 install:
 - ps: cinst pester
-build:
-  verbosity: minimal
+
 test_script:
 - ps: . .\Tests\SoftwareInstallManager.Tests.ps1
