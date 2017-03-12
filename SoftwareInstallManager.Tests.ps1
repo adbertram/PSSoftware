@@ -1,8 +1,7 @@
 #region import modules
 $ThisModule = "$($MyInvocation.MyCommand -replace '\.Tests\.ps1$')"
 $RequiredModules = $ThisModule
-#Import-Module -Name $RequiredModules -Force -ErrorAction Stop
-ipmo c:\Dropbox\GitRepos\SoftwareInstallManager\SoftwareInstallManager.psd1
+Import-Module -Name $RequiredModules -Force -ErrorAction Stop
 #endregion
 
 InModuleScope SoftwareInstallManager {

@@ -9,4 +9,4 @@ install:
 - ps: cinst pester
 
 test_script:
-- ps: . .\Tests\SoftwareInstallManager.Tests.ps1
+- ps: . .\SoftwareInstallManager.Tests.ps1
