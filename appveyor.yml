@@ -1,0 +1,11 @@
+version: 1.0.{build}
+
+skip_commits:
+  message: /updated readme.*/
+
+install:
+- ps: cinst pester
+build:
+  verbosity: minimal
+test_script:
+- ps: . .\Tests\SoftwareInstallManager.Tests.ps1
