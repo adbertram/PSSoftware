@@ -3,6 +3,8 @@ version: 1.0.{build}
 skip_commits:
   message: /updated readme.*/
 
+build: off
+
 install:
 - ps: cinst pester
 build:
