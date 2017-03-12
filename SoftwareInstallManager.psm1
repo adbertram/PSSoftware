@@ -258,7 +258,7 @@ function Install-Software
 		[ValidateScript({ Test-Path -Path $_ -PathType 'Leaf' })]
 		[ValidatePattern('\.mst$')]
 		[ValidateNotNullOrEmpty()]
-		[string]$MstFilePath,
+		[string[]]$MstFilePath,
 		
 		[Parameter(ParameterSetName = 'InstallShield')]
 		[ValidateNotNullOrEmpty()]

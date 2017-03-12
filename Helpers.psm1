@@ -81,7 +81,7 @@ function Write-Log
 		[ValidateSet(1, 2, 3)]
 		[int]$LogLevel = 1
 	)
-	
+	Set-StrictMode -Off
 	try
 	{
 		$TimeGenerated = "$(Get-Date -Format HH:mm:ss).$((Get-Date).Millisecond)+000"

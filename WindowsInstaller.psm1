@@ -12,7 +12,7 @@ function Get-MsiexecInstallString
 	
 		[Parameter()]
 		[AllowNull()]
-		[string]$MstFilePath,
+		[string[]]$MstFilePath,
 	
 		[Parameter()]
 		[AllowNull()]
@@ -38,6 +38,7 @@ function Get-MsiexecInstallString
 			$InstallArgs += "/i `"$InstallerFilePath`" /qn"
 			if ($MstFilePath)
 			{
+				$MstFilePath = $MstFilePath -join ';'
 				$InstallArgs += "TRANSFORMS=`"$MstFilePath`""
 			}
 			if ($MspFilePath)
