@@ -92,14 +92,28 @@ function Get-UserProfile
 	#>
 	[OutputType([System.Management.Automation.PSCustomObject])]
 	[CmdletBinding()]
-	param ()
+	param (
+		[Parameter()]
+		[ValidateNotNullOrEmpty()]
+		[switch]$ExcludeSystemProfiles
+	)
 	process
 	{
 		try
 		{
+			if ($ExcludeSystemProfiles.IsPresent) {
+				$whereFilter = { $_.SID.Length -ge 45 }
+			} else {
+				$whereFilter = { '*' }
+			}
 			
-			Get-ItemProperty 'HKLM:\Software\Microsoft\Windows NT\CurrentVersion\ProfileList\*' |
-			Select-Object -ExcludeProperty SID *, @{ n = 'SID'; e = { $_.PSChildName } }, @{ n = 'Username'; e = { $_.ProfileImagePath | Split-Path -Leaf } }
+			$profiles = Get-ItemProperty 'HKLM:\Software\Microsoft\Windows NT\CurrentVersion\ProfileList\*'
+			
+			$selectProps = @(
+				'*', 
+				@{ n = 'SID'; e = { $_.PSChildName }}, @{ n = 'Username'; e = { $_.ProfileImagePath | Split-Path -Leaf }}
+			)
+			$profiles | Select-Object -ExcludeProperty SID -Property $selectProps | Where -FilterScript $whereFilter
 			
 		}
 		catch
