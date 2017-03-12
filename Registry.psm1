@@ -94,35 +94,16 @@ function Get-AllUsersRegistryValue
 				}
 			}
 		}
+
+		$loggedOffUsers = Get-UserProfile -ExcludeSystemProfiles | where { $LoggedOnSids -notcontains $_.SID } | Select -ExpandProperty UserName
 		
-		## Read all ProfileImagePath values from all reg keys that match a SID pattern in the ProfileList key
-		## Exclude all SIDs from the users that are currently logged on.  Those have already been processed.
-		$ProfileSids = (Get-UserProfile).SID
-		Write-Log -Message "Found $($ProfileSids.Count) SIDs for profiles"
-		$ProfileSids = $ProfileSids | Where-Object { $LoggedOnSids -notcontains $_ }
-		
-		$ProfileFolderPaths = $ProfileSids | ForEach-Object { Get-UserProfilePath -Sid $_ }
-		
-		if ((Get-Architecture) -eq 'x64')
+		foreach ($user in $loggedOffUsers)
 		{
-			$RegPath = 'syswow64'
-		}
-		else
-		{
-			$RegPath = 'System32'
-		}
-		Write-Log -Message "Reg.exe path is $RegPath"
-		
-		## Load each user's registry hive into the HKEY_USERS\TempUserLoad key
-		foreach ($prof in $ProfileFolderPaths)
-		{
-			Write-Log -Message "Loading the user registry hive in the $prof profile"
-			$Process = Start-Process "$($env:Systemdrive)\Windows\$RegPath\reg.exe" -ArgumentList "load HKEY_USERS\TempUserLoad `"$prof\NTuser.dat`"" -Wait -NoNewWindow -PassThru
-			if (Test-Process $Process)
-			{
+			try {
+				Write-Log -Message "Loading the user registry hive for user $user..."
+				LoadRegistryHive -Username $user
 				foreach ($instance in $RegistryInstance)
 				{
-					Write-Log -Message "Finding property in the HKU\$($instance.Path) path"
 					$Value = Get-ItemProperty -Path "HKU:\TempUserLoad\$($instance.Path)" -Name $instance.Name -ErrorAction SilentlyContinue
 					if (-not $Value)
 					{
@@ -133,12 +114,9 @@ function Get-AllUsersRegistryValue
 						$Value
 					}
 				}
-				$Process = Start-Process "$($env:Systemdrive)\Windows\$RegPath\reg.exe" -ArgumentList "unload HKEY_USERS\TempUserLoad" -Wait -NoNewWindow -PassThru
-				Test-Process $Process | Out-Null
-			}
-			else
-			{
-				Write-Log -Message "Failed to load registry hive for the '$prof' profile" -LogLevel '3'
+				UnloadRegistryHive
+			} catch {
+				Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'		
 			}
 		}
 		
@@ -148,6 +126,129 @@ function Get-AllUsersRegistryValue
 		Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
 		$PSCmdlet.ThrowTerminatingError($_)
 	}
+}
+
+function Get-AllUsersRegistryKey
+{
+    <#
+	.SYNOPSIS
+		This function finds all of the user profile registry hives, mounts them and retrieves a registry key for each user.
+	.EXAMPLE
+		PS> Get-AllUsersRegistryKey -Path 'SOFTWARE\Microsoft\Windows\Something'
+	
+	.PARAMETER Path
+	 	A string representing the path to the registry key.
+	#>
+	[OutputType([System.Management.Automation.PSCustomObject])]
+	[CmdletBinding()]
+	param (
+		[Parameter(Mandatory = $true)]
+		[string]$Path
+	)
+	try
+	{
+		
+		New-PSDrive -Name HKU -PSProvider Registry -Root Registry::HKEY_USERS | Out-Null
+		
+		$LoggedOnSids = Get-LoggedOnUserSID
+		Write-Log -Message "Found $(@($LoggedOnSids).Count) logged on user SIDs"
+		foreach ($sid in $LoggedOnSids)
+		{
+			Write-Log -Message "Loading the user registry hive for the logged on SID $sid"
+			$key = Get-Item -Path "HKU:\$sid\$Path" -ErrorAction SilentlyContinue
+			if (-not $key)
+			{
+				Write-Log -Message "Registry key does not exist at HKU:\$sid\$Path" -LogLevel '2'
+			}
+			else
+			{
+				$key
+			}
+		}
+
+		$loggedOffUsers = Get-UserProfile -ExcludeSystemProfiles | where { $LoggedOnSids -notcontains $_.SID } | Select -ExpandProperty UserName
+		
+		foreach ($user in $loggedOffUsers)
+		{
+			try {
+				Write-Log -Message "Loading the user registry hive for user $user..."
+				LoadRegistryHive -Username $user
+				$key = Get-Item -Path "HKU:\TempUserLoad\$Path" -ErrorAction SilentlyContinue
+				if (-not $key)
+				{
+					Write-Log -Message "Registry key does not exist at HKU:\TempUserLoad\$Path" -LogLevel '2'
+				}
+				else
+				{
+					$key
+				}
+				UnloadRegistryHive
+			} catch {
+				Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'		
+			}
+		}
+		
+	}
+	catch
+	{
+		Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+		$PSCmdlet.ThrowTerminatingError($_)
+	}
+}
+
+function LoadRegistryHive
+{
+	[OutputType([System.IO.FileInfo])]
+	[CmdletBinding()]
+	param
+	(
+		[Parameter(Mandatory = $true)]
+		[ValidateNotNullOrEmpty()]
+		[string]$UserName		
+	)
+	try {
+		$regExePath = GetRegExePath
+		$profilePath = Get-UserProfilePath -Username $UserName
+		$Process = Start-Process -FilePath $regExePath -ArgumentList "load HKEY_USERS\TempUserLoad `"$profilePath\NTuser.dat`"" -Wait -NoNewWindow -PassThru
+		if (Test-Process $Process) {
+			Get-Item -Path "$profilePath\NTuser.dat"
+		}
+	} catch {
+		Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+		$PSCmdlet.ThrowTerminatingError($_)
+	}
+	
+}
+
+function UnloadRegistryHive
+{
+	[CmdletBinding()]
+	param
+	()
+
+	$regExePath = GetRegExePath
+	$Process = Start-Process -FilePath $regExePath -ArgumentList "unload HKEY_USERS\TempUserLoad" -Wait -NoNewWindow -PassThru
+	Test-Process $Process | Out-Null
+}
+
+function GetRegExePath
+{
+	[OutputType([string])]
+	[CmdletBinding()]
+	param
+	()
+
+	if ((Get-Architecture) -eq 'x64')
+	{
+		$RegPath = 'syswow64'
+	}
+	else
+	{
+		$RegPath = 'System32'
+	}
+
+	"$($env:Systemdrive)\Windows\$RegPath\reg.exe"
+	
 }
 
 function Import-RegistryFile
