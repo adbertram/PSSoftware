@@ -1,7 +1,6 @@
 #region import modules
 $ThisModule = "$($MyInvocation.MyCommand -replace '\.Tests\.ps1$')"
-$RequiredModules = $ThisModule
-Import-Module -Name $RequiredModules -Force -ErrorAction Stop
+Import-Module -Name "$ThisModule.psd1" -Force -ErrorAction Stop
 #endregion
 
 InModuleScope SoftwareInstallManager {
@@ -9,7 +8,7 @@ InModuleScope SoftwareInstallManager {
 		
 		mock 'Write-Log' {
 			return [pscustomobject]@{  }
-		} -ModuleName 'SoftwareInstallManager'
+		}
 		
 		it 'outputs the right type of object' {
 			Get-InstalledSoftware | should beofType 'System.Management.Automation.PSCustomObject'
