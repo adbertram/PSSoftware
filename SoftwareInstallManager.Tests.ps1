@@ -1,6 +1,6 @@
 #region import modules
 $ThisModule = "$($MyInvocation.MyCommand -replace '\.Tests\.ps1$')"
-Import-Module -Name "$ThisModule.psd1" -Force -ErrorAction Stop
+Import-Module -Name ".\$ThisModule.psd1" -Force -ErrorAction Stop
 #endregion
 
 InModuleScope SoftwareInstallManager {
