@@ -154,15 +154,21 @@ function Get-AllUsersRegistryKey
 		Write-Log -Message "Found $(@($LoggedOnSids).Count) logged on user SIDs"
 		foreach ($sid in $LoggedOnSids)
 		{
-			Write-Log -Message "Loading the user registry hive for the logged on SID $sid"
-			$key = Get-Item -Path "HKU:\$sid\$Path" -ErrorAction SilentlyContinue
-			if (-not $key)
-			{
-				Write-Log -Message "Registry key does not exist at HKU:\$sid\$Path" -LogLevel '2'
-			}
-			else
-			{
-				$key
+			try {
+				Write-Log -Message "Loading the user registry hive for the logged on SID $sid"
+				$key = Get-Item -Path "HKU:\$sid\$Path" -ErrorAction SilentlyContinue
+				if (-not $key)
+				{
+					Write-Log -Message "Registry key does not exist at HKU:\$sid\$Path" -LogLevel '2'
+				}
+				else
+				{
+					$key
+				}
+			} catch {
+				Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'		
+			} finally {
+				UnloadRegistryHive
 			}
 		}
 
@@ -182,9 +188,10 @@ function Get-AllUsersRegistryKey
 				{
 					$key
 				}
-				UnloadRegistryHive
 			} catch {
 				Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'		
+			} finally {
+				UnloadRegistryHive
 			}
 		}
 		
@@ -209,10 +216,9 @@ function LoadRegistryHive
 	try {
 		$regExePath = GetRegExePath
 		$profilePath = Get-UserProfilePath -Username $UserName
-		$Process = Start-Process -FilePath $regExePath -ArgumentList "load HKEY_USERS\TempUserLoad `"$profilePath\NTuser.dat`"" -Wait -NoNewWindow -PassThru
-		if (Test-Process $Process) {
-			Get-Item -Path "$profilePath\NTuser.dat"
-		}
+		Write-Log -Message "Loading registry hive [$profilePath\NtUser.dat]..."
+		$Process = Start-Process -FilePath $regExePath -ArgumentList "load HKU\TempUserLoad `"$profilePath\NTuser.dat`"" -Wait -NoNewWindow -PassThru
+		Test-Process $Process | Out-Null
 	} catch {
 		Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
 		$PSCmdlet.ThrowTerminatingError($_)
@@ -227,8 +233,10 @@ function UnloadRegistryHive
 	()
 
 	$regExePath = GetRegExePath
-	$Process = Start-Process -FilePath $regExePath -ArgumentList "unload HKEY_USERS\TempUserLoad" -Wait -NoNewWindow -PassThru
-	Test-Process $Process | Out-Null
+	Write-Log -Message "Unloading HKU\TempUserLoad..."
+	$Process = Start-Process -FilePath $regExePath -ArgumentList "unload HKU\TempUserLoad" -Wait -NoNewWindow -PassThru
+	## TODO This seems to work but returns 1. Commenting out for now
+	# Test-Process $Process | Out-Null
 }
 
 function GetRegExePath

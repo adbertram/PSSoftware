@@ -188,8 +188,6 @@ function Wait-MyProcess
 		it will be terminated.  The default is 600 seconds (5 minutes) so no process will run longer than that.
 	.PARAMETER ReportInterval
 		The number of seconds between when it is logged that the process is still pending
-	.PARAMETER SleepInterval
-		The number of seconds the process should be checked to ensure it's still running
 
 	#>
 	[OutputType([void])]
@@ -205,11 +203,7 @@ function Wait-MyProcess
 		
 		[Parameter()]
 		[ValidateNotNullOrEmpty()]
-		[int]$ReportInterval = 15,
-		
-		[Parameter()]
-		[ValidateNotNullOrEmpty()]
-		[int]$SleepInterval = 1
+		[int]$ReportInterval = 15
 		
 	)
 	process
@@ -236,6 +230,7 @@ function Wait-MyProcess
 					$ChildProcesses = Get-ChildProcess -ProcessId $ProcessId
 					if ($ChildProcesses)
 					{
+						Write-Log -Message "Found [$(@($ChildProcesses).Count)]"
 						## If any child processes are found, collect them all
 						$ChildProcessesToLive += $ChildProcesses
 					}
@@ -249,9 +244,10 @@ function Wait-MyProcess
 					{
 						Write-Log "Still waiting for process '$($Process.Name)' ($($Process.Id)) after $([Math]::Round($Timer.Elapsed.TotalSeconds, 0)) seconds"
 					}
-					Start-Sleep -Seconds $SleepInterval
+					Start-Sleep -Milliseconds 100
 					$i++
 				}
+
 				Write-Log "Process '$($Process.Name)' ($($Process.Id)) has finished after $([Math]::Round($Timer.Elapsed.TotalSeconds, 0)) seconds"
 				if ($ChildProcessesToLive) ## If any child processes were spawned while the parent process was running
 				{

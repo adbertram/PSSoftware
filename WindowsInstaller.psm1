@@ -1,5 +1,5 @@
 Set-StrictMode -Version Latest
-#
+
 function Get-MsiexecInstallString
 {
 	[OutputType([string])]

@@ -50,7 +50,7 @@ function Import-Certificate
 	
 	begin
 	{
-		$ErrorActionPreference = [System.Management.Automation.ActionPreference]::Stop
+		$ErrorActionPreference = 'Stop'
 		try
 		{
 			[void][System.Reflection.Assembly]::LoadWithPartialName('System.Security')
