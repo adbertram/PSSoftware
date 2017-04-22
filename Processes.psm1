@@ -230,7 +230,7 @@ function Wait-MyProcess
 					$ChildProcesses = Get-ChildProcess -ProcessId $ProcessId
 					if ($ChildProcesses)
 					{
-						Write-Log -Message "Found [$(@($ChildProcesses).Count)]"
+						Write-Log -Message "Found [$(@($ChildProcesses).Count)] child process(es)"
 						## If any child processes are found, collect them all
 						$ChildProcessesToLive += $ChildProcesses
 					}

@@ -486,11 +486,11 @@ function Get-InstallerType
 		try
 		{
 			
-			if ($UninstallString -match 'msiexec')
+			if ($UninstallString -imatch 'msiexec.exe')
 			{
 				'Windows Installer'
 			}
-			elseif ($UninstallString -match 'InstallShield Installation')
+			elseif ($UninstallString -imatch 'InstallShield Installation')
 			{
 				'InstallShield'
 			}
