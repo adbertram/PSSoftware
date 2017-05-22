@@ -17,10 +17,6 @@ describe 'Module-level tests' {
 		Invoke-ScriptAnalyzer -Path $PSScriptRoot -Severity Error
 	}
 
-	it 'should have nuget.exe included' {
-		Test-Path "$PSScriptRoot\nuget.exe" | should be $true
-	}
-
 }
 
 InModuleScope SoftwareInstallManager {
