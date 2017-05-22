@@ -1,8 +1,8 @@
 ﻿@{
-	ModuleToProcess = 'SoftwareInstallManager.psm1'
+	RootModule = 'SoftwareInstallManager.psm1'
 	
 	# Version number of this module.
-	ModuleVersion = '1.0.0.1'
+	ModuleVersion = '1.0'
 	
 	# ID used to uniquely identify this module
 	GUID = 'b7b17534-a60e-424a-8d13-949988b977bd'
@@ -71,63 +71,7 @@ provide a standard interface to treat software installers of all types exactly t
 	)
 	
 	# Functions to export from this module
-	FunctionsToExport = @(
-	'Compare-FilePath',
-	'Compare-FolderPath',
-	'Convert-CompressedGuidToGuid',
-	'Convert-GuidToCompressedGuid',
-	'Convert-ToUncPath',
-	'Copy-FileWithHashCheck',
-	'Find-InTextFile',
-	'Get-32BitProgramFilesPath',
-	'Get-32BitRegistrySoftwarePath',
-	'Get-AllUsersDesktopFolderPath',
-	'Get-AllUsersProfileFolderPath',
-	'Get-AllUsersRegistryValue',
-	'Get-AllUsersRegistryKey',
-	'Get-AllUsersStartMenuFolderPath',
-	'Get-Architecture',
-	'Get-ChildProcess',
-	'Get-DriveFreeSpace',
-	'Get-FileVersion',
-	'Get-InstalledSoftware',
-	'Get-InstallerType',
-	'Get-InstallshieldInstallString',
-	'Get-LoggedOnUserSID',
-	'Get-MyFileHash',
-	'Get-OperatingSystem',
-	'Get-RegistryValue',
-	'Get-RootUserProfileFolderPath',
-	'Get-Shortcut',
-	'Get-SystemTempFolderPath',
-	'Get-UserProfile',
-	'Get-UserProfilePath',
-	'Import-Certificate',
-	'Import-RegistryFile',
-	'Install-Software',
-	'Get-MsiexecInstallString',
-	'New-Shortcut',
-	'Register-File',
-	'Remove-MyService',
-	'Remove-ProfileItem',
-	'Remove-RegistryKey',
-	'Remove-Software',
-	'Set-AllUserStartupAction',
-	'Set-MyFileSystemAcl',
-	'Set-AllUsersRegistryValue',
-	'Start-Log',
-	'Stop-MyProcess',
-	'Stop-SoftwareProcess',
-	'Test-Process',
-	'Test-InstalledSoftware',
-	'Uninstall-InstallShieldPackage',
-	'Uninstall-ViaMsizap',
-	'Uninstall-WindowsInstallerPackage',
-	'Uninstall-WindowsInstallerPackageWithMsiexec',
-	'Uninstall-WindowsInstallerPackageWithMsiModule',
-	'Wait-MyProcess',
-	'Wait-WindowsInstaller',
-	'Write-Log')
+	FunctionsToExport = '*'
 	
 	PrivateData = @{
 		PSData = @{			
