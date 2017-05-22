@@ -1,21 +1,11 @@
 #region import modules
-$ThisModule = "$($MyInvocation.MyCommand -replace '\.Tests\.ps1$')"
-Import-Module -Name ".\$ThisModule.psd1" -Force -ErrorAction Stop
+$ThisModule = "$($MyInvocation.MyCommand.Path -replace '\.Tests\.ps1$', '').psd1"
+$ThisModuleName = (($ThisModule | Split-Path -Leaf) -replace '\.psd1')
+Get-Module -Name $ThisModuleName -All | Remove-Module -Force
+
+Import-Module -Name $ThisModule -Force -ErrorAction Stop
 #endregion
 
 InModuleScope SoftwareInstallManager {
-	describe 'Get-InstalledSoftware' {
-		
-		mock 'Write-Log' {
-			return [pscustomobject]@{  }
-		}
-		
-		it 'outputs the right type of object' {
-			Get-InstalledSoftware | should beofType 'System.Management.Automation.PSCustomObject'
-		}
-		
-		it 'outputs the right number of objects' {
-				
-		}
-	}
+	
 }
