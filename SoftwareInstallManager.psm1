@@ -126,34 +126,38 @@ function Get-InstalledSoftware
 					$SwKeys = Get-ChildItem -Path $UninstallKey -ErrorAction SilentlyContinue | Where-Object $WhereBlock
 					foreach ($SwKey in $SwKeys)
 					{
-						$output = @{ }
-						foreach ($ValName in $SwKey.GetValueNames() | Where-Object { $_ })
-						{
-							if ($ValName -ne 'Version')
+						try {
+							$output = @{ }
+							foreach ($ValName in $SwKey.GetValueNames() | Where-Object { $_ })
 							{
-								Write-Verbose -Message $ValName
-								$output.InstallLocation = ''
-								if ($ValName -eq 'InstallLocation' -and ($SwKey.GetValue($ValName)) -and (@('C:', 'C:\Windows', 'C:\Windows\System32', 'C:\Windows\SysWOW64') -notcontains $SwKey.GetValue($ValName).TrimEnd('\')))
+								if ($ValName -ne 'Version')
 								{
-									$output.InstallLocation = $SwKey.GetValue($ValName).TrimEnd('\')
-								}
-								[string]$ValData = $SwKey.GetValue($ValName)
-								if ($friendlyNames[$ValName])
-								{
-									$output[$friendlyNames[$ValName]] = $ValData.Trim() ## Some registry values have trailing spaces.
-								}
-								else
-								{
-									$output[$ValName] = $ValData.Trim() ## Some registry values trailing spaces
+									Write-Verbose -Message $ValName
+									$output.InstallLocation = ''
+									if ($ValName -eq 'InstallLocation' -and ($SwKey.GetValue($ValName)) -and (@('C:', 'C:\Windows', 'C:\Windows\System32', 'C:\Windows\SysWOW64') -notcontains $SwKey.GetValue($ValName).TrimEnd('\')))
+									{
+										$output.InstallLocation = $SwKey.GetValue($ValName).TrimEnd('\')
+									}
+									[string]$ValData = $SwKey.GetValue($ValName)
+									if ($friendlyNames[$ValName])
+									{
+										$output[$friendlyNames[$ValName]] = $ValData.Trim() ## Some registry values have trailing spaces.
+									}
+									else
+									{
+										$output[$ValName] = $ValData.Trim() ## Some registry values trailing spaces
+									}
 								}
 							}
+							$output.GUID = ''
+							if ($SwKey.PSChildName -match '\b[A-F0-9]{8}(?:-[A-F0-9]{4}){3}-[A-F0-9]{12}\b')
+							{
+								$output.GUID = $SwKey.PSChildName
+							}
+							New-Object –TypeName PSObject -Property $output
+						} catch {
+							Write-Log -Message $_.Exception.Message -LogLevel '2'
 						}
-						$output.GUID = ''
-						if ($SwKey.PSChildName -match '\b[A-F0-9]{8}(?:-[A-F0-9]{4}){3}-[A-F0-9]{12}\b')
-						{
-							$output.GUID = $SwKey.PSChildName
-						}
-						New-Object –TypeName PSObject -Property $output
 					}
 				}
 			}

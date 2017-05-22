@@ -76,7 +76,7 @@ provide a standard interface to treat software installers of all types exactly t
 	PrivateData = @{
 		PSData = @{			
 			# Tags applied to this module. These help with module discovery in online galleries.
-			Tags = @('software')
+			Tags = @('PSModule')
 			
 			# A URL to the license for this module.
 			# LicenseUri = ''
