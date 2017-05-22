@@ -1,5 +1,7 @@
 # SoftwareInstallManager
 
+[![Build status](https://ci.appveyor.com/api/projects/status/1inriabn8e69d584?svg=true)](https://ci.appveyor.com/project/adbertram/softwareinstallmanager)
+
 > A single way to install, uninstall, upgrade and configure software with a single framework.
 
 SoftwareInstallManager is a PowerShell module born from necessity. It was built to create a single tool deploy and manage software. No longer do you have to remember:
