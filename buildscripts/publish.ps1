@@ -9,13 +9,13 @@ try {
 	$null = mkdir $moduleFolderPath
 
 	$excludeFromPublish = @(
-		'buildscripts'
-		'appveyor\.yml'
-		'^\.git'
-		'README\.md'
+		'SoftwareInstallManager\\buildscripts'
+		'SoftwareInstallManager\\appveyor\.yml'
+		'SoftwareInstallManager\\\.git'
+		'SoftwareInstallManager\\README\.md'
 	)
 	$exclude = $excludeFromPublish -join '|'
-	Get-ChildItem -Recurse -Path $env:APPVEYOR_BUILD_FOLDER | where { $_.Name -notmatch $exclude } | Copy-Item -Destination $moduleFolderPath
+	Get-ChildItem -Recurse -Path $moduleFolderPath | where { $_.FullName -notmatch $exclude }
 
 	## Publish module to PowerShell Gallery
 	$publishParams = @{
