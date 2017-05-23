@@ -15,7 +15,7 @@ try {
 		'SoftwareInstallManager\\README\.md'
 	)
 	$exclude = $excludeFromPublish -join '|'
-	Get-ChildItem -Recurse -Path $moduleFolderPath | where { $_.FullName -notmatch $exclude }
+	Get-ChildItem -Path $env:APPVEYOR_BUILD_FOLDER -Recurse | where { $_.FullName -notmatch $exclude } | Copy-Item -Destination {Join-Path -Path $moduleFolderPath -ChildPath $_.FullName.Substring($env:APPVEYOR_BUILD_FOLDER.length)}
 
 	## Publish module to PowerShell Gallery
 	$publishParams = @{
