@@ -1135,7 +1135,7 @@ function Start-Log
 	[CmdletBinding()]
 	param (
 		[ValidateScript({ Split-Path $_ -Parent | Test-Path })]
-		[string]$FilePath = "$(Get-SystemTempFolderPath)\SoftwareInstallManager.log"
+		[string]$FilePath = "$(Get-SystemTempFolderPath)\PSSoftware.log"
 	)
 	
 	try

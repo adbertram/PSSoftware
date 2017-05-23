@@ -8,7 +8,7 @@ param (
 
     [Parameter()]
     [ValidateNotNullOrEmpty()]
-    [string]$ModuleFolderPath = 'C:\Program Files\WindowsPowerShell\Modules\SoftwareInstallManager'
+    [string]$ModuleFolderPath = 'C:\Program Files\WindowsPowerShell\Modules\PSSoftware'
 )
 
 foreach ($c in $Client) {
@@ -24,12 +24,12 @@ foreach ($c in $Client) {
         ## Copy the installer to the client
         Copy-Item -Path $InstallerFilePath -Destination "\\$c\c$"
 
-        ## Copy the SoftwareInstallManager module to the client
+        ## Copy the PSSoftware module to the client
         Copy-Item -Path $ModuleFolderPath -Destination "\\$c\c$" -Recurse
 
         ## Execute the software installer
         Invoke-Command -ComputerName $c -ScriptBlock { 
-            Import-Module C:\SoftwareInstallManager\SoftwareInstallManager.psm1
+            Import-Module C:\PSSoftware\PSSoftware.psm1
             $installerFileName = $using:InstallerFilePath | Split-Path -Leaf
             Install-Software -OtherInstallerFilePath "C:\$installerFileName" -OtherInstallerArgs '/silent /norestart'
          }

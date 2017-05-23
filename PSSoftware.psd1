@@ -1,5 +1,5 @@
 ﻿@{
-	RootModule = 'SoftwareInstallManager.psm1'
+	RootModule = 'PSSoftware.psm1'
 	ModuleVersion = '1.0'
 	GUID = 'b7b17534-a60e-424a-8d13-949988b977bd'
 	Author = 'Adam Bertram'
@@ -11,7 +11,7 @@ provide a standard interface to treat software installers of all types exactly t
 	PrivateData = @{
 		PSData = @{			
 			Tags = @('PSModule')
-			ProjectUri = 'https://github.com/adbertram/SoftwareInstallManager'
+			ProjectUri = 'https://github.com/adbertram/PSSoftware'
 		}
 	}
 }

@@ -5,14 +5,14 @@ $ProgressPreference = 'SilentlyContinue'
 
 try {
 	## Don't upload the build scripts and appveyor.yml to PowerShell Gallery
-	$moduleFolderPath = "$env:APPVEYOR_BUILD_FOLDER\SoftwareInstallManager"
+	$moduleFolderPath = "$env:APPVEYOR_BUILD_FOLDER\PSSoftware"
 	$null = mkdir $moduleFolderPath
 
 	$excludeFromPublish = @(
-		'SoftwareInstallManager\\buildscripts'
-		'SoftwareInstallManager\\appveyor\.yml'
-		'SoftwareInstallManager\\\.git'
-		'SoftwareInstallManager\\README\.md'
+		'PSSoftware\\buildscripts'
+		'PSSoftware\\appveyor\.yml'
+		'PSSoftware\\\.git'
+		'PSSoftware\\README\.md'
 	)
 	$exclude = $excludeFromPublish -join '|'
 	Get-ChildItem -Path $env:APPVEYOR_BUILD_FOLDER -Recurse | where { $_.FullName -notmatch $exclude } | Copy-Item -Destination {Join-Path -Path $moduleFolderPath -ChildPath $_.FullName.Substring($env:APPVEYOR_BUILD_FOLDER.length)}

@@ -19,6 +19,6 @@ describe 'Module-level tests' {
 
 }
 
-InModuleScope SoftwareInstallManager {
+InModuleScope PSSoftware {
 	
 }

@@ -16,7 +16,7 @@ param (
 	
 	[Parameter()]
 	[ValidateScript({ Test-Path -Path $_ -PathType Leaf })]
-	[string]$ModuleFilePath = "$ServerModuleFolderPath\SoftwareInstallManager.psm1",
+	[string]$ModuleFilePath = "$ServerModuleFolderPath\PSSoftware.psm1",
 	
 	[Parameter()]
 	[string]$AllowedLaunchServer = 'WINSRV2012R2-1.MYLAB.LOCAL',
@@ -38,11 +38,11 @@ try
 	## Test to ensure our shared module exists where we think it does
 	if (-not (Test-Path -Path $ModuleFilePath -PathType Leaf))
 	{
-		throw "SoftwareInstallManager module: BAD"
+		throw "PSSoftware module: BAD"
 	}
 	else
 	{
-		Write-Verbose -Message "SoftwareInstallManager module: GOOD"
+		Write-Verbose -Message "PSSoftware module: GOOD"
 	}
 	## Test to ensure the deployment script is where we think it is
 	if (-not (Test-Path -Path $ServerSideClientDeploymentFolderPath -PathType Container))
@@ -75,7 +75,7 @@ try
 	#region Inserting the Import-Module and Start-Log lines into the top of the deployment script
 	
 	$DeploymentScriptText = Get-Content -Path "$ServerSideClientDeploymentFolderPath\$Type.ps1"
-	if ((($DeploymentScriptText | Select-Object -First 2) -join '|') -ne "Import-Module $ClientDeploymentFolder\SoftwareInstallManager.psm1|Start-Log")
+	if ((($DeploymentScriptText | Select-Object -First 2) -join '|') -ne "Import-Module $ClientDeploymentFolder\PSSoftware.psm1|Start-Log")
 	{
 		## The deployment script doesn't have the required Import-Module as the first line and Start-Log as the second line
 		## Insert Import-Module as the first line and Start-Log as the second line
@@ -100,7 +100,7 @@ try
 		}
 		
 		## Insert the new Import-Module line and the Start-Log line at the top of the deployment script
-		$DeploymentScriptText = "Import-Module $ClientDeploymentFolder\SoftwareInstallManager.psm1", 'Start-Log', '$WorkingDir = $MyInvocation.MyCommand.Path | Split-Path -Parent', $DeploymentScriptText
+		$DeploymentScriptText = "Import-Module $ClientDeploymentFolder\PSSoftware.psm1", 'Start-Log', '$WorkingDir = $MyInvocation.MyCommand.Path | Split-Path -Parent', $DeploymentScriptText
 		
 		Set-Content -Path "$ServerSideClientDeploymentFolderPath\$Type.ps1" –value $DeploymentScriptText
 	}

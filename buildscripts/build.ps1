@@ -2,7 +2,7 @@ $ErrorActionPreference = 'Stop'
 
 try {
 
-	$manifestFilePath = "$env:APPVEYOR_BUILD_FOLDER\SoftwareInstallManager.psd1"
+	$manifestFilePath = "$env:APPVEYOR_BUILD_FOLDER\PSSoftware.psd1"
 	$manifestContent = Get-Content -Path $manifestFilePath -Raw
 
 	$functionsToExport = @(
