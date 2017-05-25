@@ -3171,7 +3171,7 @@ function Find-InTextFile
 		If the NewFilePath param is used using this param will overwrite any file that
 		exists in NewFilePath.
 	#>
-	[OutputType([Microsoft.PowerShell.Commands.MatchInfo])]
+	[OutputType('Microsoft.PowerShell.Commands.MatchInfo')]
 	[CmdletBinding(DefaultParameterSetName = 'NewFile')]
 	param (
 		[Parameter(Mandatory = $true)]
