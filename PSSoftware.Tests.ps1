@@ -14,7 +14,7 @@ describe 'Module-level tests' {
 	}
 
 	it 'should pass all error-level script analyzer rules' {
-		Invoke-ScriptAnalyzer -Path $PSScriptRoot -Severity Error
+		Invoke-ScriptAnalyzer -Path $PSScriptRoot -Severity Error | should benullorempty
 	}
 
 }
