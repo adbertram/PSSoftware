@@ -9,6 +9,7 @@ try {
 	$excludeFromPublish = @(
 		'PSSoftware\\buildscripts'
 		'PSSoftware\\appveyor\.yml'
+		'PSSoftware\\\.nuspec'
 		'PSSoftware\\\.git'
 		'PSSoftware\\README\.md'
 		'PSSoftware\\TestResults\.xml'
