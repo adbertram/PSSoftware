@@ -76,12 +76,7 @@ try {
 
 	$manifestContent | Set-Content -Path $manifestFilePath
 
-	Write-Host '=============================================='
-	Write-Host 'Manifest to publish'
-	Write-Host '=============================================='
-	Write-Host (Get-Content -Path $manifestFilePath -Raw)
-	Write-Host '=============================================='
-
 } catch {
+	Write-Error -Message $_.Exception.Message
 	$host.SetShouldExit($LastExitCode)
 }
