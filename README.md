@@ -22,7 +22,7 @@ This is what PSSoftware is all about. Removing the complexities of software mana
 
 | PSv1 | PSv2 | PSv3 | PSv4 | PSv5     |
 |------|------|------|------|----------|
-| No   | Yes  | Yes  | Yes  | Untested |
+| No   | No  | Yes  | Yes  | Untested |
 
 ## Getting Started
 
