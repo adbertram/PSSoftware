@@ -20,9 +20,9 @@ This is what PSSoftware is all about. Removing the complexities of software mana
 
 ## Version Support
 
-| PSv1 | PSv2 | PSv3 | PSv4 | PSv5     |
-|------|------|------|------|----------|
-| No   | No  | Yes  | Yes  | Untested |
+| PSv1 | PSv2 | PSv3 | PSv4 | PSv5     | PSv6  |
+|------|------|------|------|----------|-------|
+| No   | No   | Yes  | Yes  | Untested | No    |
 
 ## Getting Started
 
