@@ -759,7 +759,7 @@ function Stop-MyProcess
 					{
 						foreach ($p in $WmiProcess)
 						{
-							if ($PSCmdlet.ShouldProcess("Process ID: $($p.Id)", 'Stop'))
+							if ($PSCmdlet.ShouldProcess("Process ID: $($p.ProcessId)", 'Stop'))
 							{
 								$WmiResult = $p.Terminate()
 								if ($WmiResult.ReturnValue -eq 1603)
