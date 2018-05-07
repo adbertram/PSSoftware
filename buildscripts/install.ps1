@@ -5,12 +5,15 @@ $provParams = @{
 }
 
 $null = Install-PackageProvider @provParams
+$null = Install-Module -Name PowerShellGet -Force -Confirm:$false -SkipPublisherCheck
+$provParams.Name = 'PowerShellGet'
+$provParams.MinimumVersion = '1.6.0'
 $null = Import-PackageProvider @provParams
 
-$requiredModules = @('Pester','PowerShellGet','PSScriptAnalyzer')
+$requiredModules = @('Pester','PSScriptAnalyzer')
 foreach ($m in $requiredModules) {
 	Write-Host "Installing module [$($m)]..."
-	Install-Module -Name $m -Force -Confirm:$false
+	Install-Module -Name $m -Force -Confirm:$false -SkipPublisherCheck
 	Remove-Module -Name $m -Force -ErrorAction Ignore
 	Import-Module -Name $m
 }

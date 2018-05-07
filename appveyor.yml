@@ -9,5 +9,3 @@ build_script:
 - ps: .\buildscripts\build.ps1
 test_script:
 - ps: .\buildscripts\test.ps1
-after_test:
-- ps: .\buildscripts\publish.ps1
