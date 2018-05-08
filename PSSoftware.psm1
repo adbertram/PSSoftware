@@ -1217,6 +1217,41 @@ function Write-Log
 	}
 }
 
+function New-TempFile
+{
+	<#
+	.SYNOPSIS
+		This function creates a temporary file
+
+	.DESCRIPTION
+		This function creates a file in the $env:TEMP directory. It's purpose is to create a file
+		that doesn't conflict with other files so you don't lose data unintentionally.
+
+	.EXAMPLE
+		PS C:\> New-TempFile
+		This example shows how to call the New-TempFile function.
+
+	.NOTES
+
+	#>
+	[OutputType([System.IO.FileInfo])]
+	[CmdletBinding()]
+	param()
+	if($PSVersionTable.PSVersion.Major -ge 5)
+	{
+		New-TemporaryFile
+	}
+	else
+	{
+		$temp = $env:TEMP
+		do
+		{
+			$filename = "tmp$(Get-Random -max 0xffffff).tmp"
+		} while (Test-Path "$temp\$filename")
+		New-Item "$temp\$filename"
+	}
+}
+
 function Convert-CompressedGuidToGuid
 {
 	<#
@@ -2032,7 +2067,7 @@ function Import-RegistryFile
 			if ($RegFileHive -ne 'HKEY_CURRENT_USER')
 			{
 				Write-Log -Message "Starting registry import of reg file $FilePath..."
-				$tempFile = New-TemporaryFile
+				$tempFile = New-TempFile
 				($Result = Start-Process "$($env:Systemdrive)\Windows\$RegPath\reg.exe" -ArgumentList "import `"$FilePath`"" -Wait -NoNewWindow -PassThru -RedirectStandardError $tempFile)  | Out-Null
 				Remove-Item $tempFile
 				Test-Process -Process $Result
