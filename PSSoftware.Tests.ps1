@@ -24,9 +24,12 @@ InModuleScope PSSoftware {
 }
 
 describe 'New-TempFile' {
-	it 'should create new file' {
-		$file = New-TempFile
+	$file = New-TempFile
+	it 'should return FileInfo type' {
 		$file | should beoftype [System.IO.FileInfo]
-		Remove-Item $file
 	}
+	it 'file should exist' {
+		Test-Path $file | should betrue
+	}
+	Remove-Item $file
 }
