@@ -2032,7 +2032,9 @@ function Import-RegistryFile
 			if ($RegFileHive -ne 'HKEY_CURRENT_USER')
 			{
 				Write-Log -Message "Starting registry import of reg file $FilePath..."
-				($Result = Start-Process "$($env:Systemdrive)\Windows\$RegPath\reg.exe" -ArgumentList "import `"$FilePath`"" -Wait -NoNewWindow -PassThru) | Out-Null
+				$tempFile = New-TemporaryFile
+				($Result = Start-Process "$($env:Systemdrive)\Windows\$RegPath\reg.exe" -ArgumentList "import `"$FilePath`"" -Wait -NoNewWindow -PassThru -RedirectStandardError $tempFile)  | Out-Null
+				Remove-Item $tempFile
 				Test-Process -Process $Result
 				Write-Log -Message 'Registry file import done'
 			}
