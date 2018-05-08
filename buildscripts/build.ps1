@@ -61,7 +61,8 @@ try {
 		'Uninstall-WindowsInstallerPackageWithMsiModule',
 		'Wait-MyProcess',
 		'Wait-WindowsInstaller',
-		'Write-Log'
+		'Write-Log',
+		'New-TempFile'
 	)
 
 	## Update the module version based on the build version and limit exported functions
