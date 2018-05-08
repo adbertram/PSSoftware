@@ -22,3 +22,11 @@ describe 'Module-level tests' {
 InModuleScope PSSoftware {
 	
 }
+
+describe 'New-TempFile' {
+	it 'should create new file' {
+		$file = New-TempFile
+		$file | should beoftype [System.IO.FileInfo]
+		Remove-Item $file
+	}
+}
