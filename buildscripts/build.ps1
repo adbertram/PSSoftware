@@ -63,7 +63,7 @@ try {
 		'Wait-WindowsInstaller',
 		'Write-Log',
 		'New-TempFile',
-		Compare-File
+		'Compare-File'
 	)
 
 	## Update the module version based on the build version and limit exported functions
