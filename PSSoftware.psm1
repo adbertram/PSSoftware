@@ -3079,7 +3079,7 @@ function Compare-FilePath
 	process
 	{
 		Write-warning "Compare-FilePath is deprecated. May be removed in the future. Use Compare-File instead."
-		-Not Compare-File -ReferenceFilePath $ReferenceFilePath -DifferenceFilePath $DifferenceFilePath
+		-Not (Compare-File -ReferenceFilePath $ReferenceFilePath -DifferenceFilePath $DifferenceFilePath)
 	}
 }
 
