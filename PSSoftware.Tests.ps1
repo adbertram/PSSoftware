@@ -33,3 +33,17 @@ describe 'New-TempFile' {
 	}
 	Remove-Item $file
 }
+
+describe 'Compare-FilePath' {
+	$file = New-TempFile
+	"Test " | out-file $file
+	$file2 = New-TempFile
+	it 'Should match a file to itself' {
+		Compare-FilePath $file $file | should beTrue
+	}
+	it 'should not match different files' {
+		Compare-FilePath $file $file2 | should befalse
+	}
+	remove-item $file
+	remove-item $file2
+}

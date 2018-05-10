@@ -3041,7 +3041,7 @@ function Compare-FilePath
 		{
 			$ReferenceHash = Get-MyFileHash -Path $ReferenceFilePath
 			$DifferenceHash = Get-MyFileHash -Path $DifferenceFilePath
-			$ReferenceHash.SHA256 -ne $DifferenceHash.SHA256
+			$ReferenceHash.SHA256 -eq $DifferenceHash.SHA256
 		}
 		catch
 		{
