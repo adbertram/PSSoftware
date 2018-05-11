@@ -3010,11 +3010,52 @@ function Set-AllUserStartupAction
 	}
 }
 
-function Compare-FilePath
+function Compare-File
 {
 	<#
 	.SYNOPSIS
 		This function checks the hash of 2 files see if they are the same
+	.EXAMPLE
+		PS> Compare-File -ReferenceFile 'C:\Windows\file.txt' -DifferenceFile '\\COMPUTER\c$\Windows\file.txt'
+	
+		This example checks to see if the file C:\Windows\file.txt is exactly the same as the file \\COMPUTER\c$\Windows\file.txt
+	.PARAMETER ReferenceFile
+		The first file path to compare
+	.PARAMETER DifferenceFile
+		The second file path to compare
+	#>
+	[OutputType([bool])]
+	[CmdletBinding()]
+	param (
+		[Parameter(Mandatory = $true)]
+		[ValidateScript({ Test-Path -Path $_ -PathType Leaf })]
+		[string]$ReferenceFilePath,
+		
+		[Parameter(Mandatory = $true)]
+		[ValidateScript({ Test-Path -Path $_ -PathType Leaf })]
+		[string]$DifferenceFilePath
+	)
+	process
+	{
+		try
+		{
+			$ReferenceHash = Get-MyFileHash -Path $ReferenceFilePath
+			$DifferenceHash = Get-MyFileHash -Path $DifferenceFilePath
+			$ReferenceHash.SHA256 -eq $DifferenceHash.SHA256
+		}
+		catch
+		{
+			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			$PSCmdlet.ThrowTerminatingError($_)
+		}
+	}
+}
+
+function Compare-FilePath
+{
+	<#
+	.SYNOPSIS
+		This function checks the hash of 2 files see if they are the same. Returned $true if they are *not* equal.
 	.EXAMPLE
 		PS> Compare-FilePath -ReferencePath 'C:\Windows\file.txt' -DifferencePath '\\COMPUTER\c$\Windows\file.txt'
 	
@@ -3037,17 +3078,8 @@ function Compare-FilePath
 	)
 	process
 	{
-		try
-		{
-			$ReferenceHash = Get-MyFileHash -Path $ReferenceFilePath
-			$DifferenceHash = Get-MyFileHash -Path $DifferenceFilePath
-			$ReferenceHash.SHA256 -ne $DifferenceHash.SHA256
-		}
-		catch
-		{
-			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			$PSCmdlet.ThrowTerminatingError($_)
-		}
+		Write-warning "Compare-FilePath is deprecated. May be removed in the future. Use Compare-File instead."
+		-Not (Compare-File -ReferenceFilePath $ReferenceFilePath -DifferenceFilePath $DifferenceFilePath)
 	}
 }
 
