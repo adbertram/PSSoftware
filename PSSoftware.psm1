@@ -3555,8 +3555,12 @@ function Get-MyFileHash
 				$stream = ([IO.StreamReader]$item).BaseStream
 				foreach ($Type in $Algorithm)
 				{
-					[string]$hash = -join ([Security.Cryptography.HashAlgorithm]::Create($Type).ComputeHash($stream) |
-					ForEach-Object { "{0:x2}" -f $_ })
+					switch ($Type) {
+						'SHA256' { [string]$hash = -join ([Security.Cryptography.SHA256]::Create().ComputeHash($stream) |
+							ForEach-Object { "{0:x2}" -f $_ }) }
+						Default {}
+					}
+					
 					$null = $stream.Seek(0, 0)
 					#If multiple algorithms are used, then they will be added to existing object
 					$object = Add-Member -InputObject $Object -MemberType NoteProperty -Name $Type -Value $Hash -PassThru
