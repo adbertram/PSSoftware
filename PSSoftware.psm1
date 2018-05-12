@@ -3566,8 +3566,10 @@ function Get-MyFileHash
 							ForEach-Object { "{0:x2}" -f $_ }) }
 						'SHA512' { [string]$hash = -join ([Security.Cryptography.SHA512]::Create().ComputeHash($stream) |
 							ForEach-Object { "{0:x2}" -f $_ }) }
-						'RIPEMD160' { [string]$hash = -join ([Security.Cryptography.RIPEMD160]::Create().ComputeHash($stream) |
-							ForEach-Object { "{0:x2}" -f $_ }) }
+						'RIPEMD160' { 
+							if($PSVersionTable.Major -lt 6) {
+							[string]$hash = -join ([Security.Cryptography.RIPEMD160]::Create().ComputeHash($stream) |
+							ForEach-Object { "{0:x2}" -f $_ }) }}
 						Default {}
 					}
 					
