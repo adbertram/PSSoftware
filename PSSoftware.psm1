@@ -3739,10 +3739,10 @@ function New-Shortcut
 		Created on:   	07/19/2014
 		Created by:   	Adam Bertram
 	.EXAMPLE
-		New-Shortcut -FolderPath 'C:\' -Name 'My Shortcut' -TargetFilePath 'C:\Windows\notepad.exe'
+		New-Shortcut -FolderPath 'C:\' -Name 'My Shortcut' -TargetPath 'C:\Windows\notepad.exe'
 		This examples creates a shortcut in C:\ called 'My Shortcut.lnk' pointing to notepad.exe
 	.EXAMPLE
-		New-Shortcut -CommonLocation AllUsersDesktop -Name 'My Shortcut' -TargetFilePath 'C:\Windows\notepad.exe'
+		New-Shortcut -CommonLocation AllUsersDesktop -Name 'My Shortcut' -TargetPath 'C:\Windows\notepad.exe'
 		This examples creates a shortcut on the all users desktop called 'My Shortcut.lnk' pointing to notepad.exe
 	.PARAMETER FolderPath
 		If a custom path is needed that's not included in the list of common locations in the CommonLocation parameter
@@ -3792,7 +3792,6 @@ function New-Shortcut
 	{
 		try
 		{
-			
 			if ($TargetPath -notmatch '^\w{1}:\\')
 			{
 				$Extension = 'url'
@@ -3823,7 +3822,7 @@ function New-Shortcut
 			{
 				$Extension = 'lnk'
 				$Object.Arguments = $Arguments
-				$Object.WorkingDirectory = ($TargetFilePath | Split-Path -Parent)
+				$Object.WorkingDirectory = ($TargetPath | Split-Path -Parent)
 			}
 			
 			if ($PSCmdlet.ShouldProcess($FilePath,'New shortcut')) {
