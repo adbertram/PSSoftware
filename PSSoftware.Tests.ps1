@@ -22,3 +22,28 @@ describe 'Module-level tests' {
 InModuleScope PSSoftware {
 	
 }
+
+describe 'New-TempFile' {
+	$file = New-TempFile
+	it 'should return FileInfo type' {
+		$file | should beoftype [System.IO.FileInfo]
+	}
+	it 'file should exist' {
+		Test-Path $file | should betrue
+	}
+	Remove-Item $file
+}
+
+describe 'Compare-File' {
+	$file = New-TempFile
+	"Test " | out-file $file
+	$file2 = New-TempFile
+	it 'Should match a file to itself' {
+		Compare-File $file $file | should beTrue
+	}
+	it 'should not match different files' {
+		Compare-File $file $file2 | should befalse
+	}
+	remove-item $file
+	remove-item $file2
+}

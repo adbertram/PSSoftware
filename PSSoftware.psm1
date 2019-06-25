@@ -759,7 +759,7 @@ function Stop-MyProcess
 					{
 						foreach ($p in $WmiProcess)
 						{
-							if ($PSCmdlet.ShouldProcess("Process ID: $($p.Id)", 'Stop'))
+							if ($PSCmdlet.ShouldProcess("Process ID: $($p.ProcessId)", 'Stop'))
 							{
 								$WmiResult = $p.Terminate()
 								if ($WmiResult.ReturnValue -eq 1603)
@@ -1214,6 +1214,41 @@ function Write-Log
 	catch
 	{
 		Write-Error $_.Exception.Message
+	}
+}
+
+function New-TempFile
+{
+	<#
+	.SYNOPSIS
+		This function creates a temporary file
+
+	.DESCRIPTION
+		This function creates a file in the $env:TEMP directory. It's purpose is to create a file
+		that doesn't conflict with other files so you don't lose data unintentionally.
+
+	.EXAMPLE
+		PS C:\> New-TempFile
+		This example shows how to call the New-TempFile function.
+
+	.NOTES
+
+	#>
+	[OutputType([System.IO.FileInfo])]
+	[CmdletBinding()]
+	param()
+	if($PSVersionTable.PSVersion.Major -ge 5)
+	{
+		New-TemporaryFile
+	}
+	else
+	{
+		$temp = $env:TEMP
+		do
+		{
+			$filename = "tmp$(Get-Random -max 0xffffff).tmp"
+		} while (Test-Path "$temp\$filename")
+		New-Item "$temp\$filename"
 	}
 }
 
@@ -2032,7 +2067,9 @@ function Import-RegistryFile
 			if ($RegFileHive -ne 'HKEY_CURRENT_USER')
 			{
 				Write-Log -Message "Starting registry import of reg file $FilePath..."
-				($Result = Start-Process "$($env:Systemdrive)\Windows\$RegPath\reg.exe" -ArgumentList "import `"$FilePath`"" -Wait -NoNewWindow -PassThru) | Out-Null
+				$tempFile = New-TempFile
+				($Result = Start-Process "$($env:Systemdrive)\Windows\$RegPath\reg.exe" -ArgumentList "import `"$FilePath`"" -Wait -NoNewWindow -PassThru -RedirectStandardError $tempFile)  | Out-Null
+				Remove-Item $tempFile
 				Test-Process -Process $Result
 				Write-Log -Message 'Registry file import done'
 			}
@@ -2973,11 +3010,52 @@ function Set-AllUserStartupAction
 	}
 }
 
-function Compare-FilePath
+function Compare-File
 {
 	<#
 	.SYNOPSIS
 		This function checks the hash of 2 files see if they are the same
+	.EXAMPLE
+		PS> Compare-File -ReferenceFile 'C:\Windows\file.txt' -DifferenceFile '\\COMPUTER\c$\Windows\file.txt'
+	
+		This example checks to see if the file C:\Windows\file.txt is exactly the same as the file \\COMPUTER\c$\Windows\file.txt
+	.PARAMETER ReferenceFile
+		The first file path to compare
+	.PARAMETER DifferenceFile
+		The second file path to compare
+	#>
+	[OutputType([bool])]
+	[CmdletBinding()]
+	param (
+		[Parameter(Mandatory = $true)]
+		[ValidateScript({ Test-Path -Path $_ -PathType Leaf })]
+		[string]$ReferenceFilePath,
+		
+		[Parameter(Mandatory = $true)]
+		[ValidateScript({ Test-Path -Path $_ -PathType Leaf })]
+		[string]$DifferenceFilePath
+	)
+	process
+	{
+		try
+		{
+			$ReferenceHash = Get-MyFileHash -Path $ReferenceFilePath
+			$DifferenceHash = Get-MyFileHash -Path $DifferenceFilePath
+			$ReferenceHash.SHA256 -eq $DifferenceHash.SHA256
+		}
+		catch
+		{
+			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+			$PSCmdlet.ThrowTerminatingError($_)
+		}
+	}
+}
+
+function Compare-FilePath
+{
+	<#
+	.SYNOPSIS
+		This function checks the hash of 2 files see if they are the same. Returned $true if they are *not* equal.
 	.EXAMPLE
 		PS> Compare-FilePath -ReferencePath 'C:\Windows\file.txt' -DifferencePath '\\COMPUTER\c$\Windows\file.txt'
 	
@@ -3000,17 +3078,8 @@ function Compare-FilePath
 	)
 	process
 	{
-		try
-		{
-			$ReferenceHash = Get-MyFileHash -Path $ReferenceFilePath
-			$DifferenceHash = Get-MyFileHash -Path $DifferenceFilePath
-			$ReferenceHash.SHA256 -ne $DifferenceHash.SHA256
-		}
-		catch
-		{
-			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			$PSCmdlet.ThrowTerminatingError($_)
-		}
+		Write-warning "Compare-FilePath is deprecated. May be removed in the future. Use Compare-File instead."
+		-Not (Compare-File -ReferenceFilePath $ReferenceFilePath -DifferenceFilePath $DifferenceFilePath)
 	}
 }
 
@@ -3486,8 +3555,24 @@ function Get-MyFileHash
 				$stream = ([IO.StreamReader]$item).BaseStream
 				foreach ($Type in $Algorithm)
 				{
-					[string]$hash = -join ([Security.Cryptography.HashAlgorithm]::Create($Type).ComputeHash($stream) |
-					ForEach-Object { "{0:x2}" -f $_ })
+					switch ($Type) {
+						'MD5' { [string]$hash = -join ([Security.Cryptography.MD5]::Create().ComputeHash($stream) |
+							ForEach-Object { "{0:x2}" -f $_ }) }
+						'SHA1' { [string]$hash = -join ([Security.Cryptography.SHA1]::Create().ComputeHash($stream) |
+							ForEach-Object { "{0:x2}" -f $_ }) }
+						'SHA256' { [string]$hash = -join ([Security.Cryptography.SHA256]::Create().ComputeHash($stream) |
+							ForEach-Object { "{0:x2}" -f $_ }) }
+						'SHA384' { [string]$hash = -join ([Security.Cryptography.SHA384]::Create().ComputeHash($stream) |
+							ForEach-Object { "{0:x2}" -f $_ }) }
+						'SHA512' { [string]$hash = -join ([Security.Cryptography.SHA512]::Create().ComputeHash($stream) |
+							ForEach-Object { "{0:x2}" -f $_ }) }
+						'RIPEMD160' { 
+							if($PSVersionTable.Major -lt 6) {
+							[string]$hash = -join ([Security.Cryptography.RIPEMD160]::Create().ComputeHash($stream) |
+							ForEach-Object { "{0:x2}" -f $_ }) }}
+						Default {}
+					}
+					
 					$null = $stream.Seek(0, 0)
 					#If multiple algorithms are used, then they will be added to existing object
 					$object = Add-Member -InputObject $Object -MemberType NoteProperty -Name $Type -Value $Hash -PassThru
@@ -3654,10 +3739,10 @@ function New-Shortcut
 		Created on:   	07/19/2014
 		Created by:   	Adam Bertram
 	.EXAMPLE
-		New-Shortcut -FolderPath 'C:\' -Name 'My Shortcut' -TargetFilePath 'C:\Windows\notepad.exe'
+		New-Shortcut -FolderPath 'C:\' -Name 'My Shortcut' -TargetPath 'C:\Windows\notepad.exe'
 		This examples creates a shortcut in C:\ called 'My Shortcut.lnk' pointing to notepad.exe
 	.EXAMPLE
-		New-Shortcut -CommonLocation AllUsersDesktop -Name 'My Shortcut' -TargetFilePath 'C:\Windows\notepad.exe'
+		New-Shortcut -CommonLocation AllUsersDesktop -Name 'My Shortcut' -TargetPath 'C:\Windows\notepad.exe'
 		This examples creates a shortcut on the all users desktop called 'My Shortcut.lnk' pointing to notepad.exe
 	.PARAMETER FolderPath
 		If a custom path is needed that's not included in the list of common locations in the CommonLocation parameter
@@ -3707,7 +3792,6 @@ function New-Shortcut
 	{
 		try
 		{
-			
 			if ($TargetPath -notmatch '^\w{1}:\\')
 			{
 				$Extension = 'url'
@@ -3738,7 +3822,7 @@ function New-Shortcut
 			{
 				$Extension = 'lnk'
 				$Object.Arguments = $Arguments
-				$Object.WorkingDirectory = ($TargetFilePath | Split-Path -Parent)
+				$Object.WorkingDirectory = ($TargetPath | Split-Path -Parent)
 			}
 			
 			if ($PSCmdlet.ShouldProcess($FilePath,'New shortcut')) {

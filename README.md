@@ -20,9 +20,9 @@ This is what PSSoftware is all about. Removing the complexities of software mana
 
 ## Version Support
 
-| PSv1 | PSv2 | PSv3 | PSv4 | PSv5 
-|-----|------|------|--------|-------|---------|-
-| No   | Yes    | Yes    | Yes      | Untested
+| PSv1 | PSv2 | PSv3 | PSv4 | PSv5     | PSv6  |
+|------|------|------|------|----------|-------|
+| No   | No   | Yes  | Yes  | Untested | No    |
 
 ## Getting Started
 
@@ -42,11 +42,11 @@ Once it's in one of those paths you can either import it manually by ``Import-Mo
 
 In the repo you'll find the following files.
 
-| File     | Provides                                       |
-|-----------------|------------------------------------------------|
-| PSSoftware.psm1 | The PowerShell module                   |
-| SofwareInstallManager.psd1            | The PowerShell module manifest.              |
-| README.md       | Details for quickly understanding the project. |
+| File                       | Provides                                       |
+|----------------------------|------------------------------------------------|
+| PSSoftware.psm1            | The PowerShell module                          |
+| SofwareInstallManager.psd1 | The PowerShell module manifest.                |
+| README.md                  | Details for quickly understanding the project. |
 
 ## Function Categories
 
