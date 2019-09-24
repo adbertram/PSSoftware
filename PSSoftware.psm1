@@ -1,8 +1,7 @@
 ﻿Set-StrictMode -Version Latest
 
-function Test-InstalledSoftware
-{
-	<#
+function Test-InstalledSoftware {
+    <#
 	.SYNOPSIS
 		This function is used as a quick check to see if a specific software product is installed on the local host.
 	.PARAMETER Name
@@ -12,61 +11,57 @@ function Test-InstalledSoftware
 	.PARAMETER Guid
 		The GUID of the installed software
 	#>
-	[OutputType([bool])]
-	[CmdletBinding(DefaultParameterSetName = 'Name')]
-	param (
-		[Parameter(ParameterSetName = 'Name')]
-		[ValidateNotNullOrEmpty()]
-		[string]$Name,
+    [OutputType([bool])]
+    [CmdletBinding(DefaultParameterSetName = 'Name')]
+    param (
+        [Parameter()]
+        [ValidateNotNullOrEmpty()]
+        [string]$ComputerName,
+        
+        [Parameter(ParameterSetName = 'Name')]
+        [ValidateNotNullOrEmpty()]
+        [string]$Name,
 		
-		[Parameter(ParameterSetName = 'Name')]
-		[ValidateNotNullOrEmpty()]
-		[string]$Version,
+        [Parameter(ParameterSetName = 'Name')]
+        [ValidateNotNullOrEmpty()]
+        [string]$Version,
 		
-		[Parameter(ParameterSetName = 'Guid')]
-		[ValidateNotNullOrEmpty()]
-		[Alias('ProductCode')]
-		[string]$Guid
-	)
-	process
-	{
-		try
-		{
-			
-			if ($PSBoundParameters.ContainsKey('Name'))
-			{
-				if ($PSBoundParameters.ContainsKey('Version'))
-				{
-					$SoftwareInstances = Get-InstalledSoftware -Name $Name | Where-Object { $_.Version -eq $Version }
-				}
-				else
-				{
-					$SoftwareInstances = Get-InstalledSoftware -Name $Name
-				}
-			}
-			elseif ($PSBoundParameters.ContainsKey('Guid'))
-			{
-				$SoftwareInstances = Get-InstalledSoftware -Guid $Guid
-			}
-			
-			
-			if (-not $SoftwareInstances)
-			{
-				Write-Log -Message 'The software is NOT installed.'
-				$false
-			}
-			else
-			{
-				Write-Log -Message 'The software IS installed.'
-				$true
-			}
-		}
-		catch
-		{
-			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			$PSCmdlet.ThrowTerminatingError($_)
-		}
-	}
+        [Parameter(ParameterSetName = 'Guid')]
+        [ValidateNotNullOrEmpty()]
+        [Alias('ProductCode')]
+        [string]$Guid
+    )
+    process {
+        try {
+            $getSoftwareParams = @{}
+            if ($PSBoundParameters.ContainsKey('ComputerName')) {
+                $getSoftwareParams.ComputerName = $ComputerName
+            }
+            if ($PSBoundParameters.ContainsKey('Name')) {
+                $getSoftwareParams.Name = $Name
+            }
+
+            $whereFilter = {'*'}
+            if ($PSBoundParameters.ContainsKey('Version')) {
+                $whereFilter = { $_.Version -eq $Version }
+            }
+
+            if ($PSBoundParameters.ContainsKey('Guid')) {
+                $getSoftwareParams.Guid = $Guid
+            }
+
+            if (-not ($SoftwareInstances = Get-InstalledSoftware @getSoftwareParams | Where-Object -FilterScript $whereFilter)) {
+                Write-Log -Message 'The software is NOT installed.'
+                $false
+            } else {
+                Write-Log -Message 'The software IS installed.'
+                $true
+            }
+        } catch {
+            Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
+            $PSCmdlet.ThrowTerminatingError($_)
+        }
+    }
 }
 
 function Get-InstalledSoftware
@@ -86,7 +81,9 @@ function Get-InstalledSoftware
 	[OutputType([System.Management.Automation.PSObject])]
 	[CmdletBinding()]
 	param (
-		[string]$Name,
+        [Parameter()]
+        [ValidateNotNullOrEmpty()]
+        [string]$ComputerName = $ENV:COMPUTERNAME,
 		
 		[ValidatePattern('\b[A-F0-9]{8}(?:-[A-F0-9]{4}){3}-[A-F0-9]{12}\b')]
 		[string]$Guid
@@ -95,72 +92,59 @@ function Get-InstalledSoftware
 	{
 		try
 		{
-			
-			$UninstallKeys = "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall", "HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall"
-			New-PSDrive -Name HKU -PSProvider Registry -Root Registry::HKEY_USERS | Out-Null
-			$UninstallKeys += Get-ChildItem HKU: -ErrorAction SilentlyContinue | Where-Object { $_.Name -match 'S-\d-\d+-(\d+-){1,14}\d+$' } | ForEach-Object { "HKU:\$($_.PSChildName)\Software\Microsoft\Windows\CurrentVersion\Uninstall" }
-			if (-not $UninstallKeys)
-			{
-				Write-Log -Message 'No software registry keys found' -LogLevel '2'
-			}
-			else
-			{
-				foreach ($UninstallKey in $UninstallKeys)
-				{
-					$friendlyNames = @{
-						'DisplayName' = 'Name'
-						'DisplayVersion' = 'Version'
-					}
-					if ($PSBoundParameters.ContainsKey('Name'))
-					{
-						$WhereBlock = { $_.GetValue('DisplayName') -like "$Name*" }
-					}
-					elseif ($PSBoundParameters.ContainsKey('GUID'))
-					{
-						$WhereBlock = { $_.PsChildName -eq $Guid }
-					}
-					else
-					{
-						$WhereBlock = { $_.GetValue('DisplayName') }
-					}
-					$SwKeys = Get-ChildItem -Path $UninstallKey -ErrorAction SilentlyContinue | Where-Object $WhereBlock
-					foreach ($SwKey in $SwKeys)
-					{
-						try {
-							$output = @{ }
-							foreach ($ValName in $SwKey.GetValueNames() | Where-Object { $_ })
-							{
-								if ($ValName -ne 'Version')
-								{
-									Write-Verbose -Message $ValName
-									$output.InstallLocation = ''
-									if ($ValName -eq 'InstallLocation' -and ($SwKey.GetValue($ValName)) -and (@('C:', 'C:\Windows', 'C:\Windows\System32', 'C:\Windows\SysWOW64') -notcontains $SwKey.GetValue($ValName).TrimEnd('\')))
-									{
-										$output.InstallLocation = $SwKey.GetValue($ValName).TrimEnd('\')
-									}
-									[string]$ValData = $SwKey.GetValue($ValName)
-									if ($friendlyNames[$ValName])
-									{
-										$output[$friendlyNames[$ValName]] = $ValData.Trim() ## Some registry values have trailing spaces.
-									}
-									else
-									{
-										$output[$ValName] = $ValData.Trim() ## Some registry values trailing spaces
-									}
-								}
-							}
-							$output.GUID = ''
-							if ($SwKey.PSChildName -match '\b[A-F0-9]{8}(?:-[A-F0-9]{4}){3}-[A-F0-9]{12}\b')
-							{
-								$output.GUID = $SwKey.PSChildName
-							}
-							New-Object –TypeName PSObject -Property $output
-						} catch {
-							Write-Log -Message $_.Exception.Message -LogLevel '2'
-						}
-					}
-				}
-			}
+            $scriptBlock = {
+                param($Name, $Guid)
+                
+                $UninstallKeys = "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall", "HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall"
+                New-PSDrive -Name HKU -PSProvider Registry -Root Registry::HKEY_USERS | Out-Null
+                $UninstallKeys += Get-ChildItem HKU: -ErrorAction SilentlyContinue | Where-Object { $_.Name -match 'S-\d-\d+-(\d+-){1,14}\d+$' } | ForEach-Object { "HKU:\$($_.PSChildName)\Software\Microsoft\Windows\CurrentVersion\Uninstall" }
+                if (-not $UninstallKeys) {
+                    Write-Warning -Message 'No software registry keys found' -LogLevel '2'
+                } else {
+                    foreach ($UninstallKey in $UninstallKeys) {
+                        $friendlyNames = @{
+                            'DisplayName'    = 'Name'
+                            'DisplayVersion' = 'Version'
+                        }
+                        if ($Name) {
+                            $WhereBlock = { $_.GetValue('DisplayName') -like "$Name*" }
+                        } elseif ($Guid) {
+                            $WhereBlock = { $_.PsChildName -eq $Guid }
+                        } else {
+                            $WhereBlock = { $_.GetValue('DisplayName') }
+                        }
+                        $SwKeys = Get-ChildItem -Path $UninstallKey -ErrorAction SilentlyContinue | Where-Object $WhereBlock
+                        foreach ($SwKey in $SwKeys) {
+                            try {
+                                $output = @{ }
+                                foreach ($ValName in $SwKey.GetValueNames() | Where-Object { $_ }) {
+                                    if ($ValName -ne 'Version') {
+                                        Write-Verbose -Message $ValName
+                                        $output.InstallLocation = ''
+                                        if ($ValName -eq 'InstallLocation' -and ($SwKey.GetValue($ValName)) -and (@('C:', 'C:\Windows', 'C:\Windows\System32', 'C:\Windows\SysWOW64') -notcontains $SwKey.GetValue($ValName).TrimEnd('\'))) {
+                                            $output.InstallLocation = $SwKey.GetValue($ValName).TrimEnd('\')
+                                        }
+                                        [string]$ValData = $SwKey.GetValue($ValName)
+                                        if ($friendlyNames[$ValName]) {
+                                            $output[$friendlyNames[$ValName]] = $ValData.Trim() ## Some registry values have trailing spaces.
+                                        } else {
+                                            $output[$ValName] = $ValData.Trim() ## Some registry values trailing spaces
+                                        }
+                                    }
+                                }
+                                $output.GUID = ''
+                                if ($SwKey.PSChildName -match '\b[A-F0-9]{8}(?:-[A-F0-9]{4}){3}-[A-F0-9]{12}\b') {
+                                    $output.GUID = $SwKey.PSChildName
+                                }
+                                New-Object –TypeName PSObject -Property $output
+                            } catch {
+                                Write-Error -Message $_.Exception.Message
+                            }
+                        }
+                    }
+                }
+            }
+            Invoke-Command -ComputerName $ComputerName -ScriptBlock $scriptBlock
 		}
 		catch
 		{
