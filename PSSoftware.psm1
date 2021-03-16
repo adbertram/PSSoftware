@@ -3070,57 +3070,85 @@ function Compare-FilePath
 function Compare-FolderPath
 {
 	<#
-	.SYNOPSIS
-		This function checks all files inside of a folder against another folder to see if they are the same
-	.EXAMPLE
-		PS> Compare-FilePath -ReferencePath 'C:\Windows' -DifferencePath '\\COMPUTER\c$\Windows'
+	    .SYNOPSIS
+		    This function checks all files inside of a folder against another folder to see if they are the same.
+
+	    .EXAMPLE
+		    PS> Compare-FolderPath -ReferenceFolderPath 'C:\Windows' -DifferenceFolderPath '\\COMPUTER\C$\Windows'
 	
-		This example checks to see if the contents in C:\Windows is exactly the same as the contents in \\COMPUTER\c$\Windows
-	.PARAMETER ReferencePath
-		The first folder path to compare
-	.PARAMETER DifferencePath
-		The second folder path to compare
+		    This example checks to see if the contents in C:\Windows is exactly the same as the contents in \\COMPUTER\C$\Windows
+
+	    .EXAMPLE
+		    PS> Compare-FolderPath -ReferenceFolderPath 'C:\Windows' -DifferenceFolderPath '\\COMPUTER\C$\Windows' -Verbose
+	
+		    This example is the similar to the previous example, but in case the result is False it also writes a verbose output of the first problem it finds.
+
+	    .PARAMETER ReferenceFolderPath
+		    The first folder path to compare
+
+	    .PARAMETER DifferenceFolderPath
+		    The second folder path to compare
 	#>
+
 	[OutputType([bool])]
-	[CmdletBinding()]
-	param (
-		[Parameter(Mandatory = $true)]
-		[ValidateScript({ Test-Path -Path $_ -PathType Container })]
-		[string]$ReferenceFolderPath,
-		
-		[Parameter(Mandatory = $true)]
-		[ValidateScript({ Test-Path -Path $_ -PathType Container })]
-		[string]$DifferenceFolderPath
-	)
-	process
-	{
-		try
-		{
-			$ReferenceFiles = Get-ChildItem -Path $ReferenceFolderPath -Recurse | Where-Object { -not $_.PsIsContainer }
-			$DifferenceFiles = Get-ChildItem -Path $DifferenceFolderPath -Recurse | Where-Object { -not $_.PsIsContainer }
-			if ($ReferenceFiles.Count -ne $DifferenceFiles.Count)
-			{
-				Write-Log -Message "Folder path '$ReferenceFolderPath' and '$DifferenceFolderPath' file counts are different" -LogLevel '2'
-				$false
-			}
-			elseif (Compare-Object -ReferenceObject ($ReferenceFiles | Get-MyFileHash) -DifferenceObject ($DifferenceFiles | Get-MyFileHash))
-			{
-				Write-Log -Message "Folder path '$ReferenceFolderPath' and '$DifferenceFolderPath' file hashes are different" -LogLevel '2'
-				$false
-			}
-			else
-			{
-				Write-Log -Message "Folder path '$ReferenceFolderPath' and '$DifferenceFolderPath' have equal contents"
-				$true
-			}
-			
-		}
-		catch
-		{
-			Write-Log -Message "Error: $($_.Exception.Message) - Line Number: $($_.InvocationInfo.ScriptLineNumber)" -LogLevel '3'
-			$PSCmdlet.ThrowTerminatingError($_)
-		}
-	}
+    [CmdletBinding()]
+    Param
+    (
+        [Parameter(Mandatory)]
+        [ValidateScript({Test-Path $_})]
+        [string]$ReferenceFolderPath,
+        [Parameter(Mandatory)]
+        [ValidateScript({Test-Path $_})]
+        [string]$DifferenceFolderPath
+    )
+
+    $allFiles1 = Get-ChildItem -Path $ReferenceFolderPath -Recurse -File |
+    Select-Object Name, FullName, @{
+        N = 'RelativePath'
+        E = { $_.FullName.Substring($ReferenceFolderPath.Length + 1) }
+    } | Sort-Object RelativePath
+
+    $allFiles2 = Get-ChildItem -Path $DifferenceFolderPath -Recurse  -File |
+    Select-Object Name, FullName, @{
+        N = 'RelativePath'
+        E = { $_.FullName.Substring($DifferenceFolderPath.Length + 1) }
+    } | Sort-Object RelativePath
+
+    $isSameCount = $allFiles1.Count -eq $allFiles2.Count
+
+    if(-not($isSameCount))
+    {
+        Write-Verbose "The number of files on '$ReferenceFolderPath' is not equal to that on '$DifferenceFolderPath'."
+        return $false
+    }
+
+    foreach ($f1 in $allFiles1)
+    {
+        $f1Path = $f1.FullName
+       
+        $f2 = $allFiles2 | Where-Object RelativePath -eq $f1.RelativePath
+
+        if($f2 -eq $null)
+        {
+            Write-Verbose "Could not find a matching path '$f1Path' on '$DifferenceFolderPath'"
+            return $false
+        }
+
+        $f2Path = $f2.FullName
+       
+        $hash1 = Get-FileHash -Path $f1Path
+        $hash2 = Get-FileHash -Path $f2Path
+
+        $isHashSame = $hash1.Hash -eq $hash2.Hash        
+
+        if(-not($isHashSame))
+        {
+            Write-Verbose "The contents of '$f1Path' is not identical to that of '$f2Path'"
+            return $false
+        }
+    }
+
+    $true
 }
 
 function Copy-FileWithHashCheck
